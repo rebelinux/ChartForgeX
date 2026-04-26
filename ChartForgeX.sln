@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChartForgeX", "ChartForgeX\ChartForgeX.csproj", "{A59D53FA-1F7B-4B30-A5A3-78B8723E3E41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChartForgeX.Examples", "ChartForgeX.Examples\ChartForgeX.Examples.csproj", "{52B7C43E-25BF-4C8D-8FBB-D3D98B48A44A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A59D53FA-1F7B-4B30-A5A3-78B8723E3E41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A59D53FA-1F7B-4B30-A5A3-78B8723E3E41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A59D53FA-1F7B-4B30-A5A3-78B8723E3E41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A59D53FA-1F7B-4B30-A5A3-78B8723E3E41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{52B7C43E-25BF-4C8D-8FBB-D3D98B48A44A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52B7C43E-25BF-4C8D-8FBB-D3D98B48A44A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52B7C43E-25BF-4C8D-8FBB-D3D98B48A44A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52B7C43E-25BF-4C8D-8FBB-D3D98B48A44A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
