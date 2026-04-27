@@ -4,8 +4,115 @@ param(
 
     [switch] $SkipExamples,
 
-    [switch] $SkipPack
+    [switch] $SkipPack,
+
+    [switch] $UpdateVisualBaseline
 )
+
+function Assert-VisualComparisonHealth {
+    param(
+        [Parameter(Mandatory = $true)] $Comparison,
+        [Parameter(Mandatory = $true)] [string] $ComparisonManifest
+    )
+
+    $minimumChartPairs = 20
+    if ($Comparison.chartPairs -lt $minimumChartPairs) {
+        throw "SVG/PNG comparison generated only $($Comparison.chartPairs) chart pair(s); expected at least $minimumChartPairs. See $ComparisonManifest."
+    }
+
+    if ($Comparison.dimensionMatches -ne $Comparison.chartPairs) {
+        throw "SVG/PNG comparison has $($Comparison.dimensionMatches) dimension-matched chart pair(s) out of $($Comparison.chartPairs). See $ComparisonManifest."
+    }
+
+    if ($Comparison.healthySvgs -ne $Comparison.chartPairs -or $Comparison.healthyPngs -ne $Comparison.chartPairs) {
+        throw "SVG/PNG comparison health is incomplete: $($Comparison.healthySvgs) SVG(s), $($Comparison.healthyPngs) PNG(s), $($Comparison.chartPairs) chart pair(s). See $ComparisonManifest."
+    }
+
+    if ($Comparison.warnings -ne 0) {
+        throw "SVG/PNG comparison reported $($Comparison.warnings) visual warning(s). See $ComparisonManifest."
+    }
+}
+
+function New-VisualBaseline {
+    param(
+        [Parameter(Mandatory = $true)] $Comparison
+    )
+
+    $updatedCharts = foreach ($chart in $Comparison.charts) {
+        [ordered]@{
+            name = $chart.name
+            width = [int]$chart.svg.width
+            height = [int]$chart.svg.height
+            svg = [ordered]@{
+                minVisualNodes = [int][Math]::Max(2, [int][Math]::Floor([double]$chart.svg.visualNodes * 0.5))
+            }
+            png = [ordered]@{
+                minVisiblePixels = [long][Math]::Max(64, [long][Math]::Floor([double]$chart.png.visiblePixels * 0.5))
+                minDistinctColors = [int][Math]::Max(8, [int][Math]::Floor([double]$chart.png.distinctColors * 0.5))
+            }
+        }
+    }
+
+    [ordered]@{
+        version = 1
+        charts = @($updatedCharts)
+    }
+}
+
+function Update-VisualBaseline {
+    param(
+        [Parameter(Mandatory = $true)] $Comparison,
+        [Parameter(Mandatory = $true)] [string] $VisualBaselinePath
+    )
+
+    New-VisualBaseline -Comparison $Comparison | ConvertTo-Json -Depth 8 | Set-Content -Path $VisualBaselinePath -Encoding UTF8
+    Write-Host "Updated SVG/PNG visual baseline: $VisualBaselinePath"
+}
+
+function Assert-VisualBaseline {
+    param(
+        [Parameter(Mandatory = $true)] $Comparison,
+        [Parameter(Mandatory = $true)] [string] $VisualBaselinePath,
+        [Parameter(Mandatory = $true)] [string] $ComparisonManifest
+    )
+
+    if (-not (Test-Path $VisualBaselinePath)) {
+        throw "SVG/PNG visual baseline was not found: $VisualBaselinePath"
+    }
+
+    $visualBaseline = Get-Content -Path $VisualBaselinePath -Raw | ConvertFrom-Json
+    $generatedCharts = @{}
+    foreach ($chart in $Comparison.charts) {
+        $generatedCharts[$chart.name] = $chart
+    }
+
+    $baselineCharts = @{}
+    foreach ($expected in $visualBaseline.charts) {
+        $baselineCharts[$expected.name] = $expected
+        if (-not $generatedCharts.ContainsKey($expected.name)) {
+            throw "SVG/PNG baseline chart is missing from generated comparison: $($expected.name). See $ComparisonManifest."
+        }
+
+        $actual = $generatedCharts[$expected.name]
+        if ($actual.svg.width -ne $expected.width -or $actual.svg.height -ne $expected.height -or $actual.png.width -ne $expected.width -or $actual.png.height -ne $expected.height) {
+            throw "SVG/PNG baseline dimensions changed for $($expected.name). Expected $($expected.width)x$($expected.height). See $ComparisonManifest."
+        }
+
+        if ($actual.svg.visualNodes -lt $expected.svg.minVisualNodes) {
+            throw "SVG visual-node baseline dropped for $($expected.name): $($actual.svg.visualNodes) < $($expected.svg.minVisualNodes). See $ComparisonManifest."
+        }
+
+        if ($actual.png.visiblePixels -lt $expected.png.minVisiblePixels -or $actual.png.distinctColors -lt $expected.png.minDistinctColors) {
+            throw "PNG visibility baseline dropped for $($expected.name): $($actual.png.visiblePixels) visible pixel(s), $($actual.png.distinctColors) color(s). See $ComparisonManifest."
+        }
+    }
+
+    foreach ($actual in $Comparison.charts) {
+        if (-not $baselineCharts.ContainsKey($actual.name)) {
+            throw "SVG/PNG generated chart is missing from visual baseline: $($actual.name). Update $VisualBaselinePath."
+        }
+    }
+}
 
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ge 7) {
@@ -18,6 +125,9 @@ try {
     $tests = Join-Path $root 'ChartForgeX.Tests/ChartForgeX.Tests.csproj'
     $examples = Join-Path $root 'ChartForgeX.Examples/ChartForgeX.Examples.csproj'
     $library = Join-Path $root 'ChartForgeX/ChartForgeX.csproj'
+    if ($SkipExamples -and $UpdateVisualBaseline) {
+        throw 'Visual baseline updates require examples to run. Remove -SkipExamples.'
+    }
 
     dotnet restore .\ChartForgeX.sln
     dotnet build $solution -c $Configuration --no-restore
@@ -25,6 +135,19 @@ try {
 
     if (-not $SkipExamples) {
         dotnet run --project $examples -c $Configuration --no-build
+        $comparisonManifest = Join-Path $root "ChartForgeX.Examples/bin/$Configuration/net8.0/output/svg-png-comparison.json"
+        if (-not (Test-Path $comparisonManifest)) {
+            throw "SVG/PNG comparison manifest was not generated: $comparisonManifest"
+        }
+
+        $comparison = Get-Content -Path $comparisonManifest -Raw | ConvertFrom-Json
+        Assert-VisualComparisonHealth -Comparison $comparison -ComparisonManifest $comparisonManifest
+        $visualBaselinePath = Join-Path $root "ChartForgeX.Examples/visual-baseline.json"
+        if ($UpdateVisualBaseline) {
+            Update-VisualBaseline -Comparison $comparison -VisualBaselinePath $visualBaselinePath
+        }
+
+        Assert-VisualBaseline -Comparison $comparison -VisualBaselinePath $visualBaselinePath -ComparisonManifest $comparisonManifest
     }
 
     if (-not $SkipPack) {

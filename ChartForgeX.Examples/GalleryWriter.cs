@@ -5,6 +5,10 @@ public static class GalleryWriter {
     private const string IndexFileName = "index.html";
     private const string ComparisonFileName = "svg-png-comparison.html";
     private const string ComparisonManifestFileName = "svg-png-comparison.json";
+    private const string VisualBaselineFileName = "visual-baseline.json";
+    private const int MinimumHealthySvgVisualNodes = 2;
+    private const long MinimumHealthyPngVisiblePixels = 64;
+    private const int MinimumHealthyPngDistinctColors = 8;
 
     /// <summary>
     /// Generates an index page for all chart HTML files in the output directory.
@@ -84,6 +88,10 @@ public static class GalleryWriter {
             .Select(name => ReadComparisonAsset(output, name))
             .ToArray();
         var matchingPairs = pairs.Count(pair => pair.HasMatchingDimensions);
+        var healthySvgs = pairs.Count(pair => pair.SvgHealth.IsHealthy);
+        var healthyPngs = pairs.Count(pair => pair.PngHealth.IsHealthy);
+        var warningCount = pairs.Sum(pair => pair.Warnings.Length);
+        var baseline = ReadBaselineSummary(output, pairs);
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<!doctype html>");
         sb.AppendLine("<html lang=\"en\">");
@@ -104,7 +112,7 @@ public static class GalleryWriter {
         sb.AppendLine("<header>");
         sb.AppendLine("<h1>ChartForgeX SVG/PNG visual comparison</h1>");
         sb.AppendLine("<p>Generated from current example exports. SVG is left, PNG is right.</p>");
-        sb.AppendLine("<div class=\"summary\"><span class=\"pill\">" + pairs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " chart pairs</span><span class=\"pill " + (matchingPairs == pairs.Length ? "ok" : "warn") + "\">" + matchingPairs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " dimension matches</span><a class=\"pill\" href=\"" + ComparisonManifestFileName + "\">manifest JSON</a></div>");
+        sb.AppendLine("<div class=\"summary\"><span class=\"pill\">" + pairs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " chart pairs</span><span class=\"pill " + (matchingPairs == pairs.Length ? "ok" : "warn") + "\">" + matchingPairs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " dimension matches</span><span class=\"pill " + (healthySvgs == pairs.Length ? "ok" : "warn") + "\">" + healthySvgs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " healthy SVGs</span><span class=\"pill " + (healthyPngs == pairs.Length ? "ok" : "warn") + "\">" + healthyPngs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " healthy PNGs</span><span class=\"pill " + (warningCount == 0 ? "ok" : "warn") + "\">" + warningCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " warnings</span>" + FormatBaselinePill(baseline) + "<a class=\"pill\" href=\"" + ComparisonManifestFileName + "\">manifest JSON</a></div>");
         sb.AppendLine("</header>");
         sb.AppendLine("<main>");
 
@@ -116,7 +124,7 @@ public static class GalleryWriter {
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
         File.WriteAllText(Path.Combine(output, ComparisonFileName), sb.ToString());
-        WriteComparisonManifest(output, pairs, matchingPairs);
+        WriteComparisonManifest(output, pairs, matchingPairs, baseline);
     }
 
     private static ComparisonAsset ReadComparisonAsset(string output, string name) {
@@ -127,31 +135,120 @@ public static class GalleryWriter {
             ReadSvgDimensions(svgFileName),
             ReadPngDimensions(pngFileName),
             ReadFileLength(svgFileName),
-            ReadFileLength(pngFileName));
+            ReadFileLength(pngFileName),
+            ReadSvgHealth(svgFileName),
+            ReadPngHealth(pngFileName));
     }
 
-    private static void WriteComparisonManifest(string output, ComparisonAsset[] pairs, int matchingPairs) {
+    private static void WriteComparisonManifest(string output, ComparisonAsset[] pairs, int matchingPairs, BaselineSummary baseline) {
         var manifest = new {
             chartPairs = pairs.Length,
             dimensionMatches = matchingPairs,
+            healthySvgs = pairs.Count(pair => pair.SvgHealth.IsHealthy),
+            healthyPngs = pairs.Count(pair => pair.PngHealth.IsHealthy),
+            warnings = pairs.Sum(pair => pair.Warnings.Length),
+            baseline = new {
+                present = baseline.IsPresent,
+                chartMatches = baseline.ChartMatches,
+                warnings = baseline.Warnings,
+                clean = baseline.IsClean
+            },
+            healthThresholds = new {
+                svgVisualNodes = MinimumHealthySvgVisualNodes,
+                pngVisiblePixels = MinimumHealthyPngVisiblePixels,
+                pngDistinctColors = MinimumHealthyPngDistinctColors
+            },
             comparisonModes = new[] { "side-by-side", "center-wipe" },
             charts = pairs.Select(pair => new {
                 name = pair.Name,
                 dimensionsMatch = pair.HasMatchingDimensions,
+                warnings = pair.Warnings,
                 svg = new {
                     width = pair.SvgDimensions.Width,
                     height = pair.SvgDimensions.Height,
-                    bytes = pair.SvgBytes
+                    bytes = pair.SvgBytes,
+                    visualNodes = pair.SvgHealth.VisualNodes,
+                    textNodes = pair.SvgHealth.TextNodes,
+                    healthy = pair.SvgHealth.IsHealthy
                 },
                 png = new {
                     width = pair.PngDimensions.Width,
                     height = pair.PngDimensions.Height,
-                    bytes = pair.PngBytes
+                    bytes = pair.PngBytes,
+                    visiblePixels = pair.PngHealth.VisiblePixels,
+                    distinctColors = pair.PngHealth.DistinctColors,
+                    healthy = pair.PngHealth.IsHealthy
                 }
             }).ToArray()
         };
         var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
         File.WriteAllText(Path.Combine(output, ComparisonManifestFileName), System.Text.Json.JsonSerializer.Serialize(manifest, options));
+    }
+
+    private static BaselineSummary ReadBaselineSummary(string output, ComparisonAsset[] pairs) {
+        var baselineFile = FindVisualBaselineFile(output);
+        if (baselineFile.Length == 0) return default;
+        try {
+            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(baselineFile));
+            var baselineCharts = document.RootElement.GetProperty("charts").EnumerateArray().ToArray();
+            var generated = pairs.ToDictionary(pair => pair.Name, StringComparer.OrdinalIgnoreCase);
+            var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var matches = 0;
+            var warnings = 0;
+            foreach (var baselineChart in baselineCharts) {
+                var name = baselineChart.GetProperty("name").GetString() ?? string.Empty;
+                if (!expected.Add(name) || !generated.TryGetValue(name, out var actual)) {
+                    warnings++;
+                    continue;
+                }
+
+                var width = baselineChart.GetProperty("width").GetInt32();
+                var height = baselineChart.GetProperty("height").GetInt32();
+                var minVisualNodes = baselineChart.GetProperty("svg").GetProperty("minVisualNodes").GetInt32();
+                var minVisiblePixels = baselineChart.GetProperty("png").GetProperty("minVisiblePixels").GetInt64();
+                var minDistinctColors = baselineChart.GetProperty("png").GetProperty("minDistinctColors").GetInt32();
+                if (actual.SvgDimensions.Width == width &&
+                    actual.SvgDimensions.Height == height &&
+                    actual.PngDimensions.Width == width &&
+                    actual.PngDimensions.Height == height &&
+                    actual.SvgHealth.VisualNodes >= minVisualNodes &&
+                    actual.PngHealth.VisiblePixels >= minVisiblePixels &&
+                    actual.PngHealth.DistinctColors >= minDistinctColors) {
+                    matches++;
+                } else {
+                    warnings++;
+                }
+            }
+
+            foreach (var pair in pairs) {
+                if (!expected.Contains(pair.Name)) warnings++;
+            }
+
+            return new BaselineSummary(true, matches, warnings);
+        } catch (IOException) {
+        } catch (UnauthorizedAccessException) {
+        } catch (System.Text.Json.JsonException) {
+        } catch (InvalidOperationException) {
+        } catch (KeyNotFoundException) {
+        }
+
+        return new BaselineSummary(true, 0, pairs.Length);
+    }
+
+    private static string FindVisualBaselineFile(string output) {
+        var directory = new DirectoryInfo(Path.GetFullPath(output));
+        while (directory != null) {
+            var candidate = Path.Combine(directory.FullName, VisualBaselineFileName);
+            if (File.Exists(candidate)) return candidate;
+            directory = directory.Parent;
+        }
+
+        return string.Empty;
+    }
+
+    private static string FormatBaselinePill(BaselineSummary baseline) {
+        if (!baseline.IsPresent) return "<span class=\"pill warn\">no baseline</span>";
+        return "<span class=\"pill " + (baseline.IsClean ? "ok" : "warn") + "\">" + baseline.ChartMatches.ToString(System.Globalization.CultureInfo.InvariantCulture) + " baseline passes</span><span class=\"pill " + (baseline.Warnings == 0 ? "ok" : "warn") + "\">" + baseline.Warnings.ToString(System.Globalization.CultureInfo.InvariantCulture) + " baseline warnings</span>";
     }
 
     private static void AppendComparisonCard(System.Text.StringBuilder sb, ComparisonAsset pair) {
@@ -166,13 +263,16 @@ public static class GalleryWriter {
         }
 
         var ratioStyle = " style=\"aspect-ratio:" + aspectWidth.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/" + aspectHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"";
-        var statusClass = pair.HasMatchingDimensions ? "ok" : "warn";
-        var statusText = pair.HasMatchingDimensions ? "Dimension match" : "Dimension mismatch";
+        var warnings = pair.Warnings;
+        var statusClass = warnings.Length == 0 ? "ok" : "warn";
+        var statusText = warnings.Length == 0 ? "Review clean" : string.Join(" / ", warnings);
+        var svgInfo = FormatDimensions(svg) + " / " + FormatBytes(pair.SvgBytes) + " / " + pair.SvgHealth.VisualNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visual nodes";
+        var pngInfo = FormatDimensions(png) + " / " + FormatBytes(pair.PngBytes) + " / " + pair.PngHealth.VisiblePixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visible px";
         sb.AppendLine("<section class=\"" + (pair.HasMatchingDimensions ? "match" : "mismatch") + "\">");
         sb.AppendLine("<h2><span>" + EscapeHtml(name) + "</span><span class=\"status " + statusClass + "\">" + statusText + "</span></h2>");
         sb.AppendLine("<div class=\"pair\">");
-        sb.AppendLine("<figure><figcaption class=\"caption\"><a class=\"format\" href=\"" + EscapeHtml(name) + ".svg\">SVG</a><span class=\"dims\">" + EscapeHtml(FormatDimensions(svg)) + "</span></figcaption><div class=\"media\"" + ratioStyle + "><object data=\"" + EscapeHtml(name) + ".svg\" type=\"image/svg+xml\"></object></div></figure>");
-        sb.AppendLine("<figure><figcaption class=\"caption\"><a class=\"format\" href=\"" + EscapeHtml(name) + ".png\">PNG</a><span class=\"dims\">" + EscapeHtml(FormatDimensions(png)) + "</span></figcaption><div class=\"media\"" + ratioStyle + "><img src=\"" + EscapeHtml(name) + ".png\" alt=\"" + EscapeHtml(name) + " PNG\"></div></figure>");
+        sb.AppendLine("<figure><figcaption class=\"caption\"><a class=\"format\" href=\"" + EscapeHtml(name) + ".svg\">SVG</a><span class=\"dims\">" + EscapeHtml(svgInfo) + "</span></figcaption><div class=\"media\"" + ratioStyle + "><object data=\"" + EscapeHtml(name) + ".svg\" type=\"image/svg+xml\"></object></div></figure>");
+        sb.AppendLine("<figure><figcaption class=\"caption\"><a class=\"format\" href=\"" + EscapeHtml(name) + ".png\">PNG</a><span class=\"dims\">" + EscapeHtml(pngInfo) + "</span></figcaption><div class=\"media\"" + ratioStyle + "><img src=\"" + EscapeHtml(name) + ".png\" alt=\"" + EscapeHtml(name) + " PNG\"></div></figure>");
         sb.AppendLine("<figure><figcaption class=\"caption\"><span class=\"format\">WIPE</span><span class=\"dims\">" + EscapeHtml(FormatDimensions(svg)) + "</span></figcaption><div class=\"media wipe\"" + ratioStyle + "><img src=\"" + EscapeHtml(name) + ".png\" alt=\"" + EscapeHtml(name) + " PNG wipe right\"><object data=\"" + EscapeHtml(name) + ".svg\" type=\"image/svg+xml\" aria-label=\"" + EscapeHtml(name) + " SVG wipe left\"></object></div></figure>");
         sb.AppendLine("</div>");
         sb.AppendLine("</section>");
@@ -225,6 +325,12 @@ public static class GalleryWriter {
             : "unknown";
     }
 
+    private static string FormatBytes(long bytes) {
+        if (bytes >= 1024 * 1024) return (bytes / (1024d * 1024d)).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " MB";
+        if (bytes >= 1024) return (bytes / 1024d).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " KB";
+        return bytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " B";
+    }
+
     private static int ReadSvgNumericAttribute(string svg, string name) {
         var value = ReadSvgAttribute(svg, name);
         if (string.IsNullOrWhiteSpace(value)) return 0;
@@ -257,6 +363,143 @@ public static class GalleryWriter {
         return 0;
     }
 
+    private static SvgHealth ReadSvgHealth(string fileName) {
+        try {
+            var svg = File.ReadAllText(Path.GetFullPath(fileName));
+            var visualNodes =
+                CountOccurrences(svg, "<path") +
+                CountOccurrences(svg, "<rect") +
+                CountOccurrences(svg, "<circle") +
+                CountOccurrences(svg, "<line") +
+                CountOccurrences(svg, "<polygon") +
+                CountOccurrences(svg, "<polyline") +
+                CountOccurrences(svg, "<text");
+            return new SvgHealth(visualNodes, CountOccurrences(svg, "<text"));
+        } catch (IOException) {
+        } catch (UnauthorizedAccessException) {
+        }
+
+        return default;
+    }
+
+    private static PngHealth ReadPngHealth(string fileName) {
+        try {
+            var png = File.ReadAllBytes(Path.GetFullPath(fileName));
+            var dimensions = ReadPngDimensions(fileName);
+            if (dimensions.Width <= 0 || dimensions.Height <= 0) return default;
+            var idat = new List<byte>();
+            var offset = 8;
+            while (offset + 8 <= png.Length) {
+                var length = ReadBigEndianInt32(png, offset);
+                if (length < 0 || offset + 12 + length > png.Length) return default;
+                var type = System.Text.Encoding.ASCII.GetString(png, offset + 4, 4);
+                if (type == "IDAT") {
+                    for (var i = 0; i < length; i++) idat.Add(png[offset + 8 + i]);
+                }
+
+                offset += 12 + length;
+            }
+
+            if (idat.Count <= 6) return default;
+            using var source = new MemoryStream(idat.ToArray(), 2, idat.Count - 6);
+            using var deflate = new System.IO.Compression.DeflateStream(source, System.IO.Compression.CompressionMode.Decompress);
+            using var inflated = new MemoryStream();
+            deflate.CopyTo(inflated);
+            var raw = inflated.ToArray();
+            var stride = dimensions.Width * 4;
+            if (raw.Length < dimensions.Height * (stride + 1)) return default;
+            var previous = new byte[stride];
+            var current = new byte[stride];
+            var visiblePixels = 0L;
+            var colors = new HashSet<int>();
+            var rawOffset = 0;
+            for (var y = 0; y < dimensions.Height; y++) {
+                var filter = raw[rawOffset++];
+                if (rawOffset + stride > raw.Length || !UnfilterPngRow(raw, rawOffset, current, previous, stride, 4, filter)) return default;
+                rawOffset += stride;
+                for (var x = 0; x < stride; x += 4) {
+                    var r = current[x];
+                    var g = current[x + 1];
+                    var b = current[x + 2];
+                    var a = current[x + 3];
+                    if (a > 0) visiblePixels++;
+                    if (colors.Count < 4096) colors.Add((r << 24) | (g << 16) | (b << 8) | a);
+                }
+
+                var swap = previous;
+                previous = current;
+                current = swap;
+            }
+
+            return new PngHealth(visiblePixels, colors.Count);
+        } catch (IOException) {
+        } catch (UnauthorizedAccessException) {
+        } catch (InvalidDataException) {
+        }
+
+        return default;
+    }
+
+    private static bool UnfilterPngRow(byte[] raw, int rawOffset, byte[] output, byte[] previous, int stride, int bytesPerPixel, int filter) {
+        switch (filter) {
+            case 0:
+                Buffer.BlockCopy(raw, rawOffset, output, 0, stride);
+                return true;
+            case 1:
+                for (var i = 0; i < stride; i++) {
+                    var left = i >= bytesPerPixel ? output[i - bytesPerPixel] : 0;
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + left));
+                }
+
+                return true;
+            case 2:
+                for (var i = 0; i < stride; i++) {
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + previous[i]));
+                }
+
+                return true;
+            case 3:
+                for (var i = 0; i < stride; i++) {
+                    var left = i >= bytesPerPixel ? output[i - bytesPerPixel] : 0;
+                    var up = previous[i];
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + ((left + up) >> 1)));
+                }
+
+                return true;
+            case 4:
+                for (var i = 0; i < stride; i++) {
+                    var left = i >= bytesPerPixel ? output[i - bytesPerPixel] : 0;
+                    var up = previous[i];
+                    var upperLeft = i >= bytesPerPixel ? previous[i - bytesPerPixel] : 0;
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + PaethPredictor(left, up, upperLeft)));
+                }
+
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static int PaethPredictor(int left, int up, int upperLeft) {
+        var estimate = left + up - upperLeft;
+        var leftDistance = Math.Abs(estimate - left);
+        var upDistance = Math.Abs(estimate - up);
+        var upperLeftDistance = Math.Abs(estimate - upperLeft);
+        if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) return left;
+        return upDistance <= upperLeftDistance ? up : upperLeft;
+    }
+
+    private static int CountOccurrences(string value, string pattern) {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(pattern, index, StringComparison.OrdinalIgnoreCase)) >= 0) {
+            count++;
+            index += pattern.Length;
+        }
+
+        return count;
+    }
+
     private static string EscapeHtml(string value) => System.Net.WebUtility.HtmlEncode(value);
 
     private readonly struct AssetDimensions {
@@ -271,12 +514,14 @@ public static class GalleryWriter {
     }
 
     private readonly struct ComparisonAsset {
-        public ComparisonAsset(string name, AssetDimensions svgDimensions, AssetDimensions pngDimensions, long svgBytes, long pngBytes) {
+        public ComparisonAsset(string name, AssetDimensions svgDimensions, AssetDimensions pngDimensions, long svgBytes, long pngBytes, SvgHealth svgHealth, PngHealth pngHealth) {
             Name = name;
             SvgDimensions = svgDimensions;
             PngDimensions = pngDimensions;
             SvgBytes = svgBytes;
             PngBytes = pngBytes;
+            SvgHealth = svgHealth;
+            PngHealth = pngHealth;
         }
 
         public string Name { get; }
@@ -289,10 +534,66 @@ public static class GalleryWriter {
 
         public long PngBytes { get; }
 
+        public SvgHealth SvgHealth { get; }
+
+        public PngHealth PngHealth { get; }
+
         public bool HasMatchingDimensions =>
             SvgDimensions.Width > 0 &&
             SvgDimensions.Height > 0 &&
             SvgDimensions.Width == PngDimensions.Width &&
             SvgDimensions.Height == PngDimensions.Height;
+
+        public string[] Warnings {
+            get {
+                var warnings = new List<string>();
+                if (!HasMatchingDimensions) warnings.Add("dimension mismatch");
+                if (!SvgHealth.IsHealthy) warnings.Add("SVG health warning");
+                if (!PngHealth.IsHealthy) warnings.Add("PNG health warning");
+                return warnings.ToArray();
+            }
+        }
+    }
+
+    private readonly struct SvgHealth {
+        public SvgHealth(int visualNodes, int textNodes) {
+            VisualNodes = visualNodes;
+            TextNodes = textNodes;
+        }
+
+        public int VisualNodes { get; }
+
+        public int TextNodes { get; }
+
+        public bool IsHealthy => VisualNodes >= MinimumHealthySvgVisualNodes;
+    }
+
+    private readonly struct PngHealth {
+        public PngHealth(long visiblePixels, int distinctColors) {
+            VisiblePixels = visiblePixels;
+            DistinctColors = distinctColors;
+        }
+
+        public long VisiblePixels { get; }
+
+        public int DistinctColors { get; }
+
+        public bool IsHealthy => VisiblePixels >= MinimumHealthyPngVisiblePixels && DistinctColors >= MinimumHealthyPngDistinctColors;
+    }
+
+    private readonly struct BaselineSummary {
+        public BaselineSummary(bool isPresent, int chartMatches, int warnings) {
+            IsPresent = isPresent;
+            ChartMatches = chartMatches;
+            Warnings = warnings;
+        }
+
+        public bool IsPresent { get; }
+
+        public int ChartMatches { get; }
+
+        public int Warnings { get; }
+
+        public bool IsClean => IsPresent && Warnings == 0;
     }
 }

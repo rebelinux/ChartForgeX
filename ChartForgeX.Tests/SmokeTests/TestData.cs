@@ -56,16 +56,74 @@ internal static partial class SmokeTests {
         deflate.CopyTo(rawStream);
         var raw = rawStream.ToArray();
         var rgba = new byte[width * height * 4];
+        var stride = width * 4;
+        var previous = new byte[stride];
+        var current = new byte[stride];
         var src = 0;
         var dst = 0;
         for (var y = 0; y < height; y++) {
-            Assert(raw[src++] == 0, "PNG smoke decoder expects unfiltered rows.");
-            Buffer.BlockCopy(raw, src, rgba, dst, width * 4);
-            src += width * 4;
-            dst += width * 4;
+            var filter = raw[src++];
+            Assert(src + stride <= raw.Length, "PNG smoke decoder expects complete scanlines.");
+            Assert(UnfilterPngRow(raw, src, current, previous, stride, 4, filter), "PNG smoke decoder expects standard RGBA scanline filters.");
+            Buffer.BlockCopy(current, 0, rgba, dst, stride);
+            src += stride;
+            dst += stride;
+
+            var swap = previous;
+            previous = current;
+            current = swap;
         }
 
         return rgba;
+    }
+
+    private static bool UnfilterPngRow(byte[] raw, int rawOffset, byte[] output, byte[] previous, int stride, int bytesPerPixel, int filter) {
+        switch (filter) {
+            case 0:
+                Buffer.BlockCopy(raw, rawOffset, output, 0, stride);
+                return true;
+            case 1:
+                for (var i = 0; i < stride; i++) {
+                    var left = i >= bytesPerPixel ? output[i - bytesPerPixel] : 0;
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + left));
+                }
+
+                return true;
+            case 2:
+                for (var i = 0; i < stride; i++) {
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + previous[i]));
+                }
+
+                return true;
+            case 3:
+                for (var i = 0; i < stride; i++) {
+                    var left = i >= bytesPerPixel ? output[i - bytesPerPixel] : 0;
+                    var up = previous[i];
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + ((left + up) >> 1)));
+                }
+
+                return true;
+            case 4:
+                for (var i = 0; i < stride; i++) {
+                    var left = i >= bytesPerPixel ? output[i - bytesPerPixel] : 0;
+                    var up = previous[i];
+                    var upperLeft = i >= bytesPerPixel ? previous[i - bytesPerPixel] : 0;
+                    output[i] = unchecked((byte)(raw[rawOffset + i] + PaethPredictor(left, up, upperLeft)));
+                }
+
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static int PaethPredictor(int left, int up, int upperLeft) {
+        var estimate = left + up - upperLeft;
+        var leftDistance = Math.Abs(estimate - left);
+        var upDistance = Math.Abs(estimate - up);
+        var upperLeftDistance = Math.Abs(estimate - upperLeft);
+        if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) return left;
+        return upDistance <= upperLeftDistance ? up : upperLeft;
     }
 
     private static int CountOccurrences(string value, string pattern) {

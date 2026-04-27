@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "charts": [
+    {
+      "name": "annotation-edge-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 916
+      }
+    },
+    {
+      "name": "control-coverage-heatmap-dark",
+      "width": 980,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 45
+      },
+      "png": {
+        "minVisiblePixels": 254554,
+        "minDistinctColors": 2048
+      }
+    },
+    {
+      "name": "control-targets-bullet-dark",
+      "width": 920,
+      "height": 520,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 220654,
+        "minDistinctColors": 1019
+      }
+    },
+    {
+      "name": "ct-regional-light",
+      "width": 880,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 30
+      },
+      "png": {
+        "minVisiblePixels": 227854,
+        "minDistinctColors": 751
+      }
+    },
+    {
+      "name": "ct-volume-light",
+      "width": 1180,
+      "height": 640,
+      "svg": {
+        "minVisualNodes": 36
+      },
+      "png": {
+        "minVisiblePixels": 354114,
+        "minDistinctColors": 1456
+      }
+    },
+    {
+      "name": "data-label-readability-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 40
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1005
+      }
+    },
+    {
+      "name": "domain-control-horizontal-light",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 27
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 776
+      }
+    },
+    {
+      "name": "domain-findings-stacked-dark",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 40
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 1115
+      }
+    },
+    {
+      "name": "domain-remediation-funnel-dark",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 22
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 2037
+      }
+    },
+    {
+      "name": "domain-remediation-timeline-light",
+      "width": 980,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 27
+      },
+      "png": {
+        "minVisiblePixels": 254554,
+        "minDistinctColors": 759
+      }
+    },
+    {
+      "name": "domain-security-dark",
+      "width": 1180,
+      "height": 640,
+      "svg": {
+        "minVisualNodes": 51
+      },
+      "png": {
+        "minVisiblePixels": 354114,
+        "minDistinctColors": 2048
+      }
+    },
+    {
+      "name": "endpoint-latency-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 29
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 866
+      }
+    },
+    {
+      "name": "license-cost-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1254
+      }
+    },
+    {
+      "name": "monthly-posture-dark",
+      "width": 760,
+      "height": 540,
+      "svg": {
+        "minVisualNodes": 62
+      },
+      "png": {
+        "minVisiblePixels": 188474,
+        "minDistinctColors": 1848
+      }
+    },
+    {
+      "name": "remediation-impact-waterfall-dark",
+      "width": 920,
+      "height": 540,
+      "svg": {
+        "minVisualNodes": 30
+      },
+      "png": {
+        "minVisiblePixels": 229594,
+        "minDistinctColors": 988
+      }
+    },
+    {
+      "name": "result-mix-donut",
+      "width": 820,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 15
+      },
+      "png": {
+        "minVisiblePixels": 172134,
+        "minDistinctColors": 802
+      }
+    },
+    {
+      "name": "security-findings-grouped-light",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 31
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 1109
+      }
+    },
+    {
+      "name": "security-posture-gauge-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 12
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 892
+      }
+    },
+    {
+      "name": "security-posture-radar-dark",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 31
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 1316
+      }
+    },
+    {
+      "name": "warnings-sparkline",
+      "width": 360,
+      "height": 90,
+      "svg": {
+        "minVisualNodes": 7
+      },
+      "png": {
+        "minVisiblePixels": 8931,
+        "minDistinctColors": 291
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ internal static partial class SmokeTests {
         ("Project files keep strict build settings", ProjectFilesKeepStrictBuildSettings),
         ("Build script verifies release artifacts", BuildScriptVerifiesReleaseArtifacts),
         ("NuGet package metadata stays publish-ready", NuGetPackageMetadataStaysPublishReady),
+        ("Visual baseline is structured and actionable", VisualBaselineIsStructuredAndActionable),
         ("GitHub Actions use private runners", GitHubActionsUsePrivateRunners),
         ("SVG escapes text and renders inline vectors", SvgEscapesText),
         ("HTML page is static and JavaScript-free", HtmlPageIsStatic),

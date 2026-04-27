@@ -28,3 +28,13 @@ ChartForgeX.<version>.snupkg
 - XML documentation should be present for every target framework.
 - The `.snupkg` symbol package must be generated alongside the `.nupkg`.
 - A clean temporary `net8.0` console app must be able to install the freshly packed local package and render SVG, HTML, and PNG output.
+
+## Visual Baseline
+
+Release builds validate `ChartForgeX.Examples/visual-baseline.json` against the generated SVG/PNG comparison manifest. If a visual change is intentional, inspect `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`, then refresh the baseline with:
+
+```powershell
+./Build.ps1 -Configuration Release -UpdateVisualBaseline
+```
+
+Commit the refreshed baseline only with the renderer or example change that justifies it.

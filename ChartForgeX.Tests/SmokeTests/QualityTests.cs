@@ -57,20 +57,6 @@ internal static partial class SmokeTests {
         }
     }
 
-    private static void BuildScriptVerifiesReleaseArtifacts() {
-        var buildScript = Path.Combine(FindRepositoryRoot(), "Build.ps1");
-        var script = File.ReadAllText(buildScript);
-        Assert(script.Contains("ChartForgeX.*.nupkg", StringComparison.Ordinal), "Build script should verify NuGet package creation.");
-        Assert(script.Contains("ChartForgeX.*.snupkg", StringComparison.Ordinal), "Build script should verify symbol package creation.");
-        Assert(script.Contains("Expected exactly one package", StringComparison.Ordinal), "Build script should reject stale or duplicate packages.");
-        Assert(script.Contains("README.md", StringComparison.Ordinal), "Build script should verify README package inclusion.");
-        Assert(script.Contains("CHANGELOG.md", StringComparison.Ordinal), "Build script should verify changelog package inclusion.");
-        Assert(script.Contains("lib/$framework/ChartForgeX.$extension", StringComparison.Ordinal), "Build script should verify package framework assets.");
-        Assert(script.Contains("ChartForgeX-package-consumer", StringComparison.Ordinal), "Build script should verify package consumption from a clean project.");
-        Assert(script.Contains("dotnet add package ChartForgeX", StringComparison.Ordinal), "Build script should install the freshly packed package in the consumer smoke test.");
-        Assert(script.Contains("<dependency\\s", StringComparison.Ordinal), "Build script should verify the core package has no runtime dependencies.");
-    }
-
     private static void NuGetPackageMetadataStaysPublishReady() {
         var libraryProject = Path.Combine(FindRepositoryRoot(), "ChartForgeX", "ChartForgeX.csproj");
         Assert(HasXmlProperty(libraryProject, "PackageId", "ChartForgeX"), "PackageId should remain stable.");
@@ -605,6 +591,7 @@ internal static partial class SmokeTests {
             File.WriteAllText(Path.Combine(output, "zeta.html"), "<!doctype html><title>Zeta</title><svg></svg>");
             File.WriteAllText(Path.Combine(output, "zeta.svg"), Chart.Create().WithSize(640, 360).WithTitle("Zeta").AddBar("Values", Points(1, 2, 3)).ToSvg());
             File.WriteAllBytes(Path.Combine(output, "zeta.png"), Chart.Create().WithSize(640, 360).WithTitle("Zeta").AddBar("Values", Points(1, 2, 3)).ToPng());
+            File.WriteAllText(Path.Combine(output, "visual-baseline.json"), "{\"version\":1,\"charts\":[{\"name\":\"alpha\",\"width\":320,\"height\":180,\"svg\":{\"minVisualNodes\":2},\"png\":{\"minVisiblePixels\":64,\"minDistinctColors\":8}},{\"name\":\"zeta\",\"width\":640,\"height\":360,\"svg\":{\"minVisualNodes\":2},\"png\":{\"minVisiblePixels\":64,\"minDistinctColors\":8}}]}");
 
             GalleryWriter.Write(output);
             var gallery = File.ReadAllText(Path.Combine(output, "index.html"));
@@ -623,22 +610,44 @@ internal static partial class SmokeTests {
             Assert(comparison.Contains("zeta.svg", StringComparison.Ordinal) && comparison.Contains("zeta.png", StringComparison.Ordinal), "Comparison page should include every generated chart pair.");
             Assert(comparison.Contains("2 chart pairs", StringComparison.Ordinal), "Comparison page should summarize generated SVG/PNG pairs.");
             Assert(comparison.Contains("2 dimension matches", StringComparison.Ordinal), "Comparison page should summarize SVG/PNG dimension parity.");
+            Assert(comparison.Contains("2 healthy SVGs", StringComparison.Ordinal), "Comparison page should summarize SVG artifact health.");
+            Assert(comparison.Contains("2 healthy PNGs", StringComparison.Ordinal), "Comparison page should summarize PNG artifact health.");
+            Assert(comparison.Contains("0 warnings", StringComparison.Ordinal), "Comparison page should summarize review warnings.");
+            Assert(comparison.Contains("2 baseline passes", StringComparison.Ordinal), "Comparison page should summarize visual-baseline matches.");
+            Assert(comparison.Contains("0 baseline warnings", StringComparison.Ordinal), "Comparison page should summarize visual-baseline warnings.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.svg\">SVG</a>", StringComparison.Ordinal), "Comparison page should link directly to SVG assets.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.png\">PNG</a>", StringComparison.Ordinal), "Comparison page should link directly to PNG assets.");
             Assert(comparison.Contains("<span class=\"format\">WIPE</span>", StringComparison.Ordinal), "Comparison page should include a center-wipe pane for SVG/PNG visual parity review.");
             Assert(comparison.Contains("href=\"svg-png-comparison.json\"", StringComparison.Ordinal), "Comparison page should link its parity manifest.");
-            Assert(CountOccurrences(comparison, "Dimension match") == 2, "Comparison page should label matching SVG/PNG dimensions per chart.");
+            Assert(CountOccurrences(comparison, "Review clean") == 2, "Comparison page should label warning-free chart pairs.");
             Assert(comparison.Contains("aspect-ratio:320/180", StringComparison.Ordinal), "Comparison page should preserve chart aspect ratios for fair SVG/PNG review.");
             Assert(comparison.Contains("320x180", StringComparison.Ordinal), "Comparison page should show asset dimensions for SVG/PNG parity review.");
+            Assert(comparison.Contains("visual nodes", StringComparison.Ordinal), "Comparison page should expose simple SVG visibility statistics.");
+            Assert(comparison.Contains("visible px", StringComparison.Ordinal), "Comparison page should expose simple PNG visibility statistics.");
             Assert(!comparison.Contains("<script", StringComparison.OrdinalIgnoreCase), "SVG/PNG comparison page should remain JavaScript-free.");
 
             var manifest = File.ReadAllText(Path.Combine(output, "svg-png-comparison.json"));
             Assert(manifest.Contains("\"chartPairs\": 2", StringComparison.Ordinal), "Comparison manifest should summarize generated SVG/PNG pairs.");
             Assert(manifest.Contains("\"dimensionMatches\": 2", StringComparison.Ordinal), "Comparison manifest should summarize SVG/PNG dimension parity.");
+            Assert(manifest.Contains("\"healthySvgs\": 2", StringComparison.Ordinal), "Comparison manifest should summarize healthy SVG artifacts.");
+            Assert(manifest.Contains("\"healthyPngs\": 2", StringComparison.Ordinal), "Comparison manifest should summarize healthy PNG artifacts.");
+            Assert(manifest.Contains("\"warnings\": 0", StringComparison.Ordinal), "Comparison manifest should summarize review warnings.");
+            Assert(manifest.Contains("\"baseline\":", StringComparison.Ordinal), "Comparison manifest should summarize visual-baseline status.");
+            Assert(manifest.Contains("\"chartMatches\": 2", StringComparison.Ordinal), "Comparison manifest should include visual-baseline match counts.");
+            Assert(manifest.Contains("\"clean\": true", StringComparison.Ordinal), "Comparison manifest should flag clean visual-baseline status.");
+            Assert(manifest.Contains("\"healthThresholds\":", StringComparison.Ordinal), "Comparison manifest should describe artifact health thresholds.");
+            Assert(manifest.Contains("\"svgVisualNodes\": 2", StringComparison.Ordinal), "Comparison manifest should describe the minimum SVG visual-node threshold.");
+            Assert(manifest.Contains("\"pngDistinctColors\": 8", StringComparison.Ordinal), "Comparison manifest should describe the minimum PNG color-diversity threshold.");
             Assert(manifest.Contains("\"center-wipe\"", StringComparison.Ordinal), "Comparison manifest should describe available parity review modes.");
             Assert(manifest.Contains("\"name\": \"alpha\"", StringComparison.Ordinal), "Comparison manifest should list chart assets by name.");
             Assert(manifest.Contains("\"dimensionsMatch\": true", StringComparison.Ordinal), "Comparison manifest should flag dimension parity per chart.");
+            Assert(manifest.Contains("\"warnings\": []", StringComparison.Ordinal), "Comparison manifest should include per-chart warning lists.");
             Assert(manifest.Contains("\"bytes\":", StringComparison.Ordinal), "Comparison manifest should include asset byte sizes.");
+            Assert(manifest.Contains("\"visualNodes\":", StringComparison.Ordinal), "Comparison manifest should include SVG visual-node statistics.");
+            Assert(manifest.Contains("\"textNodes\":", StringComparison.Ordinal), "Comparison manifest should include SVG text-node statistics.");
+            Assert(manifest.Contains("\"visiblePixels\":", StringComparison.Ordinal), "Comparison manifest should include PNG visibility statistics.");
+            Assert(manifest.Contains("\"distinctColors\":", StringComparison.Ordinal), "Comparison manifest should include PNG color diversity statistics.");
+            Assert(manifest.Contains("\"healthy\": true", StringComparison.Ordinal), "Comparison manifest should flag healthy PNG artifacts.");
         } finally {
             Directory.Delete(output, true);
         }
