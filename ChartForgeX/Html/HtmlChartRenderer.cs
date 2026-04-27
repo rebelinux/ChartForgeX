@@ -1,3 +1,4 @@
+using System;
 using ChartForgeX.Core;
 using ChartForgeX.Svg;
 
@@ -15,6 +16,7 @@ public sealed class HtmlChartRenderer {
     /// <param name="chart">The chart to render.</param>
     /// <returns>An HTML fragment containing inline SVG.</returns>
     public string RenderFragment(Chart chart) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
         return "<div class=\"chartforgex-chart\" style=\"width:100%;max-width:" + chart.Options.Size.Width + "px;box-sizing:border-box\">" + _svg.Render(chart) + "</div>";
     }
 
@@ -24,6 +26,7 @@ public sealed class HtmlChartRenderer {
     /// <param name="chart">The chart to render.</param>
     /// <returns>A complete HTML document.</returns>
     public string RenderPage(Chart chart) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
         var bg = chart.Options.TransparentBackground ? chart.Options.Theme.CardBackground.ToCss() : chart.Options.Theme.Background.ToCss();
         return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>" + Escape(chart.Title) + "</title>\n<style>body{margin:0;min-height:100vh;display:grid;place-items:start center;background:" + bg + ";font-family:" + CssFontFamily(chart.Options.Theme.FontFamily) + ";padding:24px;box-sizing:border-box;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}.chartforgex-chart svg{max-width:100%;height:auto;display:block}</style>\n</head>\n<body>\n" + RenderFragment(chart) + "\n</body>\n</html>";
     }

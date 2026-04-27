@@ -42,7 +42,7 @@ public sealed partial class SvgChartRenderer {
             }
 
             sb.AppendLine($"<rect data-cfx-role=\"waterfall-bar\" data-cfx-point=\"{i}\" data-cfx-status=\"{status}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(centerX - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"6\" fill=\"{color.ToCss()}\"/>");
-            if (chart.Options.ShowDataLabels) {
+            if (ShouldDrawDataLabels(chart, series)) {
                 var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
                 var labelY = step.Delta >= 0 || step.IsTotal ? top - 11 : top + height + 13;
                 DrawDataLabel(sb, chart, label, centerX, labelY, plot);

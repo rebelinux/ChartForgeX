@@ -12,19 +12,19 @@ public sealed partial class PngChartRenderer {
         return Clamp(x - width / 2.0, plot.Left + 2, plot.Right - width - 2);
     }
 
-    private static void DrawXAxisTickLabel(RgbaCanvas c, Chart chart, ChartRect plot, string label, double x) {
+    private static void DrawXAxisTickLabel(RgbaCanvas c, Chart chart, ChartRect plot, string label, double x, IReadOnlyList<string>? axisLabels = null) {
         var theme = chart.Options.Theme;
         var fontSize = PngTickFontSize(chart);
         var angle = Clamp(chart.Options.XAxisLabelAngle, -80, 80);
         if (Math.Abs(angle) < 0.001) {
-            c.DrawText(EdgeAwarePngLabelX(label, x, plot, fontSize), plot.Bottom + PngXAxisLabelOffset(chart) - fontSize + 1, label, theme.MutedText, fontSize);
+            c.DrawText(EdgeAwarePngLabelX(label, x, plot, fontSize), plot.Bottom + PngXAxisLabelOffset(chart, axisLabels) - fontSize + 1, label, theme.MutedText, fontSize);
             return;
         }
 
         var width = EstimatePngTextWidth(label, fontSize);
         var height = EstimatePngTextHeight(fontSize);
         var anchorX = Clamp(x, plot.Left + 4, plot.Right - 4);
-        var anchorY = plot.Bottom + PngXAxisLabelOffset(chart);
+        var anchorY = plot.Bottom + PngXAxisLabelOffset(chart, axisLabels);
         var originX = angle < 0 ? width : 0;
         if (x <= plot.Left + width * 0.4) originX = 0;
         if (x >= plot.Right - width * 0.4) originX = width;
@@ -37,10 +37,10 @@ public sealed partial class PngChartRenderer {
         return plot.Left + (value - range.MinX) / span * plot.Width;
     }
 
-    private static void DrawAxisTitles(RgbaCanvas c, Chart chart, ChartRect plot) {
+    private static void DrawAxisTitles(RgbaCanvas c, Chart chart, ChartRect plot, IReadOnlyList<string>? xAxisLabels = null) {
         var theme = chart.Options.Theme;
         if (!string.IsNullOrWhiteSpace(chart.XAxisTitle)) {
-            DrawPngXAxisTitle(c, chart, plot, plot.Bottom + PngXAxisTitleOffset(chart), PngXAxisTitleFontSize(chart));
+            DrawPngXAxisTitle(c, chart, plot, plot.Bottom + PngXAxisTitleOffset(chart, xAxisLabels), PngXAxisTitleFontSize(chart));
         }
 
         DrawYAxisTitle(c, chart, plot, PngAxisTitleFontSize(chart));
@@ -73,6 +73,24 @@ public sealed partial class PngChartRenderer {
         c.DrawTextRotatedEmphasized(axisX, plot.Top + plot.Height / 2.0, label, chart.Options.Theme.MutedText, fontSize, -90, width / 2.0, height / 2.0);
     }
 
+    private static void DrawSecondaryYAxis(RgbaCanvas c, Chart chart, ChartRect plot, ChartMapper map, IReadOnlyList<double> yTicks) {
+        var theme = chart.Options.Theme;
+        var fontSize = PngTickFontSize(chart);
+        c.DrawLine(plot.Right, plot.Top, plot.Right, plot.Bottom, theme.Axis, 1);
+        foreach (var tick in yTicks) {
+            var label = FormatSecondaryValue(chart, tick);
+            c.DrawText(Math.Min(chart.Options.Size.Width - EstimatePngTextWidth(label, fontSize) - 2, plot.Right + 8), map.Y(tick) - fontSize + 4, label, theme.MutedText, fontSize);
+        }
+
+        if (string.IsNullOrWhiteSpace(chart.SecondaryYAxisTitle)) return;
+        var titleFontSize = PngAxisTitleFontSize(chart);
+        var title = TrimReadablePngLabelToWidth(chart.SecondaryYAxisTitle, titleFontSize, Math.Max(40, plot.Height * 0.72));
+        if (title.Length == 0) return;
+        var width = EstimatePngEmphasizedTextWidth(title, titleFontSize);
+        var height = EstimatePngTextHeight(titleFontSize);
+        c.DrawTextRotatedEmphasized(Math.Min(chart.Options.Size.Width - 18, plot.Right + 54), plot.Top + plot.Height / 2.0, title, theme.MutedText, titleFontSize, 90, width / 2.0, height / 2.0);
+    }
+
     private static ChartRect ApplyHorizontalBarReserve(Chart chart, ChartRect plot, IReadOnlyList<double> categories) {
         if (!chart.Options.ShowAxes || categories.Count == 0) return plot;
         var fontSize = HorizontalCategoryFontSize(chart);
@@ -101,18 +119,30 @@ public sealed partial class PngChartRenderer {
         return new ChartRect(plot.X + leftShift, plot.Y, Math.Max(1, plot.Width - leftShift), plot.Height);
     }
 
-    private static ChartRect ApplyBottomReserve(Chart chart, ChartRect plot) {
+    private static ChartRect ApplySecondaryYAxisLabelReserve(Chart chart, ChartRect plot, IReadOnlyList<double> yTicks) {
+        if (!chart.Options.ShowAxes || chart.Options.IsSparkline || yTicks.Count == 0) return plot;
+        var fontSize = PngTickFontSize(chart);
+        var widest = 0.0;
+        foreach (var tick in yTicks) widest = Math.Max(widest, EstimatePngTextWidth(FormatSecondaryValue(chart, tick), fontSize));
+        var titleReserve = string.IsNullOrWhiteSpace(chart.SecondaryYAxisTitle) ? 0 : PngAxisTitleFontSize(chart) + 18;
+        var reserve = Math.Min(150, widest + 30 + titleReserve);
+        if (reserve <= 0) return plot;
+        return new ChartRect(plot.X, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
+    }
+
+    private static ChartRect ApplyBottomReserve(Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, bool valueAxisOnly) {
         if (chart.Options.IsSparkline || IsPieLike(chart)) return plot;
 
         var bottomReserve = 0.0;
         if (chart.Options.ShowAxes) {
-            bottomReserve += PngXAxisTitleOffset(chart) + PngAxisTitleFontSize(chart) + 4;
+            var xLabels = XAxisTickLabels(chart, xTicks, valueAxisOnly);
+            bottomReserve += PngXAxisTitleOffset(chart, xLabels) + PngAxisTitleFontSize(chart) + 4;
             if (string.IsNullOrWhiteSpace(chart.XAxisTitle)) bottomReserve -= 16;
         }
 
         if (chart.Options.ShowLegend && chart.Series.Count > 0) bottomReserve += 18 + PngLegendRowCount(chart) * (PngLegendFontSize(chart) + 6);
-        var extraBottom = Math.Max(0, bottomReserve - chart.Options.Padding.Bottom);
-        return extraBottom <= 0 ? plot : new ChartRect(plot.X, plot.Y, plot.Width, Math.Max(1, plot.Height - extraBottom));
+        var maxBottom = Math.Max(plot.Top + 1, chart.Options.Size.Height - bottomReserve);
+        return plot.Bottom <= maxBottom ? plot : new ChartRect(plot.X, plot.Y, plot.Width, Math.Max(1, maxBottom - plot.Y));
     }
 
     private static int PngLegendRowCount(Chart chart) {
@@ -135,17 +165,23 @@ public sealed partial class PngChartRenderer {
         return rows;
     }
 
-    private static double PngXAxisLabelOffset(Chart chart) {
+    private static double PngXAxisLabelOffset(Chart chart, IReadOnlyList<string>? labels = null) {
         var angle = Math.Abs(Clamp(chart.Options.XAxisLabelAngle, -80, 80)) * Math.PI / 180.0;
-        if (angle < 0.001 || chart.Options.XAxisLabels.Count == 0) return 21;
+        if (angle < 0.001) return 21;
+        if ((labels == null || labels.Count == 0) && chart.Options.XAxisLabels.Count == 0) return 21;
         var fontSize = PngTickFontSize(chart);
         var widest = 0.0;
-        foreach (var label in chart.Options.XAxisLabels) widest = Math.Max(widest, EstimatePngTextWidth(label.Text, fontSize));
+        if (labels != null && labels.Count > 0) {
+            foreach (var label in labels) widest = Math.Max(widest, EstimatePngTextWidth(label, fontSize));
+        } else {
+            foreach (var label in chart.Options.XAxisLabels) widest = Math.Max(widest, EstimatePngTextWidth(label.Text, fontSize));
+        }
+
         return 20 + Math.Sin(angle) * Math.Min(96, widest);
     }
 
-    private static double PngXAxisTitleOffset(Chart chart) {
-        return PngXAxisLabelOffset(chart) + (Math.Abs(chart.Options.XAxisLabelAngle) < 0.001 ? 23 : 48);
+    private static double PngXAxisTitleOffset(Chart chart, IReadOnlyList<string>? labels = null) {
+        return PngXAxisLabelOffset(chart, labels) + (Math.Abs(chart.Options.XAxisLabelAngle) < 0.001 ? 23 : 48);
     }
 
     private static double PngXAxisTitleFontSize(Chart chart) => TextFontSizeForEmphasizedWidth(chart.XAxisTitle, Math.Max(48, chart.Options.Size.Width - chart.Options.Padding.Left - chart.Options.Padding.Right), PngAxisTitleFontSize(chart));
@@ -194,12 +230,24 @@ public sealed partial class PngChartRenderer {
     }
 
     private static double HorizontalValueLabelReserve(Chart chart) {
-        if (!chart.Options.ShowDataLabels) return 0;
+        if (!chart.Options.ShowDataLabels && !(chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) return 0;
         var widest = 0.0;
         var fontSize = HorizontalValueLabelFontSize(chart);
-        foreach (var series in chart.Series) {
-            if (series.Kind != ChartSeriesKind.HorizontalBar) continue;
-            foreach (var point in series.Points) widest = Math.Max(widest, EstimatePngTextWidth(FormatValue(chart, point.Y), fontSize));
+        if (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals) {
+            var positiveTotals = new Dictionary<double, double>();
+            var negativeTotals = new Dictionary<double, double>();
+            foreach (var series in chart.Series) {
+                if (series.Kind != ChartSeriesKind.HorizontalBar) continue;
+                foreach (var point in series.Points) AddStackTotal(point.Y >= 0 ? positiveTotals : negativeTotals, point.X, point.Y);
+            }
+
+            foreach (var value in positiveTotals.Values) widest = Math.Max(widest, EstimatePngTextWidth(FormatValue(chart, value), fontSize));
+            foreach (var value in negativeTotals.Values) widest = Math.Max(widest, EstimatePngTextWidth(FormatValue(chart, value), fontSize));
+        } else {
+            foreach (var series in chart.Series) {
+                if (series.Kind != ChartSeriesKind.HorizontalBar) continue;
+                foreach (var point in series.Points) widest = Math.Max(widest, EstimatePngTextWidth(FormatValue(chart, point.Y), fontSize));
+            }
         }
 
         return widest == 0 ? 0 : Math.Min(104, widest + 20);
@@ -210,7 +258,7 @@ public sealed partial class PngChartRenderer {
     private static void ApplyHorizontalValueBounds(Chart chart, ChartRange range, IReadOnlyList<double> xTicks) {
         var min = xTicks[0];
         var max = xTicks[xTicks.Count - 1];
-        if (chart.Options.ShowDataLabels) {
+        if (chart.Options.ShowDataLabels || (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) {
             var span = Math.Max(1, max - min);
             var hasPositive = false;
             var hasNegative = false;

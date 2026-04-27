@@ -9,13 +9,20 @@ internal static class ChartGuards {
     private static readonly ChartSeriesKind[] ExclusiveSeriesKinds = {
         ChartSeriesKind.Heatmap,
         ChartSeriesKind.Gauge,
+        ChartSeriesKind.Circle,
+        ChartSeriesKind.RadialBar,
         ChartSeriesKind.Bullet,
         ChartSeriesKind.Waterfall,
         ChartSeriesKind.Radar,
         ChartSeriesKind.Funnel,
+        ChartSeriesKind.Treemap,
         ChartSeriesKind.Timeline,
+        ChartSeriesKind.Gantt,
+        ChartSeriesKind.Sankey,
+        ChartSeriesKind.Tree,
         ChartSeriesKind.Pie,
-        ChartSeriesKind.Donut
+        ChartSeriesKind.Donut,
+        ChartSeriesKind.PolarArea
     };
 
     public static void Finite(double value, string parameterName) {
@@ -49,13 +56,44 @@ internal static class ChartGuards {
         if (RequiresSingleSeries(exclusiveKinds[0]) && chart.Series.Count != 1) {
             throw new InvalidOperationException(exclusiveKinds[0].ToString() + " charts support exactly one series.");
         }
+
+        if (RequiresPositiveValues(exclusiveKinds[0]) && !chart.Series[0].Points.Any(point => point.Y > 0)) {
+            throw new InvalidOperationException(exclusiveKinds[0].ToString() + " charts require at least one positive value.");
+        }
+
+        if (exclusiveKinds[0] == ChartSeriesKind.Waterfall && chart.Series[0].Points.Count == 0) {
+            throw new InvalidOperationException("Waterfall charts require at least one value.");
+        }
+
+        if (exclusiveKinds[0] == ChartSeriesKind.Radar) {
+            var categoryCount = chart.Series
+                .Where(series => series.Kind == ChartSeriesKind.Radar)
+                .SelectMany(series => series.Points.Select(point => point.X))
+                .Distinct()
+                .Count();
+            if (categoryCount < 3) throw new InvalidOperationException("Radar charts require at least three categories.");
+        }
     }
 
     private static bool RequiresSingleSeries(ChartSeriesKind kind) {
         return kind == ChartSeriesKind.Gauge ||
+            kind == ChartSeriesKind.Circle ||
+            kind == ChartSeriesKind.RadialBar ||
             kind == ChartSeriesKind.Waterfall ||
             kind == ChartSeriesKind.Funnel ||
+            kind == ChartSeriesKind.Treemap ||
+            kind == ChartSeriesKind.Sankey ||
+            kind == ChartSeriesKind.Tree ||
             kind == ChartSeriesKind.Pie ||
-            kind == ChartSeriesKind.Donut;
+            kind == ChartSeriesKind.Donut ||
+            kind == ChartSeriesKind.PolarArea;
+    }
+
+    private static bool RequiresPositiveValues(ChartSeriesKind kind) {
+        return kind == ChartSeriesKind.Funnel ||
+            kind == ChartSeriesKind.Treemap ||
+            kind == ChartSeriesKind.Pie ||
+            kind == ChartSeriesKind.Donut ||
+            kind == ChartSeriesKind.PolarArea;
     }
 }

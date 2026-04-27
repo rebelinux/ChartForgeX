@@ -10,7 +10,19 @@
       },
       "png": {
         "minVisiblePixels": 159114,
-        "minDistinctColors": 916
+        "minDistinctColors": 1004
+      }
+    },
+    {
+      "name": "control-contribution-polar-area-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 25
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1578
       }
     },
     {
@@ -22,6 +34,66 @@
       },
       "png": {
         "minVisiblePixels": 254554,
+        "minDistinctColors": 2048
+      }
+    },
+    {
+      "name": "control-coverage-radialbar-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 20
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1627
+      }
+    },
+    {
+      "name": "control-hierarchy-tree-light",
+      "width": 1040,
+      "height": 600,
+      "svg": {
+        "minVisualNodes": 28
+      },
+      "png": {
+        "minVisiblePixels": 290854,
+        "minDistinctColors": 1826
+      }
+    },
+    {
+      "name": "control-improvement-slope-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 34
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1472
+      }
+    },
+    {
+      "name": "control-readiness-lollipop-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 737
+      }
+    },
+    {
+      "name": "control-scorecards-grid",
+      "width": 1906,
+      "height": 1262,
+      "svg": {
+        "minVisualNodes": 2
+      },
+      "png": {
+        "minVisiblePixels": 1202686,
         "minDistinctColors": 2048
       }
     },
@@ -54,11 +126,11 @@
       "width": 1180,
       "height": 640,
       "svg": {
-        "minVisualNodes": 36
+        "minVisualNodes": 40
       },
       "png": {
         "minVisiblePixels": 354114,
-        "minDistinctColors": 1456
+        "minDistinctColors": 1031
       }
     },
     {
@@ -70,7 +142,19 @@
       },
       "png": {
         "minVisiblePixels": 159114,
-        "minDistinctColors": 1005
+        "minDistinctColors": 1111
+      }
+    },
+    {
+      "name": "detection-confidence-errorbar-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 35
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 907
       }
     },
     {
@@ -78,11 +162,11 @@
       "width": 920,
       "height": 560,
       "svg": {
-        "minVisualNodes": 27
+        "minVisualNodes": 44
       },
       "png": {
         "minVisiblePixels": 238534,
-        "minDistinctColors": 776
+        "minDistinctColors": 2048
       }
     },
     {
@@ -110,15 +194,27 @@
       }
     },
     {
+      "name": "domain-remediation-gantt-light",
+      "width": 1040,
+      "height": 600,
+      "svg": {
+        "minVisualNodes": 40
+      },
+      "png": {
+        "minVisiblePixels": 290854,
+        "minDistinctColors": 1436
+      }
+    },
+    {
       "name": "domain-remediation-timeline-light",
       "width": 980,
       "height": 560,
       "svg": {
-        "minVisualNodes": 27
+        "minVisualNodes": 31
       },
       "png": {
         "minVisiblePixels": 254554,
-        "minDistinctColors": 759
+        "minDistinctColors": 964
       }
     },
     {
@@ -134,6 +230,42 @@
       }
     },
     {
+      "name": "domain-signal-mix-stacked-area-dark",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 39
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 2048
+      }
+    },
+    {
+      "name": "endpoint-latency-boxplot-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 941
+      }
+    },
+    {
+      "name": "endpoint-latency-histogram-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 29
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 683
+      }
+    },
+    {
       "name": "endpoint-latency-light",
       "width": 760,
       "height": 460,
@@ -142,11 +274,11 @@
       },
       "png": {
         "minVisiblePixels": 159114,
-        "minDistinctColors": 866
+        "minDistinctColors": 977
       }
     },
     {
-      "name": "license-cost-light",
+      "name": "endpoint-latency-range-light",
       "width": 760,
       "height": 460,
       "svg": {
@@ -154,7 +286,91 @@
       },
       "png": {
         "minVisiblePixels": 159114,
-        "minDistinctColors": 1254
+        "minDistinctColors": 811
+      }
+    },
+    {
+      "name": "exposure-clusters-bubble-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 36
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 720
+      }
+    },
+    {
+      "name": "finding-flow-sankey-light",
+      "width": 1040,
+      "height": 600,
+      "svg": {
+        "minVisualNodes": 23
+      },
+      "png": {
+        "minVisiblePixels": 290854,
+        "minDistinctColors": 2048
+      }
+    },
+    {
+      "name": "findings-composition-treemap-light",
+      "width": 920,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 22
+      },
+      "png": {
+        "minVisiblePixels": 238534,
+        "minDistinctColors": 1725
+      }
+    },
+    {
+      "name": "findings-pareto-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 32
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1005
+      }
+    },
+    {
+      "name": "forecast-envelope-rangeband-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 29
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1222
+      }
+    },
+    {
+      "name": "forecast-interval-rangearea-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 36
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 2018
+      }
+    },
+    {
+      "name": "license-cost-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 31
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1177
       }
     },
     {
@@ -166,7 +382,55 @@
       },
       "png": {
         "minVisiblePixels": 188474,
-        "minDistinctColors": 1848
+        "minDistinctColors": 2048
+      }
+    },
+    {
+      "name": "observed-remediation-trend-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 34
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1177
+      }
+    },
+    {
+      "name": "policy-backlog-step-area-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 40
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 1055
+      }
+    },
+    {
+      "name": "policy-readiness-circle-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 12
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 653
+      }
+    },
+    {
+      "name": "policy-state-step-line-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 32
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 726
       }
     },
     {
@@ -179,6 +443,18 @@
       "png": {
         "minVisiblePixels": 229594,
         "minDistinctColors": 988
+      }
+    },
+    {
+      "name": "remediation-lift-dumbbell-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 656
       }
     },
     {
@@ -230,6 +506,42 @@
       }
     },
     {
+      "name": "shared-axis-coverage-grid",
+      "width": 1082,
+      "height": 440,
+      "svg": {
+        "minVisualNodes": 2
+      },
+      "png": {
+        "minVisiblePixels": 238040,
+        "minDistinctColors": 1413
+      }
+    },
+    {
+      "name": "signal-windows-candlestick-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 33
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 720
+      }
+    },
+    {
+      "name": "signal-windows-ohlc-dark",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 36
+      },
+      "png": {
+        "minVisiblePixels": 159114,
+        "minDistinctColors": 749
+      }
+    },
+    {
       "name": "warnings-sparkline",
       "width": 360,
       "height": 90,
@@ -237,8 +549,8 @@
         "minVisualNodes": 7
       },
       "png": {
-        "minVisiblePixels": 8931,
-        "minDistinctColors": 291
+        "minVisiblePixels": 9294,
+        "minDistinctColors": 445
       }
     }
   ]

@@ -55,7 +55,7 @@ public sealed partial class PngChartRenderer {
                 var rowLabel = TrimReadablePngLabelToWidth(item.Name, tickFontSize, rowLabelWidth);
                 if (rowLabel.Length > 0) c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, tickFontSize) - 14, y + rowHeight / 2 - tickFontSize / 2, rowLabel, chart.Options.Theme.MutedText, tickFontSize);
             }
-            c.FillRoundedRect(left, y, width, rowHeight, Math.Min(8, rowHeight / 2), item.Color);
+            DrawTimelineRangeBar(c, chart, item.Color, left, y, width, rowHeight);
             if (chart.Options.ShowDataLabels && width >= Math.Max(72, EstimatePngEmphasizedTextWidth("100d", dataFontSize) + 14)) {
                 var label = FormatTimelineDuration(item.Start, item.End);
                 DrawReadablePngLabelCentered(c, new ChartRect(left, y, width, rowHeight), label, HeatmapTextColor(item.Color), item.Color, dataFontSize);
@@ -77,6 +77,17 @@ public sealed partial class PngChartRenderer {
         var shift = Math.Max(0, Math.Min(desiredLeft, maxLeft) - plot.Left);
         var bottomReserve = 52 + (string.IsNullOrWhiteSpace(chart.XAxisTitle) ? 0 : 18);
         return new ChartRect(plot.X + shift, plot.Y, Math.Max(1, plot.Width - shift), Math.Max(1, plot.Height - bottomReserve));
+    }
+
+    private static void DrawTimelineRangeBar(RgbaCanvas c, Chart chart, ChartColor color, double left, double y, double width, double rowHeight) {
+        var radius = Math.Min(8, rowHeight / 2);
+        c.FillRoundedRectVerticalGradient(left, y, width, rowHeight, radius, Blend(ChartColor.White, color, 0.96), Blend(ChartColor.Black, color, 0.98));
+        c.StrokeRoundedRect(left, y, width, rowHeight, radius, ApplyOpacity(chart.Options.Theme.CardBackground, 0.58));
+
+        var inset = Math.Min(radius, width / 3);
+        var x1 = left + inset;
+        var x2 = left + width - inset;
+        if (x2 > x1) c.DrawLine(x1, y + 1.25, x2, y + 1.25, ChartColor.FromRgba(255, 255, 255, 48), 1);
     }
 
     private static bool IsTimelineChart(Chart chart) {

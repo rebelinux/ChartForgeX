@@ -47,7 +47,7 @@ public sealed partial class PngChartRenderer {
             }
 
             DrawGradientBar(c, centerX - barWidth / 2, top, barWidth, height, Math.Min(6, barWidth / 4), color);
-            if (chart.Options.ShowDataLabels) {
+            if (ShouldDrawDataLabels(chart, series)) {
                 var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
                 var labelY = step.Delta >= 0 || step.IsTotal ? top - 11 - dataFontSize : top + height + 13 - dataFontSize;
                 DrawReadablePngLabel(c, plot, centerX - EstimatePngEmphasizedTextWidth(label, dataFontSize) / 2.0, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), dataFontSize);

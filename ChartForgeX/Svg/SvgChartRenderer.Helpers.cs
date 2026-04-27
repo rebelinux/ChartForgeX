@@ -64,15 +64,18 @@ public sealed partial class SvgChartRenderer {
         if (IsLineLikeLegend(kind)) {
             sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(y)}\" x2=\"{F(x + 18)}\" y2=\"{F(y)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2.4\" stroke-linecap=\"round\"/>");
             sb.AppendLine($"<circle cx=\"{F(x + 9)}\" cy=\"{F(y)}\" r=\"4\" fill=\"{color.ToCss()}\" stroke=\"{background.ToCss()}\" stroke-width=\"1.6\"/>");
-        } else if (kind == ChartSeriesKind.Scatter) {
+        } else if (kind == ChartSeriesKind.Scatter || kind == ChartSeriesKind.Bubble) {
             sb.AppendLine($"<circle cx=\"{F(x + 9)}\" cy=\"{F(y)}\" r=\"4\" fill=\"{color.ToCss()}\" stroke=\"{background.ToCss()}\" stroke-width=\"1.6\"/>");
+        } else if (kind == ChartSeriesKind.Candlestick || kind == ChartSeriesKind.Ohlc) {
+            sb.AppendLine($"<line x1=\"{F(x + 9)}\" y1=\"{F(y - 6)}\" x2=\"{F(x + 9)}\" y2=\"{F(y + 6)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<rect x=\"{F(x + 4)}\" y=\"{F(y - 3)}\" width=\"10\" height=\"6\" rx=\"1.5\" fill=\"{color.ToCss()}\"/>");
         } else {
             sb.AppendLine($"<rect x=\"{F(x)}\" y=\"{F(y - 5)}\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{color.ToCss()}\"/>");
         }
     }
 
     private static bool IsLineLikeLegend(ChartSeriesKind kind) =>
-        kind == ChartSeriesKind.Line || kind == ChartSeriesKind.Area || kind == ChartSeriesKind.Radar;
+        kind == ChartSeriesKind.Line || kind == ChartSeriesKind.StepLine || kind == ChartSeriesKind.Area || kind == ChartSeriesKind.StepArea || kind == ChartSeriesKind.StackedArea || kind == ChartSeriesKind.Slope || kind == ChartSeriesKind.RangeBand || kind == ChartSeriesKind.RangeArea || kind == ChartSeriesKind.Lollipop || kind == ChartSeriesKind.Dumbbell || kind == ChartSeriesKind.ErrorBar || kind == ChartSeriesKind.Radar || kind == ChartSeriesKind.TrendLine;
 
     private static void DrawLabelPill(StringBuilder sb, Chart chart, string label, double x, double y, ChartColor textColor, string anchor, ChartRect plot) {
         var t = chart.Options.Theme;
@@ -94,6 +97,8 @@ public sealed partial class SvgChartRenderer {
         var safeX = Clamp(x, plot.Left + 4, plot.Right - 4);
         sb.AppendLine($"<text data-cfx-role=\"{role}\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.Text.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
     }
+
+    private static bool ShouldDrawDataLabels(Chart chart, ChartSeries series) => series.ShowDataLabels ?? chart.Options.ShowDataLabels;
 
     private static void DrawHorizontalValueLabel(StringBuilder sb, Chart chart, string label, double x, double y, string anchor, ChartRect plot) {
         var t = chart.Options.Theme;
@@ -246,6 +251,12 @@ public sealed partial class SvgChartRenderer {
         return formatter(value) ?? string.Empty;
     }
 
+    private static string FormatSecondaryValue(Chart chart, double value) {
+        var formatter = chart.Options.SecondaryYAxisValueFormatter;
+        if (formatter == null) return FormatValue(chart, value);
+        return formatter(value) ?? string.Empty;
+    }
+
     private static string FormatPercent(double v) => v.ToString("0.#%", CultureInfo.InvariantCulture);
 
     private static string SvgFontFamily(string value) => Escape(string.IsNullOrWhiteSpace(value) ? "system-ui, sans-serif" : value);
@@ -322,32 +333,36 @@ public sealed partial class SvgChartRenderer {
             if (Math.Abs(label.Value - value) < 0.000001) return label.Text;
         }
 
-        return FormatNumber(value);
+        return FormatXAxisValue(chart, value);
+    }
+
+    private static string FormatXAxisValue(Chart chart, double value) {
+        var formatter = chart.Options.XAxisValueFormatter;
+        if (formatter == null) return FormatNumber(value);
+        return formatter(value) ?? string.Empty;
     }
 
     private static string BuildLinePath(IReadOnlyList<ChartPoint> points, bool smooth) {
-        if (points.Count == 0) return string.Empty;
-        if (!smooth || points.Count < 3) {
-            var path = new StringBuilder();
-            path.Append("M ").Append(F(points[0].X)).Append(' ').Append(F(points[0].Y));
-            for (var i = 1; i < points.Count; i++) path.Append(" L ").Append(F(points[i].X)).Append(' ').Append(F(points[i].Y));
-            return path.ToString();
-        }
+        return BuildPath(ChartPathBuilder.FromPoints(points, ChartSeriesKind.Line, smooth));
+    }
 
+    private static string BuildStepLinePath(IReadOnlyList<ChartPoint> points) {
+        return BuildPath(ChartPathBuilder.FromPoints(points, ChartSeriesKind.StepLine, false));
+    }
+
+    private static string BuildPath(ChartPath chartPath) {
+        if (chartPath.Commands.Count == 0) return string.Empty;
         var sb = new StringBuilder();
-        sb.Append("M ").Append(F(points[0].X)).Append(' ').Append(F(points[0].Y));
-        for (var i = 0; i < points.Count - 1; i++) {
-            var p0 = points[Math.Max(0, i - 1)];
-            var p1 = points[i];
-            var p2 = points[i + 1];
-            var p3 = points[Math.Min(points.Count - 1, i + 2)];
-            var c1x = p1.X + (p2.X - p0.X) / 6;
-            var c1y = p1.Y + (p2.Y - p0.Y) / 6;
-            var c2x = p2.X - (p3.X - p1.X) / 6;
-            var c2y = p2.Y - (p3.Y - p1.Y) / 6;
-            sb.Append(" C ").Append(F(c1x)).Append(' ').Append(F(c1y)).Append(' ')
-                .Append(F(c2x)).Append(' ').Append(F(c2y)).Append(' ')
-                .Append(F(p2.X)).Append(' ').Append(F(p2.Y));
+        foreach (var command in chartPath.Commands) {
+            if (command.Kind == ChartPathCommandKind.MoveTo) {
+                sb.Append("M ").Append(F(command.X)).Append(' ').Append(F(command.Y));
+            } else if (command.Kind == ChartPathCommandKind.LineTo) {
+                sb.Append(" L ").Append(F(command.X)).Append(' ').Append(F(command.Y));
+            } else if (command.Kind == ChartPathCommandKind.CubicTo) {
+                sb.Append(" C ").Append(F(command.Control1X)).Append(' ').Append(F(command.Control1Y)).Append(' ')
+                    .Append(F(command.Control2X)).Append(' ').Append(F(command.Control2Y)).Append(' ')
+                    .Append(F(command.X)).Append(' ').Append(F(command.Y));
+            }
         }
 
         return sb.ToString();
@@ -395,15 +410,25 @@ public sealed partial class SvgChartRenderer {
 
     private static bool IsGaugeChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Gauge);
 
+    private static bool IsRadialBarChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.RadialBar);
+
     private static bool IsBulletChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Bullet);
 
     private static bool IsWaterfallChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Waterfall);
 
     private static bool IsRadarChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Radar);
 
+    private static bool IsPolarAreaChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.PolarArea);
+
     private static bool IsFunnelChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Funnel);
 
     private static bool IsTimelineChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Timeline);
+
+    private static bool IsGanttChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Gantt);
+
+    private static bool IsSankeyChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Sankey);
+
+    private static bool IsTreeChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Tree);
 
     private static string SliceLabel(Chart chart, ChartPoint point, int index) {
         foreach (var label in chart.Options.XAxisLabels) {

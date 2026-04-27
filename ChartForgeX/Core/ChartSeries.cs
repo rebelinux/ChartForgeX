@@ -8,6 +8,9 @@ namespace ChartForgeX.Core;
 /// Represents one named series of points in a chart.
 /// </summary>
 public sealed class ChartSeries {
+    private double _strokeWidth = 3;
+    private ChartAxisSide _yAxis = ChartAxisSide.Primary;
+
     /// <summary>
     /// Gets the display name shown in legends.
     /// </summary>
@@ -34,9 +37,69 @@ public sealed class ChartSeries {
     public bool Smooth { get; set; }
 
     /// <summary>
+    /// Gets or sets a series-specific data-label override. When null, the chart-level setting is used.
+    /// </summary>
+    public bool? ShowDataLabels { get; set; }
+
+    /// <summary>
+    /// Gets or sets the vertical axis used for cartesian rendering.
+    /// </summary>
+    public ChartAxisSide YAxis {
+        get => _yAxis;
+        set {
+            if (!Enum.IsDefined(typeof(ChartAxisSide), value)) throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown y-axis side.");
+            _yAxis = value;
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the stroke width for line and area series.
     /// </summary>
-    public double StrokeWidth { get; set; } = 3;
+    public double StrokeWidth {
+        get => _strokeWidth;
+        set {
+            ChartGuards.Finite(value, nameof(value));
+            if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value), value, "Stroke width must be greater than zero.");
+            _strokeWidth = value;
+        }
+    }
+
+    /// <summary>
+    /// Sets a series-specific data-label visibility override.
+    /// </summary>
+    /// <param name="visible">A value indicating whether labels should render for this series.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithDataLabels(bool visible = true) {
+        ShowDataLabels = visible;
+        return this;
+    }
+
+    /// <summary>
+    /// Clears the series-specific data-label visibility override and uses the chart-level setting.
+    /// </summary>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseChartDataLabels() {
+        ShowDataLabels = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Assigns the series to the primary left y-axis.
+    /// </summary>
+    /// <returns>The current series.</returns>
+    public ChartSeries UsePrimaryYAxis() {
+        YAxis = ChartAxisSide.Primary;
+        return this;
+    }
+
+    /// <summary>
+    /// Assigns the series to the secondary right y-axis.
+    /// </summary>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseSecondaryYAxis() {
+        YAxis = ChartAxisSide.Secondary;
+        return this;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ChartSeries"/> class.

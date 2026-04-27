@@ -10,9 +10,19 @@ public enum ChartSeriesKind {
     Line,
 
     /// <summary>
+    /// Renders horizontal-then-vertical step line segments.
+    /// </summary>
+    StepLine,
+
+    /// <summary>
     /// Renders a filled area under connected line segments.
     /// </summary>
     Area,
+
+    /// <summary>
+    /// Renders a filled area under horizontal-then-vertical step segments.
+    /// </summary>
+    StepArea,
 
     /// <summary>
     /// Renders independent point markers.
@@ -20,9 +30,54 @@ public enum ChartSeriesKind {
     Scatter,
 
     /// <summary>
+    /// Renders x/y points with marker area scaled by a third value.
+    /// </summary>
+    Bubble,
+
+    /// <summary>
+    /// Renders point estimates with lower and upper uncertainty bounds.
+    /// </summary>
+    ErrorBar,
+
+    /// <summary>
+    /// Renders open, high, low, and close values.
+    /// </summary>
+    Candlestick,
+
+    /// <summary>
+    /// Renders a filled band between lower and upper values across x positions.
+    /// </summary>
+    RangeBand,
+
+    /// <summary>
+    /// Renders a filled interval area with emphasized upper and lower bounds.
+    /// </summary>
+    RangeArea,
+
+    /// <summary>
     /// Renders vertical bars.
     /// </summary>
     Bar,
+
+    /// <summary>
+    /// Renders vertical stems with circular value markers.
+    /// </summary>
+    Lollipop,
+
+    /// <summary>
+    /// Renders paired values connected by a line and endpoint markers.
+    /// </summary>
+    Dumbbell,
+
+    /// <summary>
+    /// Renders vertical interval bars from start to end values.
+    /// </summary>
+    RangeBar,
+
+    /// <summary>
+    /// Renders statistical box and whisker summaries.
+    /// </summary>
+    BoxPlot,
 
     /// <summary>
     /// Renders horizontal bars.
@@ -38,6 +93,16 @@ public enum ChartSeriesKind {
     /// Renders a single-value radial gauge.
     /// </summary>
     Gauge,
+
+    /// <summary>
+    /// Renders a single-value circular progress chart.
+    /// </summary>
+    Circle,
+
+    /// <summary>
+    /// Renders one or more circular progress rings.
+    /// </summary>
+    RadialBar,
 
     /// <summary>
     /// Renders compact value, target, and qualitative range bars.
@@ -65,6 +130,21 @@ public enum ChartSeriesKind {
     Timeline,
 
     /// <summary>
+    /// Renders project tasks, progress, dependencies, and milestones on a schedule axis.
+    /// </summary>
+    Gantt,
+
+    /// <summary>
+    /// Renders weighted flows between named nodes.
+    /// </summary>
+    Sankey,
+
+    /// <summary>
+    /// Renders hierarchical parent-child relationships.
+    /// </summary>
+    Tree,
+
+    /// <summary>
     /// Renders a proportional pie chart.
     /// </summary>
     Pie,
@@ -72,5 +152,35 @@ public enum ChartSeriesKind {
     /// <summary>
     /// Renders a proportional donut chart.
     /// </summary>
-    Donut
+    Donut,
+
+    /// <summary>
+    /// Renders filled area series stacked on top of earlier stacked area series.
+    /// </summary>
+    StackedArea,
+
+    /// <summary>
+    /// Renders a two-point comparison line between start and end values.
+    /// </summary>
+    Slope,
+
+    /// <summary>
+    /// Renders proportional flat rectangles for part-to-whole comparison.
+    /// </summary>
+    Treemap,
+
+    /// <summary>
+    /// Renders open, high, low, and close values as stems with open and close ticks.
+    /// </summary>
+    Ohlc,
+
+    /// <summary>
+    /// Renders equal-angle radial segments with radius scaled by value.
+    /// </summary>
+    PolarArea,
+
+    /// <summary>
+    /// Renders a computed least-squares trend line.
+    /// </summary>
+    TrendLine
 }

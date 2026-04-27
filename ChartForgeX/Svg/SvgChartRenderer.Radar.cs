@@ -38,7 +38,7 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<path data-cfx-role=\"radar-outline\" data-cfx-series=\"{item.index}\" d=\"{RadarPath(points)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"2.4\" stroke-linejoin=\"round\"/>");
             for (var i = 0; i < points.Count; i++) {
                 sb.AppendLine($"<circle data-cfx-role=\"radar-point\" data-cfx-series=\"{item.index}\" data-cfx-point=\"{i}\" cx=\"{F(points[i].X)}\" cy=\"{F(points[i].Y)}\" r=\"3.8\" fill=\"{color.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"1.4\"/>");
-                if (chart.Options.ShowDataLabels) {
+                if (ShouldDrawDataLabels(chart, item.series)) {
                     var labelPoint = RadarDataLabelPoint(points[i], i, categories.Length, seriesOrder, seriesItems.Length);
                     DrawDataLabel(sb, chart, FormatValue(chart, RadarValue(item.series, categories[i])), labelPoint.X, labelPoint.Y, plot);
                 }

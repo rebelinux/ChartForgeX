@@ -1,0 +1,186 @@
+/// <summary>
+/// Writes the grouped static example catalog page.
+/// </summary>
+public static partial class GalleryWriter {
+    private static readonly CatalogGroup[] CatalogGroups = {
+        new(
+            "Report Essentials",
+            "Core chart types for operational reports, trend panels, and executive summaries.",
+            "domain-security-dark",
+            "ct-volume-light",
+            "ct-regional-light",
+            "monthly-posture-dark",
+            "license-cost-light",
+            "policy-backlog-step-area-light",
+            "endpoint-latency-light",
+            "endpoint-latency-range-light",
+            "observed-remediation-trend-light",
+            "annotation-edge-dark",
+            "data-label-readability-dark"),
+        new(
+            "Bars and Composition",
+            "Category comparison, stacked contribution, proportions, and sorted contribution views.",
+            "security-findings-grouped-light",
+            "domain-findings-stacked-dark",
+            "domain-control-horizontal-light",
+            "result-mix-donut",
+            "findings-composition-treemap-light",
+            "findings-pareto-dark"),
+        new(
+            "Statistical and Distribution",
+            "Charts for spread, uncertainty, paired deltas, clustering, and observed ranges.",
+            "endpoint-latency-histogram-light",
+            "endpoint-latency-boxplot-dark",
+            "exposure-clusters-bubble-light",
+            "detection-confidence-errorbar-dark",
+            "forecast-envelope-rangeband-dark",
+            "forecast-interval-rangearea-light",
+            "remediation-lift-dumbbell-light",
+            "control-improvement-slope-light"),
+        new(
+            "Specialized Reports",
+            "Gauge, circle, bullet, waterfall, radial, funnel, timeline, financial range, and compact outputs.",
+            "security-posture-gauge-dark",
+            "policy-readiness-circle-light",
+            "control-coverage-radialbar-dark",
+            "control-targets-bullet-dark",
+            "remediation-impact-waterfall-dark",
+            "security-posture-radar-dark",
+            "control-contribution-polar-area-light",
+            "domain-remediation-funnel-dark",
+            "domain-remediation-timeline-light",
+            "domain-remediation-gantt-light",
+            "finding-flow-sankey-light",
+            "control-hierarchy-tree-light",
+            "signal-windows-candlestick-light",
+            "signal-windows-ohlc-dark",
+            "policy-state-step-line-dark",
+            "control-readiness-lollipop-dark",
+            "warnings-sparkline"),
+        new(
+            "Matrices and Small Multiples",
+            "Dense review surfaces for grids, heatmaps, and shared-axis panels.",
+            "control-coverage-heatmap-dark",
+            "control-scorecards-grid",
+            "shared-axis-coverage-grid",
+            "domain-signal-mix-stacked-area-dark")
+    };
+
+    private static void WriteCatalog(string output, string[] htmlFiles) {
+        var cards = htmlFiles
+            .Select(file => new CatalogCard(
+                file,
+                Path.GetFileName(file),
+                Path.GetFileNameWithoutExtension(file),
+                ReadTitle(file)))
+            .OrderBy(card => card.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var assigned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<!doctype html>");
+        sb.AppendLine("<html lang=\"en\">");
+        sb.AppendLine("<head>");
+        sb.AppendLine("<meta charset=\"utf-8\">");
+        sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+        sb.AppendLine("<title>ChartForgeX Chart Catalog</title>");
+        sb.AppendLine("<style>");
+        sb.AppendLine(":root{color-scheme:dark;--bg:#151515;--panel:#202224;--panel2:#191a1c;--line:#3a3d40;--text:#f4f0e8;--muted:#beb7a8;--accent:#2dd4bf;--gold:#f4b860}");
+        sb.AppendLine("*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial,sans-serif;-webkit-font-smoothing:antialiased}");
+        sb.AppendLine("header{padding:36px 42px 22px;border-bottom:1px solid var(--line);background:#1a1b1d}h1{margin:0 0 8px;font-size:30px;line-height:1.1}p{margin:0;color:var(--muted);font-size:14px;max-width:840px}.nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.nav a,.links a{color:var(--accent);text-decoration:none;font-size:12px;font-weight:800;border:1px solid rgba(45,212,191,.32);border-radius:6px;padding:6px 8px}.nav a:hover,.links a:hover{background:rgba(45,212,191,.12)}");
+        sb.AppendLine("main{padding:30px 42px 48px}.section{margin:0 0 36px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 16px;border-bottom:1px solid var(--line);padding-bottom:12px}h2{margin:0 0 6px;font-size:21px;line-height:1.15}.count{flex:0 0 auto;border:1px solid rgba(244,184,96,.44);border-radius:999px;color:var(--gold);font-size:12px;font-weight:850;padding:6px 10px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}");
+        sb.AppendLine(".card{min-width:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,var(--panel),var(--panel2));overflow:hidden}.preview{aspect-ratio:16/10;background:#111;border-bottom:1px solid var(--line)}iframe{display:block;width:100%;height:100%;border:0;background:#111}.body{padding:13px 14px 15px}.title{font-size:14px;font-weight:850;line-height:1.25;margin-bottom:10px}.links{display:flex;flex-wrap:wrap;gap:8px}");
+        sb.AppendLine("@media(max-width:680px){header{padding:26px 18px 18px}main{padding:22px 18px 34px}.section-head{display:block}.count{display:inline-flex;margin-top:12px}.grid{grid-template-columns:1fr}.preview{aspect-ratio:4/3}}");
+        sb.AppendLine("</style>");
+        sb.AppendLine("</head>");
+        sb.AppendLine("<body>");
+        sb.AppendLine("<header>");
+        sb.AppendLine("<h1>ChartForgeX Chart Catalog</h1>");
+        sb.AppendLine("<p>Grouped static examples for reviewing the current chart surface across HTML, SVG, and dependency-free PNG output.</p>");
+        sb.AppendLine("<div class=\"nav\"><a href=\"" + IndexFileName + "\">All examples</a><a href=\"" + QualityDashboardFileName + "\">Quality dashboard</a><a href=\"" + ComparisonFileName + "\">SVG/PNG comparison</a></div>");
+        sb.AppendLine("</header>");
+        sb.AppendLine("<main>");
+
+        foreach (var group in CatalogGroups) {
+            var groupCards = cards.Where(card => group.Contains(card.BaseName)).ToArray();
+            if (groupCards.Length == 0) continue;
+            foreach (var card in groupCards) assigned.Add(card.BaseName);
+            AppendCatalogSection(sb, group.Name, group.Description, groupCards);
+        }
+
+        var remaining = cards.Where(card => !assigned.Contains(card.BaseName)).ToArray();
+        if (remaining.Length > 0) {
+            AppendCatalogSection(
+                sb,
+                "Additional Examples",
+                "Generated outputs not yet assigned to a named catalog family.",
+                remaining);
+        }
+
+        sb.AppendLine("</main>");
+        sb.AppendLine("</body>");
+        sb.AppendLine("</html>");
+        File.WriteAllText(Path.Combine(output, CatalogFileName), sb.ToString());
+    }
+
+    private static void AppendCatalogSection(System.Text.StringBuilder sb, string title, string description, CatalogCard[] cards) {
+        sb.AppendLine("<section class=\"section\">");
+        sb.AppendLine("<div class=\"section-head\"><div><h2>" + EscapeHtml(title) + "</h2><p>" + EscapeHtml(description) + "</p></div><span class=\"count\">" + cards.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " examples</span></div>");
+        sb.AppendLine("<div class=\"grid\">");
+        foreach (var card in cards) {
+            AppendCatalogCard(sb, card);
+        }
+
+        sb.AppendLine("</div>");
+        sb.AppendLine("</section>");
+    }
+
+    private static void AppendCatalogCard(System.Text.StringBuilder sb, CatalogCard card) {
+        var directory = Path.GetDirectoryName(card.FilePath) ?? string.Empty;
+        var svgExists = File.Exists(Path.Combine(directory, card.BaseName + ".svg"));
+        var pngExists = File.Exists(Path.Combine(directory, card.BaseName + ".png"));
+        sb.AppendLine("<article class=\"card\">");
+        sb.AppendLine("<div class=\"preview\"><iframe loading=\"lazy\" src=\"" + EscapeHtml(card.FileName) + "\" title=\"" + EscapeHtml(card.Title) + "\"></iframe></div>");
+        sb.AppendLine("<div class=\"body\">");
+        sb.AppendLine("<div class=\"title\">" + EscapeHtml(card.Title) + "</div>");
+        sb.AppendLine("<div class=\"links\">");
+        sb.AppendLine("<a href=\"" + EscapeHtml(card.FileName) + "\">HTML</a>");
+        if (svgExists) sb.AppendLine("<a href=\"" + EscapeHtml(card.BaseName) + ".svg\">SVG</a>");
+        if (pngExists) sb.AppendLine("<a href=\"" + EscapeHtml(card.BaseName) + ".png\">PNG</a>");
+        sb.AppendLine("</div>");
+        sb.AppendLine("</div>");
+        sb.AppendLine("</article>");
+    }
+
+    private readonly struct CatalogGroup {
+        public CatalogGroup(string name, string description, params string[] fileNames) {
+            Name = name;
+            Description = description;
+            FileNames = new HashSet<string>(fileNames, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public string Name { get; }
+
+        public string Description { get; }
+
+        private HashSet<string> FileNames { get; }
+
+        public bool Contains(string fileName) => FileNames.Contains(fileName);
+    }
+
+    private readonly struct CatalogCard {
+        public CatalogCard(string filePath, string fileName, string baseName, string title) {
+            FilePath = filePath;
+            FileName = fileName;
+            BaseName = baseName;
+            Title = title;
+        }
+
+        public string FilePath { get; }
+
+        public string FileName { get; }
+
+        public string BaseName { get; }
+
+        public string Title { get; }
+    }
+}

@@ -1,0 +1,46 @@
+using System;
+using System.Collections.Generic;
+using ChartForgeX.Core;
+using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
+
+namespace ChartForgeX.Raster;
+
+public sealed partial class PngChartRenderer {
+    private static void DrawRangeBand(RgbaCanvas c, Chart chart, int index, ChartRect plot, ChartMapper map) {
+        var series = chart.Series[index];
+        var color = series.Color ?? chart.Options.Theme.Palette[index % chart.Options.Theme.Palette.Length];
+        var lower = new List<ChartPoint>();
+        var upper = new List<ChartPoint>();
+        for (var pointIndex = 0; pointIndex + 1 < series.Points.Count; pointIndex += 2) {
+            var low = series.Points[pointIndex];
+            var high = series.Points[pointIndex + 1];
+            lower.Add(new ChartPoint(map.X(low.X), map.Y(low.Y)));
+            upper.Add(new ChartPoint(map.X(high.X), map.Y(high.Y)));
+        }
+
+        if (lower.Count == 0) return;
+        var polygon = new List<ChartPoint>(lower.Count + upper.Count);
+        foreach (var point in upper) polygon.Add(point);
+        for (var i = lower.Count - 1; i >= 0; i--) polygon.Add(lower[i]);
+        c.FillPolygonVerticalGradient(polygon, ChartColor.FromRgba(color.R, color.G, color.B, 68), ChartColor.FromRgba(color.R, color.G, color.B, 22));
+        DrawPngLinePath(c, upper, PngStrokeHalo(color), 5.8);
+        DrawPngLinePath(c, lower, PngStrokeHalo(color), 5.8);
+        for (var i = 1; i < upper.Count; i++) {
+            c.DrawLine(upper[i - 1].X, upper[i - 1].Y, upper[i].X, upper[i].Y, color, 2);
+            c.DrawLine(lower[i - 1].X, lower[i - 1].Y, lower[i].X, lower[i].Y, color, 2);
+        }
+
+        if (ShouldDrawDataLabels(chart, series)) {
+            for (var pointIndex = 0; pointIndex + 1 < series.Points.Count; pointIndex += 2) {
+                var low = series.Points[pointIndex];
+                var high = series.Points[pointIndex + 1];
+                var label = FormatValue(chart, low.Y) + "-" + FormatValue(chart, high.Y);
+                var fontSize = chart.Options.Theme.DataLabelFontSize;
+                var x = map.X(low.X) - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0;
+                var y = Math.Min(map.Y(low.Y), map.Y(high.Y)) - fontSize - 4;
+                DrawReadablePngLabel(c, plot, x, y, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+            }
+        }
+    }
+}

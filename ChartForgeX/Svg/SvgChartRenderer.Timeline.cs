@@ -10,7 +10,7 @@ using ChartForgeX.Rendering;
 namespace ChartForgeX.Svg;
 
 public sealed partial class SvgChartRenderer {
-    private static void DrawTimeline(StringBuilder sb, Chart chart, ChartRect basePlot) {
+    private static void DrawTimeline(StringBuilder sb, Chart chart, ChartRect basePlot, string id) {
         var items = BuildTimelineItems(chart);
         if (items.Count == 0) return;
 
@@ -55,7 +55,7 @@ public sealed partial class SvgChartRenderer {
                 var rowLabel = TrimSvgLabelToWidth(item.Name, t.TickLabelFontSize, rowLabelWidth);
                 sb.AppendLine($"<text data-cfx-role=\"timeline-row-label\" x=\"{F(plot.Left - 14)}\" y=\"{F(y + rowHeight / 2)}\" text-anchor=\"end\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"650\">{Escape(rowLabel)}</text>");
             }
-            sb.AppendLine($"<rect data-cfx-role=\"timeline-item\" data-cfx-row=\"{i}\" data-cfx-start=\"{F(item.Start)}\" data-cfx-end=\"{F(item.End)}\" data-cfx-duration=\"{Escape(duration)}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(left)}\" y=\"{F(y)}\" width=\"{F(width)}\" height=\"{F(rowHeight)}\" rx=\"{F(Math.Min(8, rowHeight / 2))}\" fill=\"{item.Color.ToCss()}\" opacity=\"0.94\"/>");
+            DrawTimelineRangeBar(sb, chart, item, id, i, left, y, width, rowHeight, duration, summary);
             if (chart.Options.ShowDataLabels && width >= 72) {
                 DrawSvgTextCenteredX(sb, chart, "data-label", duration, left + width / 2, y + rowHeight / 2, HeatmapTextColor(item.Color), t.DataLabelFontSize, width - 6, "750");
             }
@@ -82,10 +82,21 @@ public sealed partial class SvgChartRenderer {
             var point = series.Points[0];
             var start = Math.Min(point.X, point.Y);
             var end = Math.Max(point.X, point.Y);
-            items.Add(new TimelineItem(series.Name, start, end, series.Color ?? Color(chart, i)));
+            items.Add(new TimelineItem(i, series.Name, start, end, series.Color ?? Color(chart, i)));
         }
 
         return items;
+    }
+
+    private static void DrawTimelineRangeBar(StringBuilder sb, Chart chart, TimelineItem item, string id, int row, double left, double y, double width, double rowHeight, string duration, string summary) {
+        var radius = Math.Min(8, rowHeight / 2);
+        var highlightInset = Math.Min(radius, width / 3);
+        var highlightEnd = left + width - highlightInset;
+        sb.AppendLine($"<rect data-cfx-role=\"timeline-item\" data-cfx-row=\"{row}\" data-cfx-start=\"{F(item.Start)}\" data-cfx-end=\"{F(item.End)}\" data-cfx-duration=\"{Escape(duration)}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(left)}\" y=\"{F(y)}\" width=\"{F(width)}\" height=\"{F(rowHeight)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-seriesFill{item.SeriesIndex})\"/>");
+        sb.AppendLine($"<rect data-cfx-role=\"timeline-item-border\" x=\"{F(left + 0.5)}\" y=\"{F(y + 0.5)}\" width=\"{F(Math.Max(0, width - 1))}\" height=\"{F(Math.Max(0, rowHeight - 1))}\" rx=\"{F(Math.Max(0, radius - 0.5))}\" fill=\"none\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-opacity=\"0.62\"/>");
+        if (highlightEnd > left + highlightInset) {
+            sb.AppendLine($"<line data-cfx-role=\"timeline-item-highlight\" x1=\"{F(left + highlightInset)}\" y1=\"{F(y + 1.25)}\" x2=\"{F(highlightEnd)}\" y2=\"{F(y + 1.25)}\" stroke=\"#fff\" stroke-opacity=\"0.26\" stroke-width=\"1\" stroke-linecap=\"round\"/>");
+        }
     }
 
     private static ChartRect ApplyTimelineReserve(Chart chart, ChartRect plot, IReadOnlyList<TimelineItem> items) {
@@ -124,12 +135,15 @@ public sealed partial class SvgChartRenderer {
         item.Name + ": " + FormatTimelineTick(chart, item.Start) + " to " + FormatTimelineTick(chart, item.End) + ", duration " + duration;
 
     private readonly struct TimelineItem {
-        public TimelineItem(string name, double start, double end, ChartColor color) {
+        public TimelineItem(int seriesIndex, string name, double start, double end, ChartColor color) {
+            SeriesIndex = seriesIndex;
             Name = name;
             Start = start;
             End = end;
             Color = color;
         }
+
+        public int SeriesIndex { get; }
 
         public string Name { get; }
 

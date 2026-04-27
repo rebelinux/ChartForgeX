@@ -40,9 +40,12 @@ public sealed partial class PngChartRenderer {
             c.DrawLine(x, y, x + 18, y, color, 2);
             c.DrawCircle(x + 9, y, 4.2, background);
             c.DrawCircle(x + 9, y, 3.1, color);
-        } else if (kind == ChartSeriesKind.Scatter) {
+        } else if (kind == ChartSeriesKind.Scatter || kind == ChartSeriesKind.Bubble) {
             c.DrawCircle(x + 9, y, 4.2, background);
             c.DrawCircle(x + 9, y, 3.4, color);
+        } else if (kind == ChartSeriesKind.Candlestick || kind == ChartSeriesKind.Ohlc) {
+            c.DrawLine(x + 9, y - 6, x + 9, y + 6, color, 2);
+            c.FillRoundedRect(x + 4, y - 3, 10, 6, 1.5, color);
         } else {
             c.FillRoundedRect(x, y - 5, 10, 10, 2, color);
         }

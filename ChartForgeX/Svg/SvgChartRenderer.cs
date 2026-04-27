@@ -31,19 +31,31 @@ public sealed partial class SvgChartRenderer {
         var range = ChartRange.FromChart(chart);
         IReadOnlyList<double> xTicks;
         IReadOnlyList<double> yTicks;
+        ChartRange? secondaryRange = null;
+        IReadOnlyList<double>? secondaryTicks = null;
         if (IsHorizontalBarChart(chart)) {
             xTicks = ChartTicks.Generate(range.MinX, range.MaxX, o.TickCount);
             ApplyHorizontalValueBounds(chart, range, xTicks);
             yTicks = GetHorizontalCategoryTicks(chart, range);
             plot = ApplyHorizontalBarReserve(chart, plot, yTicks);
+            plot = ApplyXAxisBottomReserve(chart, plot, xTicks, true);
         } else {
             yTicks = ChartTicks.Generate(range.MinY, range.MaxY, o.TickCount);
             range.SetYBounds(yTicks[0], yTicks[yTicks.Count - 1]);
             plot = ApplyYAxisLabelReserve(chart, plot, yTicks);
+            if (HasSecondaryYAxis(chart)) {
+                secondaryRange = ChartRange.FromSecondaryYAxis(chart, range);
+                secondaryTicks = ChartTicks.Generate(secondaryRange.MinY, secondaryRange.MaxY, o.TickCount);
+                secondaryRange.SetYBounds(secondaryTicks[0], secondaryTicks[secondaryTicks.Count - 1]);
+                plot = ApplySecondaryYAxisLabelReserve(chart, plot, secondaryTicks);
+            }
+
             xTicks = GetXTicks(chart, range, plot);
+            plot = ApplyXAxisBottomReserve(chart, plot, xTicks, false);
         }
 
         var map = new ChartMapper(plot, range);
+        var secondaryMap = secondaryRange == null ? null : new ChartMapper(plot, secondaryRange);
         var id = BuildId(chart);
         var sb = new StringBuilder();
         sb.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"{h}\" viewBox=\"0 0 {w} {h}\" role=\"img\" aria-labelledby=\"{id}-title {id}-desc\" preserveAspectRatio=\"xMidYMid meet\" style=\"max-width:100%;height:auto;display:block\" shape-rendering=\"geometricPrecision\" text-rendering=\"geometricPrecision\">");
@@ -86,6 +98,18 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine("</svg>");
             return sb.ToString();
         }
+        if (IsCircleChart(chart)) {
+            DrawCircleChart(sb, chart, plot);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
+        if (IsRadialBarChart(chart)) {
+            DrawRadialBar(sb, chart, plot);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
         if (IsBulletChart(chart)) {
             DrawBullet(sb, chart, plot, id);
             sb.AppendLine("</g>");
@@ -104,8 +128,21 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine("</svg>");
             return sb.ToString();
         }
+        if (IsPolarAreaChart(chart)) {
+            DrawPolarArea(sb, chart, plot, id);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
         if (IsFunnelChart(chart)) {
             DrawFunnel(sb, chart, plot, id);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
+        if (IsTreemapChart(chart)) {
+            DrawTreemap(sb, chart, plot, id);
+            DrawLegend(sb, chart, w, h);
             sb.AppendLine("</g>");
             sb.AppendLine("</svg>");
             return sb.ToString();
@@ -117,7 +154,25 @@ public sealed partial class SvgChartRenderer {
             return sb.ToString();
         }
         if (IsTimelineChart(chart)) {
-            DrawTimeline(sb, chart, plot);
+            DrawTimeline(sb, chart, plot, id);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
+        if (IsGanttChart(chart)) {
+            DrawGantt(sb, chart, plot, id);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
+        if (IsSankeyChart(chart)) {
+            DrawSankey(sb, chart, plot, id);
+            sb.AppendLine("</g>");
+            sb.AppendLine("</svg>");
+            return sb.ToString();
+        }
+        if (IsTreeChart(chart)) {
+            DrawTree(sb, chart, plot, id);
             sb.AppendLine("</g>");
             sb.AppendLine("</svg>");
             return sb.ToString();
@@ -127,6 +182,7 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<g clip-path=\"url(#{id}-plotClip)\">");
             for (var i = 0; i < chart.Series.Count; i++) DrawSeries(sb, chart, i, plot, range, map, id);
             sb.AppendLine("</g>");
+            if (o.BarMode == ChartBarMode.Stacked && o.ShowStackTotals) DrawHorizontalStackTotals(sb, chart, plot, map);
             DrawLegend(sb, chart, w, h);
             sb.AppendLine("</g>");
             sb.AppendLine("</svg>");
@@ -135,8 +191,9 @@ public sealed partial class SvgChartRenderer {
 
         DrawAnnotationBands(sb, chart, plot, map);
         DrawGrid(sb, chart, plot, xTicks, yTicks, map);
+        if (secondaryMap != null && secondaryTicks != null) DrawSecondaryYAxis(sb, chart, plot, secondaryTicks, secondaryMap);
         sb.AppendLine($"<g clip-path=\"url(#{id}-plotClip)\">");
-        for (var i = 0; i < chart.Series.Count; i++) DrawSeries(sb, chart, i, plot, range, map, id);
+        for (var i = 0; i < chart.Series.Count; i++) DrawSeries(sb, chart, i, plot, range, SeriesMap(chart.Series[i], map, secondaryMap), id);
         if (o.BarMode == ChartBarMode.Stacked && o.ShowStackTotals) DrawStackTotals(sb, chart, plot, map);
         sb.AppendLine("</g>");
         DrawAnnotationLines(sb, chart, plot, map);
@@ -146,26 +203,21 @@ public sealed partial class SvgChartRenderer {
         return sb.ToString();
     }
 
-    private static void DrawHeader(StringBuilder sb, Chart chart) {
-        var t = chart.Options.Theme;
-        var maxWidth = Math.Max(24, chart.Options.Size.Width - 80);
-        DrawSvgTextLeft(sb, chart, "chart-title", chart.Title, 40, 52, t.Text, t.TitleFontSize, maxWidth, "750");
-        if (!string.IsNullOrWhiteSpace(chart.Subtitle)) DrawSvgTextLeft(sb, chart, "chart-subtitle", chart.Subtitle, 40, 79, t.MutedText, t.SubtitleFontSize, maxWidth, "400");
-    }
-
     private static void DrawGrid(StringBuilder sb, Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, IReadOnlyList<double> yTicks, ChartMapper map) {
         var o = chart.Options; var t = o.Theme;
         var xLabelAngle = Clamp(o.XAxisLabelAngle, -80, 80);
-        var xLabelY = plot.Bottom + XAxisLabelOffset(chart);
+        var xLabels = XAxisTickLabels(chart, xTicks, false);
+        var xLabelY = plot.Bottom + XAxisLabelOffset(chart, xLabels);
         foreach (var yv in yTicks) {
             var y = map.Y(yv);
             if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\"/>");
             if (o.ShowAxes) sb.AppendLine($"<text x=\"{F(plot.Left-12)}\" y=\"{F(y+4)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, yv))}</text>");
         }
-        foreach (var xv in xTicks) {
+        for (var i = 0; i < xTicks.Count; i++) {
+            var xv = xTicks[i];
             var x = map.X(xv);
             if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.42\"/>");
-            if (o.ShowAxes) DrawXAxisLabel(sb, chart, plot, FormatX(chart, xv), x, xLabelY, xLabelAngle);
+            if (o.ShowAxes) DrawXAxisLabel(sb, chart, plot, xLabels[i], x, xLabelY, xLabelAngle);
         }
         var zeroY = map.Y(0);
         if (o.ShowAxes && zeroY > plot.Top && zeroY < plot.Bottom) {
@@ -174,17 +226,19 @@ public sealed partial class SvgChartRenderer {
         if (!o.ShowAxes) return;
         sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
         sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
-        DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart));
+        DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart, xLabels));
         DrawSvgYAxisTitle(sb, chart, plot, 26);
     }
 
     private static void DrawHorizontalBarGrid(StringBuilder sb, Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, IReadOnlyList<double> categoryTicks, ChartMapper map) {
         var o = chart.Options;
         var t = o.Theme;
-        foreach (var xv in xTicks) {
+        var xLabels = XAxisTickLabels(chart, xTicks, true);
+        for (var i = 0; i < xTicks.Count; i++) {
+            var xv = xTicks[i];
             var x = map.X(xv);
             if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.72\"/>");
-            if (o.ShowAxes) sb.AppendLine($"<text x=\"{F(x)}\" y=\"{F(plot.Bottom + 21)}\" text-anchor=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, xv))}</text>");
+            if (o.ShowAxes) sb.AppendLine($"<text x=\"{F(x)}\" y=\"{F(plot.Bottom + 21)}\" text-anchor=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(xLabels[i])}</text>");
         }
 
         foreach (var category in categoryTicks) {
@@ -201,7 +255,7 @@ public sealed partial class SvgChartRenderer {
         if (!o.ShowAxes) return;
         sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
         sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
-        DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart));
+        DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart, xLabels));
         DrawSvgYAxisTitle(sb, chart, plot, 26);
     }
 
@@ -356,40 +410,147 @@ public sealed partial class SvgChartRenderer {
         var s = chart.Series[index]; var c = Color(chart, index); if (s.Points.Count == 0) return;
         if (s.Kind == ChartSeriesKind.HorizontalBar) { DrawHorizontalBars(sb, chart, index, plot, map, id); return; }
         if (s.Kind == ChartSeriesKind.Bar) { DrawBars(sb, chart, index, plot, range, map, id); return; }
+        if (s.Kind == ChartSeriesKind.Lollipop) { DrawLollipops(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.RangeBar) { DrawRangeBars(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.BoxPlot) { DrawBoxPlots(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.Bubble) { DrawBubbles(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.ErrorBar) { DrawErrorBars(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.Candlestick) { DrawCandlesticks(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.Ohlc) { DrawOhlc(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.RangeBand) { DrawRangeBand(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.RangeArea) { DrawRangeArea(sb, chart, index, plot, map, id); return; }
+        if (s.Kind == ChartSeriesKind.Dumbbell) { DrawDumbbells(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.Slope) { DrawSlope(sb, chart, index, plot, map); return; }
+        if (s.Kind == ChartSeriesKind.TrendLine) { DrawTrendLine(sb, chart, index, map); return; }
+        if (s.Kind == ChartSeriesKind.StackedArea) { DrawStackedArea(sb, chart, index, plot, map); return; }
         var mapped = s.Points.Select(p => new ChartPoint(map.X(p.X), map.Y(p.Y))).ToArray();
-        if (s.Kind == ChartSeriesKind.Area) {
+        if (s.Kind == ChartSeriesKind.Area || s.Kind == ChartSeriesKind.StepArea) {
             var first = mapped[0]; var last = mapped[mapped.Length - 1];
             var zeroY = Math.Min(plot.Bottom, Math.Max(plot.Top, map.Y(0)));
-            var area = $"{BuildLinePath(mapped, s.Smooth)} L {F(last.X)} {F(zeroY)} L {F(first.X)} {F(zeroY)} Z";
-            sb.AppendLine($"<path d=\"{area}\" fill=\"url(#{id}-area{index})\"/>");
+            var areaTop = s.Kind == ChartSeriesKind.StepArea ? BuildStepLinePath(mapped) : BuildLinePath(mapped, s.Smooth);
+            var area = $"{areaTop} L {F(last.X)} {F(zeroY)} L {F(first.X)} {F(zeroY)} Z";
+            var areaRole = s.Kind == ChartSeriesKind.StepArea ? "step-area" : "area";
+            sb.AppendLine($"<path data-cfx-role=\"{areaRole}\" data-cfx-series=\"{index}\" d=\"{area}\" fill=\"url(#{id}-area{index})\"/>");
         }
         if (s.Kind == ChartSeriesKind.Scatter) {
-            foreach (var p in mapped) sb.AppendLine($"<circle cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(Math.Max(3, chart.Options.Theme.MarkerRadius + 0.75))}\" fill=\"{c.ToCss()}\" opacity=\"0.92\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+            foreach (var p in mapped) sb.AppendLine($"<circle data-cfx-role=\"scatter-point\" data-cfx-series=\"{index}\" cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(Math.Max(3, chart.Options.Theme.MarkerRadius + 0.75))}\" fill=\"{c.ToCss()}\" opacity=\"0.92\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
         } else {
-            var line = BuildLinePath(mapped, s.Smooth);
-            sb.AppendLine($"<path d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth + 5)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.14\"/>");
-            sb.AppendLine($"<path d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
-            if (!chart.Options.IsSparkline) foreach (var p in mapped) sb.AppendLine($"<circle cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(chart.Options.Theme.MarkerRadius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+            var line = s.Kind == ChartSeriesKind.StepLine ? BuildStepLinePath(mapped) : BuildLinePath(mapped, s.Smooth);
+            if (s.Kind == ChartSeriesKind.StepArea) line = BuildStepLinePath(mapped);
+            var lineRole = s.Kind == ChartSeriesKind.StepLine ? "step-line" : s.Kind == ChartSeriesKind.StepArea ? "step-area-line" : s.Kind == ChartSeriesKind.Area ? "area-line" : "line";
+            sb.AppendLine($"<path data-cfx-role=\"{lineRole}-halo\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth + 5)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.14\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"{lineRole}\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
+            if (!chart.Options.IsSparkline) foreach (var p in mapped) sb.AppendLine($"<circle data-cfx-role=\"line-marker\" data-cfx-series=\"{index}\" cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(chart.Options.Theme.MarkerRadius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
         }
-        if (chart.Options.ShowDataLabels) DrawPointLabels(sb, chart, s, mapped, plot);
+        if (ShouldDrawDataLabels(chart, s)) DrawPointLabels(sb, chart, s, mapped, plot);
     }
 
-    private static void DrawHorizontalBars(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map, string id) {
+    private static void DrawTrendLine(StringBuilder sb, Chart chart, int index, ChartMapper map) {
+        var series = chart.Series[index];
+        if (series.Points.Count < 2) return;
+        var color = Color(chart, index);
+        var start = series.Points[0];
+        var end = series.Points[series.Points.Count - 1];
+        var x1 = map.X(start.X);
+        var y1 = map.Y(start.Y);
+        var x2 = map.X(end.X);
+        var y2 = map.Y(end.Y);
+        var slope = (end.Y - start.Y) / (end.X - start.X);
+        var intercept = start.Y - slope * start.X;
+        sb.AppendLine($"<line data-cfx-role=\"trend-line\" data-cfx-series=\"{index}\" data-cfx-slope=\"{F(slope)}\" data-cfx-intercept=\"{F(intercept)}\" x1=\"{F(x1)}\" y1=\"{F(y1)}\" x2=\"{F(x2)}\" y2=\"{F(y2)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(Math.Max(1.4, series.StrokeWidth))}\" stroke-linecap=\"round\" stroke-dasharray=\"8 6\" opacity=\"0.92\"/>");
+    }
+
+    private static void DrawSlope(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
+        var series = chart.Series[index];
+        if (series.Points.Count < 2) return;
+        var color = Color(chart, index);
+        var start = series.Points[0];
+        var end = series.Points[1];
+        var xStart = map.X(start.X);
+        var yStart = map.Y(start.Y);
+        var xEnd = map.X(end.X);
+        var yEnd = map.Y(end.Y);
+        var radius = Math.Max(4.2, chart.Options.Theme.MarkerRadius + 1.2);
+        var summary = series.Name + ": " + FormatValue(chart, start.Y) + " to " + FormatValue(chart, end.Y);
+
+        sb.AppendLine($"<g data-cfx-role=\"slope\" data-cfx-series=\"{index}\" role=\"img\" aria-label=\"{Escape(summary)}\">");
+        sb.AppendLine($"<line data-cfx-role=\"slope-line\" x1=\"{F(xStart)}\" y1=\"{F(yStart)}\" x2=\"{F(xEnd)}\" y2=\"{F(yEnd)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth + 5)}\" stroke-linecap=\"round\" opacity=\"0.14\"/>");
+        sb.AppendLine($"<line data-cfx-role=\"slope-line\" x1=\"{F(xStart)}\" y1=\"{F(yStart)}\" x2=\"{F(xEnd)}\" y2=\"{F(yEnd)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth)}\" stroke-linecap=\"round\"/>");
+        sb.AppendLine($"<circle data-cfx-role=\"slope-start\" cx=\"{F(xStart)}\" cy=\"{F(yStart)}\" r=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+        sb.AppendLine($"<circle data-cfx-role=\"slope-end\" cx=\"{F(xEnd)}\" cy=\"{F(yEnd)}\" r=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+        sb.AppendLine("</g>");
+        if (!ShouldDrawDataLabels(chart, series)) return;
+        DrawHorizontalValueLabel(sb, chart, FormatValue(chart, start.Y), xStart - radius - 8, yStart, "end", plot);
+        DrawHorizontalValueLabel(sb, chart, FormatValue(chart, end.Y), xEnd + radius + 8, yEnd, "start", plot);
+    }
+
+    private static void DrawStackedArea(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
+        var series = chart.Series[index];
+        var color = Color(chart, index);
+        var upper = new List<ChartPoint>(series.Points.Count);
+        var lower = new List<ChartPoint>(series.Points.Count);
+        foreach (var point in series.Points) {
+            var baseValue = StackAreaBaseValue(chart, index, point);
+            upper.Add(new ChartPoint(map.X(point.X), map.Y(baseValue + point.Y)));
+            lower.Add(new ChartPoint(map.X(point.X), map.Y(baseValue)));
+        }
+
+        var upperPath = ChartPathBuilder.FromPoints(upper, ChartSeriesKind.Line, series.Smooth).Flatten(12);
+        var lowerPath = ChartPathBuilder.FromPoints(lower, ChartSeriesKind.Line, series.Smooth).Flatten(12);
+        sb.AppendLine($"<path data-cfx-role=\"stacked-area\" data-cfx-series=\"{index}\" d=\"{BuildClosedPolygonPath(upperPath, lowerPath)}\" fill=\"{color.ToCss()}\" opacity=\"0.42\"/>");
+        var line = BuildLinePath(upperPath, false);
+        sb.AppendLine($"<path data-cfx-role=\"stacked-area-line\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth + 4)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.12\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"stacked-area-line\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
+        if (!ShouldDrawDataLabels(chart, series)) return;
+        var labelPoints = series.Points.Select(point => new ChartPoint(map.X(point.X), map.Y(StackAreaBaseValue(chart, index, point) + point.Y))).ToArray();
+        DrawPointLabels(sb, chart, series, labelPoints, plot);
+    }
+
+    private static string BuildClosedPolygonPath(IReadOnlyList<ChartPoint> upper, IReadOnlyList<ChartPoint> lower) {
+        if (upper.Count == 0) return string.Empty;
+        var sb = new StringBuilder();
+        sb.Append("M ").Append(F(upper[0].X)).Append(' ').Append(F(upper[0].Y));
+        for (var i = 1; i < upper.Count; i++) sb.Append(" L ").Append(F(upper[i].X)).Append(' ').Append(F(upper[i].Y));
+        for (var i = lower.Count - 1; i >= 0; i--) sb.Append(" L ").Append(F(lower[i].X)).Append(' ').Append(F(lower[i].Y));
+        sb.Append(" Z");
+        return sb.ToString();
+    }
+
+    private static void DrawLollipops(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
         var s = chart.Series[index];
-        var layout = HorizontalBarLayout(chart, plot, index);
-        var zeroX = Math.Min(plot.Right, Math.Max(plot.Left, map.X(0)));
+        var c = Color(chart, index);
+        var zeroY = Math.Min(plot.Bottom, Math.Max(plot.Top, map.Y(0)));
+        var radius = Math.Max(4, chart.Options.Theme.MarkerRadius + 2.25);
         for (var pointIndex = 0; pointIndex < s.Points.Count; pointIndex++) {
             var p = s.Points[pointIndex];
-            var valueX = map.X(p.Y);
-            var left = Math.Min(zeroX, valueX);
-            var width = Math.Abs(valueX - zeroX);
-            var y = map.Y(p.X) + layout.Offset - layout.BarHeight / 2;
-            sb.AppendLine($"<rect data-cfx-role=\"horizontal-bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" x=\"{F(left)}\" y=\"{F(y)}\" width=\"{F(width)}\" height=\"{F(layout.BarHeight)}\" rx=\"{F(Math.Min(7, layout.BarHeight / 2))}\" fill=\"url(#{id}-seriesFill{index})\" opacity=\"0.94\"/>");
-            if (chart.Options.ShowDataLabels) {
-                var labelX = p.Y >= 0 ? left + width + 8 : left - 8;
-                var anchor = p.Y >= 0 ? "start" : "end";
-                DrawHorizontalValueLabel(sb, chart, FormatValue(chart, p.Y), labelX, y + layout.BarHeight / 2, anchor, plot);
-            }
+            var x = map.X(p.X);
+            var y = map.Y(p.Y);
+            sb.AppendLine($"<line data-cfx-role=\"lollipop-stem\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" x1=\"{F(x)}\" y1=\"{F(zeroY)}\" x2=\"{F(x)}\" y2=\"{F(y)}\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(Math.Max(1.4, s.StrokeWidth * 0.62))}\" stroke-linecap=\"round\" opacity=\"0.58\"/>");
+            sb.AppendLine($"<circle data-cfx-role=\"lollipop-marker\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(radius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2.2\"/>");
+        }
+
+        if (ShouldDrawDataLabels(chart, s)) DrawPointLabels(sb, chart, s, s.Points.Select(p => new ChartPoint(map.X(p.X), map.Y(p.Y))).ToArray(), plot);
+    }
+
+    private static void DrawRangeBars(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
+        var s = chart.Series[index];
+        var c = Color(chart, index);
+        var intervalCount = Math.Max(1, s.Points.Count / 2);
+        var barWidth = Math.Max(8, Math.Min(28, plot.Width / Math.Max(1, intervalCount * 4.0)));
+        for (var pointIndex = 0; pointIndex + 1 < s.Points.Count; pointIndex += 2) {
+            var start = s.Points[pointIndex];
+            var end = s.Points[pointIndex + 1];
+            var x = map.X(start.X);
+            var y1 = map.Y(start.Y);
+            var y2 = map.Y(end.Y);
+            var top = Math.Min(y1, y2);
+            var height = Math.Max(2, Math.Abs(y2 - y1));
+            var intervalIndex = pointIndex / 2;
+            var summary = FormatValue(chart, Math.Min(start.Y, end.Y)) + "-" + FormatValue(chart, Math.Max(start.Y, end.Y));
+            sb.AppendLine($"<rect data-cfx-role=\"range-bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(x - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"{F(Math.Min(7, barWidth / 2))}\" fill=\"{c.ToCss()}\" opacity=\"0.88\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"range-bar-cap\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" x1=\"{F(x - barWidth * 0.75)}\" y1=\"{F(y1)}\" x2=\"{F(x + barWidth * 0.75)}\" y2=\"{F(y1)}\" stroke=\"{c.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"range-bar-cap\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" x1=\"{F(x - barWidth * 0.75)}\" y1=\"{F(y2)}\" x2=\"{F(x + barWidth * 0.75)}\" y2=\"{F(y2)}\" stroke=\"{c.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
+            if (ShouldDrawDataLabels(chart, s)) DrawDataLabel(sb, chart, summary, x, top - 10, plot);
         }
     }
 
@@ -407,7 +568,7 @@ public sealed partial class SvgChartRenderer {
             var x = map.X(p.X) + layout.Offset - layout.BarWidth / 2;
             var radius = chart.Options.BarMode == ChartBarMode.Stacked ? Math.Min(3, layout.BarWidth / 2) : Math.Min(7, layout.BarWidth / 2);
             sb.AppendLine($"<rect data-cfx-role=\"bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" x=\"{F(x)}\" y=\"{F(top)}\" width=\"{F(layout.BarWidth)}\" height=\"{F(height)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-seriesFill{index})\" opacity=\"0.94\"/>");
-            if (chart.Options.ShowDataLabels) {
+            if (ShouldDrawDataLabels(chart, s)) {
                 if (chart.Options.BarMode == ChartBarMode.Stacked && height < chart.Options.Theme.DataLabelFontSize + 8) continue;
                 var labelY = chart.Options.BarMode == ChartBarMode.Stacked ? top + height / 2 : p.Y >= 0 ? top - 10 : top + height + 10;
                 DrawDataLabel(sb, chart, FormatValue(chart, p.Y), x + layout.BarWidth / 2, labelY, plot);
@@ -437,33 +598,26 @@ public sealed partial class SvgChartRenderer {
         return new BarLayoutInfo(barWidth, offset);
     }
 
-    private static HorizontalBarLayoutInfo HorizontalBarLayout(Chart chart, ChartRect plot, int seriesIndex) {
-        var horizontalSeries = chart.Series
-            .Select((series, index) => new { series, index })
-            .Where(item => item.series.Kind == ChartSeriesKind.HorizontalBar)
-            .Select(item => item.index)
-            .ToArray();
-        var groupCount = Math.Max(1, horizontalSeries.Length);
-        var groupPosition = Math.Max(0, Array.IndexOf(horizontalSeries, seriesIndex));
-        var categoryValues = new HashSet<double>();
-        foreach (var index in horizontalSeries) {
-            foreach (var point in chart.Series[index].Points) categoryValues.Add(point.X);
-        }
-
-        var categoryCount = Math.Max(1, categoryValues.Count);
-        var slotHeight = plot.Height / categoryCount;
-        var groupHeight = slotHeight * (groupCount == 1 ? 0.56 : 0.76);
-        var gap = groupCount == 1 ? 0 : Math.Min(4, groupHeight * 0.08);
-        var barHeight = Math.Max(3, Math.Min(30, (groupHeight - gap * (groupCount - 1)) / groupCount));
-        var offset = (groupPosition - (groupCount - 1) / 2.0) * (barHeight + gap);
-        return new HorizontalBarLayoutInfo(barHeight, offset);
-    }
-
     private static double StackBaseValue(Chart chart, int seriesIndex, ChartPoint point) {
         var sum = 0.0;
         for (var i = 0; i < seriesIndex; i++) {
             var series = chart.Series[i];
             if (series.Kind != ChartSeriesKind.Bar) continue;
+            foreach (var candidate in series.Points) {
+                if (Math.Abs(candidate.X - point.X) >= 0.000001) continue;
+                if ((point.Y >= 0 && candidate.Y >= 0) || (point.Y < 0 && candidate.Y < 0)) sum += candidate.Y;
+                break;
+            }
+        }
+
+        return sum;
+    }
+
+    private static double StackAreaBaseValue(Chart chart, int seriesIndex, ChartPoint point) {
+        var sum = 0.0;
+        for (var i = 0; i < seriesIndex; i++) {
+            var series = chart.Series[i];
+            if (series.Kind != ChartSeriesKind.StackedArea) continue;
             foreach (var candidate in series.Points) {
                 if (Math.Abs(candidate.X - point.X) >= 0.000001) continue;
                 if ((point.Y >= 0 && candidate.Y >= 0) || (point.Y < 0 && candidate.Y < 0)) sum += candidate.Y;
@@ -501,12 +655,31 @@ public sealed partial class SvgChartRenderer {
 
     private static void DrawPointLabels(StringBuilder sb, Chart chart, ChartSeries series, IReadOnlyList<ChartPoint> mapped, ChartRect plot) {
         var offset = chart.Options.Theme.MarkerRadius + 12;
+        var reserved = new List<ChartLabelBounds>();
         for (var i = 0; i < mapped.Count; i++) {
             var point = mapped[i];
+            var label = FormatValue(chart, series.Points[i].Y);
             var labelY = point.Y - offset;
             if (labelY < plot.Top + chart.Options.Theme.DataLabelFontSize) labelY = point.Y + offset;
-            DrawDataLabel(sb, chart, FormatValue(chart, series.Points[i].Y), point.X, labelY, plot);
+            if (!ReserveSvgLabel(label, point.X, labelY, chart, plot, reserved)) continue;
+            DrawDataLabel(sb, chart, label, point.X, labelY, plot);
         }
+    }
+
+    private static bool ReserveSvgLabel(string label, double x, double y, Chart chart, ChartRect plot, List<ChartLabelBounds> reserved) {
+        var fontSize = chart.Options.Theme.DataLabelFontSize;
+        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
+        if (label.Length == 0) return false;
+        var safeY = Clamp(y, plot.Top + fontSize * 0.7, plot.Bottom - fontSize * 0.35);
+        var width = EstimateTextWidth(label, fontSize) + 8;
+        var height = fontSize + 6;
+        var safeX = Clamp(x, plot.Left + 4, plot.Right - 4);
+        var anchor = EdgeAwareAnchor(label, x, plot, fontSize);
+        var left = anchor == "end" ? safeX - width : anchor == "start" ? safeX : safeX - width / 2;
+        var bounds = new ChartLabelBounds(left, safeY - height / 2, width, height);
+        foreach (var item in reserved) if (bounds.Intersects(item)) return false;
+        reserved.Add(bounds);
+        return true;
     }
 
     private static ChartRect PlotArea(Chart chart) {
@@ -553,12 +726,37 @@ public sealed partial class SvgChartRenderer {
         return new ChartRect(plot.X + leftShift, plot.Y, Math.Max(1, plot.Width - leftShift - rightReserve), plot.Height);
     }
 
+    private static ChartRect ApplyXAxisBottomReserve(Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, bool valueAxisOnly) {
+        if (!chart.Options.ShowAxes || chart.Options.IsSparkline || IsPieLike(chart) || xTicks.Count == 0) return plot;
+        var labels = XAxisTickLabels(chart, xTicks, valueAxisOnly);
+        var bottomReserve = XAxisTitleOffset(chart, labels) + chart.Options.Theme.AxisTitleFontSize + 4;
+        if (string.IsNullOrWhiteSpace(chart.XAxisTitle)) bottomReserve -= 18;
+        if (chart.Options.ShowLegend) bottomReserve += 18 + BuildLegendRows(chart, chart.Options.Size.Width).Count * LegendRowHeight;
+
+        var maxBottom = Math.Max(plot.Top + 1, chart.Options.Size.Height - bottomReserve);
+        if (plot.Bottom <= maxBottom) return plot;
+        return new ChartRect(plot.X, plot.Y, plot.Width, Math.Max(1, maxBottom - plot.Y));
+    }
+
     private static double HorizontalValueLabelReserve(Chart chart) {
-        if (!chart.Options.ShowDataLabels) return 0;
-        var labels = chart.Series
-            .Where(series => series.Kind == ChartSeriesKind.HorizontalBar)
-            .SelectMany(series => series.Points.Select(point => FormatValue(chart, point.Y)))
-            .ToArray();
+        if (!chart.Options.ShowDataLabels && !(chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) return 0;
+        string[] labels;
+        if (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals) {
+            var positiveTotals = new Dictionary<double, double>();
+            var negativeTotals = new Dictionary<double, double>();
+            foreach (var series in chart.Series) {
+                if (series.Kind != ChartSeriesKind.HorizontalBar) continue;
+                foreach (var point in series.Points) AddStackTotal(point.Y >= 0 ? positiveTotals : negativeTotals, point.X, point.Y);
+            }
+
+            labels = positiveTotals.Values.Concat(negativeTotals.Values).Select(value => FormatValue(chart, value)).ToArray();
+        } else {
+            labels = chart.Series
+                .Where(series => series.Kind == ChartSeriesKind.HorizontalBar)
+                .SelectMany(series => series.Points.Select(point => FormatValue(chart, point.Y)))
+                .ToArray();
+        }
+
         if (labels.Length == 0) return 0;
         return Math.Min(96, labels.Max(label => EstimateTextWidth(label, chart.Options.Theme.DataLabelFontSize)) + 24);
     }
@@ -566,7 +764,7 @@ public sealed partial class SvgChartRenderer {
     private static void ApplyHorizontalValueBounds(Chart chart, ChartRange range, IReadOnlyList<double> xTicks) {
         var min = xTicks[0];
         var max = xTicks[xTicks.Count - 1];
-        if (chart.Options.ShowDataLabels) {
+        if (chart.Options.ShowDataLabels || (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) {
             var span = Math.Max(1, max - min);
             var hasPositive = chart.Series.Any(series => series.Kind == ChartSeriesKind.HorizontalBar && series.Points.Any(point => point.Y > 0));
             var hasNegative = chart.Series.Any(series => series.Kind == ChartSeriesKind.HorizontalBar && series.Points.Any(point => point.Y < 0));
@@ -577,15 +775,24 @@ public sealed partial class SvgChartRenderer {
         range.SetXBounds(min, max);
     }
 
-    private static double XAxisLabelOffset(Chart chart) {
+    private static IReadOnlyList<string> XAxisTickLabels(Chart chart, IReadOnlyList<double> xTicks, bool valueAxisOnly) {
+        var labels = new string[xTicks.Count];
+        for (var i = 0; i < xTicks.Count; i++) labels[i] = valueAxisOnly ? FormatXAxisValue(chart, xTicks[i]) : FormatX(chart, xTicks[i]);
+        return labels;
+    }
+
+    private static double XAxisLabelOffset(Chart chart, IReadOnlyList<string>? labels = null) {
         var angle = Math.Abs(Clamp(chart.Options.XAxisLabelAngle, -80, 80)) * Math.PI / 180;
-        if (angle < 0.001 || chart.Options.XAxisLabels.Count == 0) return 21;
-        var widest = chart.Options.XAxisLabels.Max(label => EstimateTextWidth(label.Text, chart.Options.Theme.TickLabelFontSize));
+        if (angle < 0.001) return 21;
+        if ((labels == null || labels.Count == 0) && chart.Options.XAxisLabels.Count == 0) return 21;
+        var widest = labels != null && labels.Count > 0
+            ? labels.Max(label => EstimateTextWidth(label, chart.Options.Theme.TickLabelFontSize))
+            : chart.Options.XAxisLabels.Max(label => EstimateTextWidth(label.Text, chart.Options.Theme.TickLabelFontSize));
         return 20 + Math.Sin(angle) * Math.Min(96, widest);
     }
 
-    private static double XAxisTitleOffset(Chart chart) {
-        return XAxisLabelOffset(chart) + (Math.Abs(chart.Options.XAxisLabelAngle) < 0.001 ? 23 : 48);
+    private static double XAxisTitleOffset(Chart chart, IReadOnlyList<string>? labels = null) {
+        return XAxisLabelOffset(chart, labels) + (Math.Abs(chart.Options.XAxisLabelAngle) < 0.001 ? 23 : 48);
     }
 
 }

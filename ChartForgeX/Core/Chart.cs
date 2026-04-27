@@ -10,11 +10,12 @@ namespace ChartForgeX.Core;
 /// <summary>
 /// Represents a renderer-independent chart definition.
 /// </summary>
-public sealed class Chart {
+public sealed partial class Chart {
     private string _title = string.Empty;
     private string _subtitle = string.Empty;
     private string _xAxisTitle = string.Empty;
     private string _yAxisTitle = string.Empty;
+    private string _secondaryYAxisTitle = string.Empty;
 
     /// <summary>
     /// Gets or sets the chart title.
@@ -46,6 +47,14 @@ public sealed class Chart {
     public string YAxisTitle {
         get => _yAxisTitle;
         set => _yAxisTitle = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
+    /// Gets or sets the secondary y-axis title.
+    /// </summary>
+    public string SecondaryYAxisTitle {
+        get => _secondaryYAxisTitle;
+        set => _secondaryYAxisTitle = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     /// <summary>
@@ -96,6 +105,18 @@ public sealed class Chart {
     /// <param name="title">The y-axis title.</param>
     /// <returns>The current chart.</returns>
     public Chart WithYAxis(string title) { YAxisTitle = title ?? throw new ArgumentNullException(nameof(title)); return this; }
+
+    /// <summary>
+    /// Sets the secondary y-axis title and optional tick formatter.
+    /// </summary>
+    /// <param name="title">The secondary y-axis title.</param>
+    /// <param name="formatter">An optional formatter for secondary y-axis ticks.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithSecondaryYAxis(string title, Func<double, string>? formatter = null) {
+        SecondaryYAxisTitle = title ?? throw new ArgumentNullException(nameof(title));
+        Options.SecondaryYAxisValueFormatter = formatter;
+        return this;
+    }
 
     /// <summary>
     /// Sets the rendered chart size.
@@ -156,6 +177,76 @@ public sealed class Chart {
     /// <param name="faceName">The face name to select.</param>
     /// <returns>The current chart.</returns>
     public Chart WithPngFont(string? fontPath, string? faceName) => WithPngFont(fontPath, null, faceName);
+
+    /// <summary>
+    /// Sets the internal supersampling scale used by the PNG renderer.
+    /// </summary>
+    /// <param name="scale">The supersampling scale from one to four. Higher values improve edges at the cost of render time and memory.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithPngSupersampling(int scale) {
+        Options.PngSupersamplingScale = scale;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets explicit cartesian x-axis bounds.
+    /// </summary>
+    /// <param name="minimum">The minimum x-axis value.</param>
+    /// <param name="maximum">The maximum x-axis value.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithXAxisBounds(double minimum, double maximum) {
+        Options.SetXAxisBounds(minimum, maximum);
+        return this;
+    }
+
+    /// <summary>
+    /// Clears explicit cartesian x-axis bounds so renderers can infer them from data.
+    /// </summary>
+    /// <returns>The current chart.</returns>
+    public Chart WithAutomaticXAxisBounds() {
+        Options.ClearXAxisBounds();
+        return this;
+    }
+
+    /// <summary>
+    /// Sets explicit cartesian y-axis bounds.
+    /// </summary>
+    /// <param name="minimum">The minimum y-axis value.</param>
+    /// <param name="maximum">The maximum y-axis value.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithYAxisBounds(double minimum, double maximum) {
+        Options.SetYAxisBounds(minimum, maximum);
+        return this;
+    }
+
+    /// <summary>
+    /// Clears explicit cartesian y-axis bounds so renderers can infer them from data.
+    /// </summary>
+    /// <returns>The current chart.</returns>
+    public Chart WithAutomaticYAxisBounds() {
+        Options.ClearYAxisBounds();
+        return this;
+    }
+
+    /// <summary>
+    /// Sets explicit secondary cartesian y-axis bounds.
+    /// </summary>
+    /// <param name="minimum">The minimum secondary y-axis value.</param>
+    /// <param name="maximum">The maximum secondary y-axis value.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithSecondaryYAxisBounds(double minimum, double maximum) {
+        Options.SetSecondaryYAxisBounds(minimum, maximum);
+        return this;
+    }
+
+    /// <summary>
+    /// Clears explicit secondary cartesian y-axis bounds so renderers can infer them from data.
+    /// </summary>
+    /// <returns>The current chart.</returns>
+    public Chart WithAutomaticSecondaryYAxisBounds() {
+        Options.ClearSecondaryYAxisBounds();
+        return this;
+    }
 
     /// <summary>
     /// Sets whether the rendered background should be transparent.
@@ -232,6 +323,20 @@ public sealed class Chart {
     public Chart WithXAxisLabelAngle(double degrees) { ChartGuards.Finite(degrees, nameof(degrees)); Options.XAxisLabelAngle = degrees; return this; }
 
     /// <summary>
+    /// Sets the optional Gantt current-date marker.
+    /// </summary>
+    /// <param name="today">The current date marker. Pass null to hide the marker.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithGanttToday(DateTime? today) { Options.GanttToday = today?.ToOADate(); return this; }
+
+    /// <summary>
+    /// Sets the optional Gantt current-position marker for numeric schedules.
+    /// </summary>
+    /// <param name="value">The current schedule value. Pass null to hide the marker.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithGanttToday(double? value) { Options.GanttToday = value; return this; }
+
+    /// <summary>
     /// Sets whether point and bar values should be rendered as data labels.
     /// </summary>
     /// <param name="visible">True to render data labels; otherwise false.</param>
@@ -258,6 +363,12 @@ public sealed class Chart {
     public Chart WithStackedBars() { Options.BarMode = ChartBarMode.Stacked; return this; }
 
     /// <summary>
+    /// Arranges multiple horizontal bar series as stacked segments within each category.
+    /// </summary>
+    /// <returns>The current chart.</returns>
+    public Chart WithStackedHorizontalBars() => WithStackedBars();
+
+    /// <summary>
     /// Sets whether stacked bar totals should be rendered above each category.
     /// </summary>
     /// <param name="visible">True to render stacked bar totals; otherwise false.</param>
@@ -277,6 +388,13 @@ public sealed class Chart {
     /// <param name="formatter">The value formatter. Pass null to restore the default compact formatter.</param>
     /// <returns>The current chart.</returns>
     public Chart WithValueFormatter(Func<double, string>? formatter) { Options.ValueFormatter = formatter; return this; }
+
+    /// <summary>
+    /// Sets a formatter used for generated numeric x-axis tick labels.
+    /// </summary>
+    /// <param name="formatter">The x-axis value formatter. Pass null to restore the default compact formatter.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithXAxisValueFormatter(Func<double, string>? formatter) { Options.XAxisValueFormatter = formatter; return this; }
 
     /// <summary>
     /// Configures the chart as a compact sparkline for inline dashboard and table use.
@@ -354,6 +472,15 @@ public sealed class Chart {
     public Chart AddSmoothLine(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.Line, points, color, true);
 
     /// <summary>
+    /// Adds a stepped line series.
+    /// </summary>
+    /// <param name="name">The series name.</param>
+    /// <param name="points">The series data points.</param>
+    /// <param name="color">An optional series color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddStepLine(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.StepLine, points, color);
+
+    /// <summary>
     /// Adds an area series.
     /// </summary>
     /// <param name="name">The series name.</param>
@@ -363,6 +490,15 @@ public sealed class Chart {
     public Chart AddArea(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.Area, points, color);
 
     /// <summary>
+    /// Adds a stepped area series.
+    /// </summary>
+    /// <param name="name">The series name.</param>
+    /// <param name="points">The series data points.</param>
+    /// <param name="color">An optional series color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddStepArea(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.StepArea, points, color);
+
+    /// <summary>
     /// Adds a smoothed area series.
     /// </summary>
     /// <param name="name">The series name.</param>
@@ -370,6 +506,24 @@ public sealed class Chart {
     /// <param name="color">An optional series color.</param>
     /// <returns>The current chart.</returns>
     public Chart AddSmoothArea(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.Area, points, color, true);
+
+    /// <summary>
+    /// Adds an area series stacked on top of earlier stacked area series at matching x values.
+    /// </summary>
+    /// <param name="name">The series name.</param>
+    /// <param name="points">The series data points.</param>
+    /// <param name="color">An optional series color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddStackedArea(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.StackedArea, points, color);
+
+    /// <summary>
+    /// Adds a smoothed area series stacked on top of earlier stacked area series at matching x values.
+    /// </summary>
+    /// <param name="name">The series name.</param>
+    /// <param name="points">The series data points.</param>
+    /// <param name="color">An optional series color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddSmoothStackedArea(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.StackedArea, points, color, true);
 
     /// <summary>
     /// Adds a scatter series.
@@ -388,6 +542,15 @@ public sealed class Chart {
     /// <param name="color">An optional series color.</param>
     /// <returns>The current chart.</returns>
     public Chart AddBar(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.Bar, points, color);
+
+    /// <summary>
+    /// Adds a lollipop series.
+    /// </summary>
+    /// <param name="name">The series name.</param>
+    /// <param name="points">The series data points.</param>
+    /// <param name="color">An optional series color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddLollipop(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.Lollipop, points, color);
 
     /// <summary>
     /// Adds a horizontal bar series.

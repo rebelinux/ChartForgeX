@@ -20,6 +20,14 @@ public sealed class ChartOptions {
     private string? _pngFontPath;
     private string? _pngFontFaceName;
     private int? _pngFontCollectionIndex;
+    private int _pngSupersamplingScale = 2;
+    private double? _xAxisMinimum;
+    private double? _xAxisMaximum;
+    private double? _yAxisMinimum;
+    private double? _yAxisMaximum;
+    private double? _secondaryYAxisMinimum;
+    private double? _secondaryYAxisMaximum;
+    private double? _ganttToday;
 
     /// <summary>
     /// Gets or sets the rendered chart size in pixels.
@@ -88,6 +96,92 @@ public sealed class ChartOptions {
         set {
             if (value < 0) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG font collection index must be non-negative.");
             _pngFontCollectionIndex = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the internal supersampling scale used by the PNG renderer.
+    /// </summary>
+    /// <remarks>
+    /// Higher values improve antialiased edges at the cost of render time and memory. The output dimensions stay equal to <see cref="Size"/>.
+    /// </remarks>
+    public int PngSupersamplingScale {
+        get => _pngSupersamplingScale;
+        set {
+            if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG supersampling scale must be between one and four.");
+            _pngSupersamplingScale = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the explicit minimum value for the cartesian x-axis.
+    /// </summary>
+    public double? XAxisMinimum {
+        get => _xAxisMinimum;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            ValidateAxisBounds(value, _xAxisMaximum, nameof(value), "X-axis");
+            _xAxisMinimum = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the explicit maximum value for the cartesian x-axis.
+    /// </summary>
+    public double? XAxisMaximum {
+        get => _xAxisMaximum;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            ValidateAxisBounds(_xAxisMinimum, value, nameof(value), "X-axis");
+            _xAxisMaximum = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the explicit minimum value for the cartesian y-axis.
+    /// </summary>
+    public double? YAxisMinimum {
+        get => _yAxisMinimum;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            ValidateAxisBounds(value, _yAxisMaximum, nameof(value), "Y-axis");
+            _yAxisMinimum = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the explicit maximum value for the cartesian y-axis.
+    /// </summary>
+    public double? YAxisMaximum {
+        get => _yAxisMaximum;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            ValidateAxisBounds(_yAxisMinimum, value, nameof(value), "Y-axis");
+            _yAxisMaximum = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the explicit minimum value for the secondary cartesian y-axis.
+    /// </summary>
+    public double? SecondaryYAxisMinimum {
+        get => _secondaryYAxisMinimum;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            ValidateAxisBounds(value, _secondaryYAxisMaximum, nameof(value), "Secondary y-axis");
+            _secondaryYAxisMinimum = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the explicit maximum value for the secondary cartesian y-axis.
+    /// </summary>
+    public double? SecondaryYAxisMaximum {
+        get => _secondaryYAxisMaximum;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            ValidateAxisBounds(_secondaryYAxisMinimum, value, nameof(value), "Secondary y-axis");
+            _secondaryYAxisMaximum = value;
         }
     }
 
@@ -165,6 +259,17 @@ public sealed class ChartOptions {
     public bool ShowDataLabels { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional Gantt current-date marker as an OLE Automation date or numeric schedule value.
+    /// </summary>
+    public double? GanttToday {
+        get => _ganttToday;
+        set {
+            ValidateNullableFinite(value, nameof(value));
+            _ganttToday = value;
+        }
+    }
+
+    /// <summary>
     /// Gets or sets how multiple bar series are arranged within each category.
     /// </summary>
     public ChartBarMode BarMode {
@@ -197,6 +302,16 @@ public sealed class ChartOptions {
     public Func<double, string>? ValueFormatter { get; set; }
 
     /// <summary>
+    /// Gets or sets a formatter used for secondary y-axis ticks.
+    /// </summary>
+    public Func<double, string>? SecondaryYAxisValueFormatter { get; set; }
+
+    /// <summary>
+    /// Gets or sets a formatter used for generated numeric x-axis tick labels.
+    /// </summary>
+    public Func<double, string>? XAxisValueFormatter { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the chart is rendered as a compact sparkline.
     /// </summary>
     public bool IsSparkline { get; set; }
@@ -205,4 +320,57 @@ public sealed class ChartOptions {
     /// Gets explicit labels for x-axis values.
     /// </summary>
     public List<ChartAxisLabel> XAxisLabels { get; } = new();
+
+    internal List<string> SankeyNodeLabels { get; } = new();
+
+    internal List<string> TreeNodeLabels { get; } = new();
+
+    internal void SetXAxisBounds(double minimum, double maximum) {
+        ChartGuards.Finite(minimum, nameof(minimum));
+        ChartGuards.Finite(maximum, nameof(maximum));
+        if (maximum <= minimum) throw new ArgumentOutOfRangeException(nameof(maximum), maximum, "X-axis maximum must be greater than minimum.");
+        _xAxisMinimum = minimum;
+        _xAxisMaximum = maximum;
+    }
+
+    internal void ClearXAxisBounds() {
+        _xAxisMinimum = null;
+        _xAxisMaximum = null;
+    }
+
+    internal void SetYAxisBounds(double minimum, double maximum) {
+        ChartGuards.Finite(minimum, nameof(minimum));
+        ChartGuards.Finite(maximum, nameof(maximum));
+        if (maximum <= minimum) throw new ArgumentOutOfRangeException(nameof(maximum), maximum, "Y-axis maximum must be greater than minimum.");
+        _yAxisMinimum = minimum;
+        _yAxisMaximum = maximum;
+    }
+
+    internal void ClearYAxisBounds() {
+        _yAxisMinimum = null;
+        _yAxisMaximum = null;
+    }
+
+    internal void SetSecondaryYAxisBounds(double minimum, double maximum) {
+        ChartGuards.Finite(minimum, nameof(minimum));
+        ChartGuards.Finite(maximum, nameof(maximum));
+        if (maximum <= minimum) throw new ArgumentOutOfRangeException(nameof(maximum), maximum, "Secondary y-axis maximum must be greater than minimum.");
+        _secondaryYAxisMinimum = minimum;
+        _secondaryYAxisMaximum = maximum;
+    }
+
+    internal void ClearSecondaryYAxisBounds() {
+        _secondaryYAxisMinimum = null;
+        _secondaryYAxisMaximum = null;
+    }
+
+    private static void ValidateNullableFinite(double? value, string parameterName) {
+        if (value.HasValue) ChartGuards.Finite(value.Value, parameterName);
+    }
+
+    private static void ValidateAxisBounds(double? minimum, double? maximum, string parameterName, string axisName) {
+        if (minimum.HasValue && maximum.HasValue && maximum.Value <= minimum.Value) {
+            throw new ArgumentOutOfRangeException(parameterName, maximum.Value, axisName + " maximum must be greater than minimum.");
+        }
+    }
 }

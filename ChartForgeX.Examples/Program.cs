@@ -6,6 +6,12 @@ using ChartForgeX.Themes;
 var output = Path.Combine(AppContext.BaseDirectory, "output");
 Directory.CreateDirectory(output);
 
+void SaveChart(Chart chart, string name) {
+    chart.SaveSvg(Path.Combine(output, name + ".svg"));
+    chart.SaveHtml(Path.Combine(output, name + ".html"));
+    chart.SavePng(Path.Combine(output, name + ".png"));
+}
+
 var dnssec = Chart.Create()
     .WithTitle("Domain Security Checks")
     .WithSubtitle("Dependency-free SVG, HTML and PNG chart rendering")
@@ -21,26 +27,30 @@ var dnssec = Chart.Create()
     .AddHorizontalLine(100, "warning target", ChartColor.FromRgb(251, 191, 36))
     .AddVerticalBand(6, 7, "weekend", ChartColor.FromRgb(96, 165, 250), 0.10);
 
-dnssec.SaveSvg(Path.Combine(output, "domain-security-dark.svg"));
-dnssec.SaveHtml(Path.Combine(output, "domain-security-dark.html"));
-dnssec.SavePng(Path.Combine(output, "domain-security-dark.png"));
+SaveChart(dnssec, "domain-security-dark");
 
 var bars = Chart.Create()
     .WithTitle("Certificate Transparency Volume")
-    .WithSubtitle("Static report chart with no JavaScript runtime")
+    .WithSubtitle("Bar-line combo with a secondary y-axis and no JavaScript runtime")
     .WithXAxis("Day")
     .WithYAxis("Certificates")
+    .WithSecondaryYAxis("Pass rate", value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithSecondaryYAxisBounds(0, 100)
     .WithTheme(ChartTheme.ReportLight())
     .WithSize(1180, 640)
     .WithXLabels("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    .AddBar("Certificates", Points(4200, 5300, 6100, 5900, 7200, 8100, 7900))
+    .AddBarLineCombo(
+        "Certificates",
+        Points(4200, 5300, 6100, 5900, 7200, 8100, 7900),
+        "Pass rate",
+        Points(87, 89, 91, 90, 93, 95, 94),
+        ChartColor.FromRgb(37, 99, 235),
+        ChartColor.FromRgb(14, 165, 233),
+        smoothLine: true,
+        lineAxis: ChartAxisSide.Secondary)
     .AddHorizontalBand(7000, 8500, "high volume", ChartColor.FromRgb(16, 185, 129), 0.12);
 
-bars.AddSmoothLine("7-day baseline", Points(3900, 4550, 5200, 5800, 6500, 7100, 7600), ChartColor.FromRgb(14, 165, 233));
-
-bars.SaveSvg(Path.Combine(output, "ct-volume-light.svg"));
-bars.SaveHtml(Path.Combine(output, "ct-volume-light.html"));
-bars.SavePng(Path.Combine(output, "ct-volume-light.png"));
+SaveChart(bars, "ct-volume-light");
 
 var grouped = Chart.Create()
     .WithTitle("Security Findings by Severity")
@@ -54,25 +64,25 @@ var grouped = Chart.Create()
     .AddBar("Previous run", Points(12, 41, 97, 118, 188), ChartColor.FromRgb(14, 165, 233))
     .AddHorizontalLine(40, "review threshold", ChartColor.FromRgb(245, 158, 11));
 
-grouped.SaveSvg(Path.Combine(output, "security-findings-grouped-light.svg"));
-grouped.SaveHtml(Path.Combine(output, "security-findings-grouped-light.html"));
-grouped.SavePng(Path.Combine(output, "security-findings-grouped-light.png"));
+SaveChart(grouped, "security-findings-grouped-light");
 
 var horizontal = Chart.Create()
-    .WithTitle("Domain Control Coverage")
-    .WithSubtitle("Horizontal bars keep long category labels readable")
+    .WithTitle("Domain Control Composition")
+    .WithSubtitle("Stacked horizontal bars keep long category labels readable")
     .WithXAxis("Coverage")
     .WithYAxis("Control")
     .WithTheme(ChartTheme.ReportLight())
     .WithSize(920, 560)
+    .WithStackedHorizontalBars()
+    .WithStackTotals()
     .WithDataLabels()
     .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
     .WithXLabels("SPF alignment", "DMARC policy enforcement", "DNSSEC coverage", "Certificate transparency monitoring", "MTA-STS deployment")
-    .AddHorizontalBar("Coverage", Points(96, 88, 74, 92, 63), ChartColor.FromRgb(37, 99, 235));
+    .AddHorizontalBar("Complete", Points(72, 64, 52, 78, 44), ChartColor.FromRgb(16, 185, 129))
+    .AddHorizontalBar("Partial", Points(24, 24, 22, 14, 19), ChartColor.FromRgb(245, 158, 11))
+    .AddHorizontalBar("Missing", Points(4, 12, 26, 8, 37), ChartColor.FromRgb(239, 68, 68));
 
-horizontal.SaveSvg(Path.Combine(output, "domain-control-horizontal-light.svg"));
-horizontal.SaveHtml(Path.Combine(output, "domain-control-horizontal-light.html"));
-horizontal.SavePng(Path.Combine(output, "domain-control-horizontal-light.png"));
+SaveChart(horizontal, "domain-control-horizontal-light");
 
 var heatmap = Chart.Create()
     .WithTitle("Control Coverage Matrix")
@@ -90,9 +100,7 @@ var heatmap = Chart.Create()
     .AddHeatmapRow("Regional domains", Points(82, 77, 68, 54, 49, 80))
     .AddHeatmapRow("Acquired domains", Points(58, 43, 36, 28, 25, 52));
 
-heatmap.SaveSvg(Path.Combine(output, "control-coverage-heatmap-dark.svg"));
-heatmap.SaveHtml(Path.Combine(output, "control-coverage-heatmap-dark.html"));
-heatmap.SavePng(Path.Combine(output, "control-coverage-heatmap-dark.png"));
+SaveChart(heatmap, "control-coverage-heatmap-dark");
 
 var gauge = Chart.Create()
     .WithTitle("Security Posture Score")
@@ -102,9 +110,28 @@ var gauge = Chart.Create()
     .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
     .AddGauge("Overall domain readiness", 87, 0, 100, ChartColor.FromRgb(52, 211, 153));
 
-gauge.SaveSvg(Path.Combine(output, "security-posture-gauge-dark.svg"));
-gauge.SaveHtml(Path.Combine(output, "security-posture-gauge-dark.html"));
-gauge.SavePng(Path.Combine(output, "security-posture-gauge-dark.png"));
+SaveChart(gauge, "security-posture-gauge-dark");
+
+var policyReadinessCircle = Chart.Create()
+    .WithTitle("Policy Readiness Circle")
+    .WithSubtitle("Circle charts keep single-value progress KPIs compact")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .AddCircle("Ready", 87, 0, 100, ChartColor.FromRgb(16, 185, 129));
+
+SaveChart(policyReadinessCircle, "policy-readiness-circle-light");
+
+var radialBar = Chart.Create()
+    .WithTitle("Control Coverage Rings")
+    .WithSubtitle("Radial bars compare core security control completion")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("Mail auth", "DNSSEC", "Transport TLS", "Certificate CT")
+    .AddRadialBar("Average coverage", Points(92, 74, 88, 96));
+
+SaveChart(radialBar, "control-coverage-radialbar-dark");
 
 var bullet = Chart.Create()
     .WithTitle("Control Targets")
@@ -117,9 +144,7 @@ var bullet = Chart.Create()
     .AddBullet("MTA-STS deployment", 63, 85, 0, 100, new[] { 50d, 75d }, ChartColor.FromRgb(251, 191, 36))
     .AddBullet("TLS reporting", 58, 80, 0, 100, new[] { 45d, 70d }, ChartColor.FromRgb(34, 211, 238));
 
-bullet.SaveSvg(Path.Combine(output, "control-targets-bullet-dark.svg"));
-bullet.SaveHtml(Path.Combine(output, "control-targets-bullet-dark.html"));
-bullet.SavePng(Path.Combine(output, "control-targets-bullet-dark.png"));
+SaveChart(bullet, "control-targets-bullet-dark");
 
 var waterfall = Chart.Create()
     .WithTitle("Remediation Impact")
@@ -132,9 +157,7 @@ var waterfall = Chart.Create()
     .WithXLabels("Opened", "Resolved", "Suppressed", "Accepted", "Regressed")
     .AddWaterfall("Finding delta", Points(24, -68, -18, -9, 11), ChartColor.FromRgb(52, 211, 153));
 
-waterfall.SaveSvg(Path.Combine(output, "remediation-impact-waterfall-dark.svg"));
-waterfall.SaveHtml(Path.Combine(output, "remediation-impact-waterfall-dark.html"));
-waterfall.SavePng(Path.Combine(output, "remediation-impact-waterfall-dark.png"));
+SaveChart(waterfall, "remediation-impact-waterfall-dark");
 
 var radar = Chart.Create()
     .WithTitle("Security Posture Radar")
@@ -146,9 +169,65 @@ var radar = Chart.Create()
     .AddRadar("Current posture", Points(92, 74, 88, 96, 81, 84), ChartColor.FromRgb(96, 165, 250))
     .AddRadar("Target posture", Points(96, 90, 94, 98, 92, 90), ChartColor.FromRgb(52, 211, 153));
 
-radar.SaveSvg(Path.Combine(output, "security-posture-radar-dark.svg"));
-radar.SaveHtml(Path.Combine(output, "security-posture-radar-dark.html"));
-radar.SavePng(Path.Combine(output, "security-posture-radar-dark.png"));
+SaveChart(radar, "security-posture-radar-dark");
+
+var polarArea = Chart.Create()
+    .WithTitle("Control Contribution")
+    .WithSubtitle("Polar area segments compare major control contributions")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("Mail auth", "DNSSEC", "TLS", "CT", "Policy", "Monitoring")
+    .AddPolarArea("Control share", Points(92, 74, 88, 96, 81, 84));
+
+SaveChart(polarArea, "control-contribution-polar-area-light");
+
+var controlScorecardGrid = ChartGrid.Create()
+    .WithTitle("Control Scorecard Small Multiples")
+    .WithSubtitle("Static report grid composed from existing dependency-free chart renderers")
+    .WithColumns(2)
+    .Add(gauge)
+    .Add(bullet)
+    .Add(radar)
+    .Add(polarArea);
+
+controlScorecardGrid.SaveSvg(Path.Combine(output, "control-scorecards-grid.svg"));
+controlScorecardGrid.SavePng(Path.Combine(output, "control-scorecards-grid.png"));
+controlScorecardGrid.SaveHtml(Path.Combine(output, "control-scorecards-grid.html"));
+
+var sharedCoverageNorth = Chart.Create()
+    .WithTitle("Primary Domains")
+    .WithSubtitle("Shared y-axis small multiple")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(520, 320)
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("SPF", "DMARC", "DNSSEC", "MTA-STS")
+    .AddBar("Coverage", Points(96, 88, 74, 63), ChartColor.FromRgb(37, 99, 235));
+
+var sharedCoverageAcquired = Chart.Create()
+    .WithTitle("Acquired Domains")
+    .WithSubtitle("Shared y-axis small multiple")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(520, 320)
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("SPF", "DMARC", "DNSSEC", "MTA-STS")
+    .AddBar("Coverage", Points(72, 54, 46, 31), ChartColor.FromRgb(14, 165, 233));
+
+var sharedAxisGrid = ChartGrid.Create()
+    .WithTitle("Shared Axis Coverage Comparison")
+    .WithSubtitle("Two panels keep shared x and y ranges for honest visual comparison")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithColumns(2)
+    .WithPadding(32)
+    .WithPanelSize(500, 300)
+    .Add(sharedCoverageNorth)
+    .Add(sharedCoverageAcquired)
+    .WithSharedAxes();
+
+sharedAxisGrid.SaveSvg(Path.Combine(output, "shared-axis-coverage-grid.svg"));
+sharedAxisGrid.SavePng(Path.Combine(output, "shared-axis-coverage-grid.png"));
+sharedAxisGrid.SaveHtml(Path.Combine(output, "shared-axis-coverage-grid.html"));
 
 var funnel = Chart.Create()
     .WithTitle("Domain Remediation Funnel")
@@ -158,9 +237,23 @@ var funnel = Chart.Create()
     .WithXLabels("Discovered", "Verified", "Prioritized", "Remediated", "Monitored")
     .AddFunnel("Domains", Points(420, 318, 174, 96, 72));
 
-funnel.SaveSvg(Path.Combine(output, "domain-remediation-funnel-dark.svg"));
-funnel.SaveHtml(Path.Combine(output, "domain-remediation-funnel-dark.html"));
-funnel.SavePng(Path.Combine(output, "domain-remediation-funnel-dark.png"));
+SaveChart(funnel, "domain-remediation-funnel-dark");
+
+var findingsTreemap = Chart.Create()
+    .WithTitle("Findings Composition")
+    .WithSubtitle("Treemap tiles show proportional contribution by category")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(920, 560)
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .AddTreemap("Finding share", new[] {
+        new ChartTreemapItem("Authentication", 34),
+        new ChartTreemapItem("Certificate lifecycle", 24),
+        new ChartTreemapItem("DNS hygiene", 18),
+        new ChartTreemapItem("Policy drift", 14),
+        new ChartTreemapItem("Monitoring gaps", 10)
+    });
+
+SaveChart(findingsTreemap, "findings-composition-treemap-light");
 
 var timeline = Chart.Create()
     .WithTitle("Domain Remediation Timeline")
@@ -175,9 +268,62 @@ var timeline = Chart.Create()
     .AddTimelineItem("DNSSEC rollout", new DateTime(2026, 2, 1), new DateTime(2026, 3, 22), ChartColor.FromRgb(16, 185, 129))
     .AddTimelineItem("MTA-STS monitoring", new DateTime(2026, 2, 14), new DateTime(2026, 4, 2), ChartColor.FromRgb(245, 158, 11));
 
-timeline.SaveSvg(Path.Combine(output, "domain-remediation-timeline-light.svg"));
-timeline.SaveHtml(Path.Combine(output, "domain-remediation-timeline-light.html"));
-timeline.SavePng(Path.Combine(output, "domain-remediation-timeline-light.png"));
+SaveChart(timeline, "domain-remediation-timeline-light");
+
+var gantt = Chart.Create()
+    .WithTitle("Domain Remediation Gantt")
+    .WithSubtitle("Progress, task dependencies, milestones, and current schedule marker")
+    .WithXAxis("Schedule")
+    .WithYAxis("Workstream")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(1040, 600)
+    .WithDataLabels()
+    .WithGanttToday(new DateTime(2026, 2, 18))
+    .AddGanttTask("Inventory scope", new DateTime(2026, 1, 5), new DateTime(2026, 1, 24), 0.90, color: ChartColor.FromRgb(37, 99, 235))
+    .AddGanttTask("Owner remediation", new DateTime(2026, 1, 20), new DateTime(2026, 2, 24), 0.62, dependsOn: 0, color: ChartColor.FromRgb(16, 185, 129))
+    .AddGanttTask("Control retesting", new DateTime(2026, 2, 18), new DateTime(2026, 3, 12), 0.28, dependsOn: 1, color: ChartColor.FromRgb(14, 165, 233))
+    .AddGanttTask("Monitoring handoff", new DateTime(2026, 3, 8), new DateTime(2026, 3, 26), 0.12, dependsOn: 2, color: ChartColor.FromRgb(168, 85, 247))
+    .AddGanttMilestone("Executive sign-off", new DateTime(2026, 3, 30), dependsOn: 3, color: ChartColor.FromRgb(245, 158, 11));
+
+SaveChart(gantt, "domain-remediation-gantt-light");
+
+var findingFlow = Chart.Create()
+    .WithTitle("Finding Flow Sankey")
+    .WithSubtitle("Weighted paths from discovery through remediation outcomes")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(1040, 600)
+    .WithDataLabels()
+    .AddSankey("Findings", new[] {
+        new ChartSankeyLink("Discovered", "Validated", 72),
+        new ChartSankeyLink("Discovered", "Accepted risk", 18),
+        new ChartSankeyLink("Validated", "Owner remediation", 48),
+        new ChartSankeyLink("Validated", "Monitoring", 24),
+        new ChartSankeyLink("Owner remediation", "Closed", 34),
+        new ChartSankeyLink("Owner remediation", "Retesting", 14),
+        new ChartSankeyLink("Retesting", "Closed", 10),
+        new ChartSankeyLink("Retesting", "Monitoring", 4)
+    });
+
+SaveChart(findingFlow, "finding-flow-sankey-light");
+
+var controlHierarchy = Chart.Create()
+    .WithTitle("Control Hierarchy Tree")
+    .WithSubtitle("Static hierarchy map for ownership and remediation structure")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(1040, 600)
+    .AddTree("Control hierarchy", new[] {
+        new ChartTreeLink("Security posture", "Mail authentication", 3),
+        new ChartTreeLink("Security posture", "Certificate lifecycle", 2),
+        new ChartTreeLink("Security posture", "DNS hygiene", 2),
+        new ChartTreeLink("Mail authentication", "SPF alignment"),
+        new ChartTreeLink("Mail authentication", "DKIM rotation"),
+        new ChartTreeLink("Certificate lifecycle", "Expiry monitoring"),
+        new ChartTreeLink("Certificate lifecycle", "SAN inventory"),
+        new ChartTreeLink("DNS hygiene", "DNSSEC rollout"),
+        new ChartTreeLink("DNS hygiene", "Stale record cleanup")
+    });
+
+SaveChart(controlHierarchy, "control-hierarchy-tree-light");
 
 var stacked = Chart.Create()
     .WithTitle("Domain Findings Composition")
@@ -194,9 +340,37 @@ var stacked = Chart.Create()
     .AddBar("Failed", Points(12, 10, 8, 6, 5), ChartColor.FromRgb(248, 113, 113))
     .AddHorizontalLine(300, "capacity", ChartColor.FromRgb(96, 165, 250));
 
-stacked.SaveSvg(Path.Combine(output, "domain-findings-stacked-dark.svg"));
-stacked.SaveHtml(Path.Combine(output, "domain-findings-stacked-dark.html"));
-stacked.SavePng(Path.Combine(output, "domain-findings-stacked-dark.png"));
+SaveChart(stacked, "domain-findings-stacked-dark");
+
+var signalMix = Chart.Create()
+    .WithTitle("Domain Signal Mix")
+    .WithSubtitle("Stacked areas show how checks contribute to total signal volume")
+    .WithXAxis("Run")
+    .WithYAxis("Signals")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(920, 560)
+    .WithXLabels("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    .AddSmoothStackedArea("Passed", Points(820, 940, 980, 1040, 1120, 1180, 1230), ChartColor.FromRgb(52, 211, 153))
+    .AddSmoothStackedArea("Warnings", Points(120, 138, 132, 110, 98, 86, 72), ChartColor.FromRgb(251, 191, 36))
+    .AddSmoothStackedArea("Failed", Points(22, 30, 28, 21, 18, 15, 13), ChartColor.FromRgb(248, 113, 113))
+    .AddHorizontalLine(1300, "review capacity", ChartColor.FromRgb(96, 165, 250));
+
+SaveChart(signalMix, "domain-signal-mix-stacked-area-dark");
+
+var beforeAfter = Chart.Create()
+    .WithTitle("Control Improvement Slope")
+    .WithSubtitle("Endpoint comparisons make before/after movement easy to scan")
+    .WithXAxis("Review")
+    .WithYAxis("Coverage")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .AddSlope("DMARC enforcement", 58, 88, "Before", "After", ChartColor.FromRgb(37, 99, 235))
+    .AddSlope("DNSSEC coverage", 42, 74, ChartColor.FromRgb(16, 185, 129))
+    .AddSlope("MTA-STS deployment", 37, 63, ChartColor.FromRgb(245, 158, 11));
+
+SaveChart(beforeAfter, "control-improvement-slope-light");
 
 var sparkline = Chart.Create()
     .WithTitle("Warnings Sparkline")
@@ -285,9 +459,35 @@ var latency = Chart.Create()
     .AddSmoothLine("P95", Points(28, 64, 118, 146, 182), ChartColor.FromRgb(37, 99, 235))
     .AddHorizontalLine(150, "budget", ChartColor.FromRgb(245, 158, 11));
 
-latency.SaveSvg(Path.Combine(output, "endpoint-latency-light.svg"));
-latency.SaveHtml(Path.Combine(output, "endpoint-latency-light.html"));
-latency.SavePng(Path.Combine(output, "endpoint-latency-light.png"));
+SaveChart(latency, "endpoint-latency-light");
+
+var stateChanges = Chart.Create()
+    .WithTitle("Policy State Changes")
+    .WithSubtitle("Step lines show discrete report state transitions")
+    .WithXAxis("Stage")
+    .WithYAxis("Controls")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithXLabels("Draft", "Review", "Approved", "Published", "Monitored")
+    .AddStepLine("Required controls", Points(12, 18, 18, 26, 31), ChartColor.FromRgb(96, 165, 250))
+    .AddHorizontalLine(24, "release gate", ChartColor.FromRgb(251, 191, 36));
+
+SaveChart(stateChanges, "policy-state-step-line-dark");
+
+var policyBacklog = Chart.Create()
+    .WithTitle("Policy Backlog Step Area")
+    .WithSubtitle("Step areas fill discrete state changes without implying smooth interpolation")
+    .WithXAxis("Stage")
+    .WithYAxis("Open Controls")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithXLabels("Draft", "Review", "Approved", "Published", "Monitored")
+    .AddStepArea("Open controls", Points(31, 26, 26, 18, 12), ChartColor.FromRgb(14, 165, 233))
+    .AddStepLine("Release gate", Points(24, 24, 20, 16, 12), ChartColor.FromRgb(37, 99, 235));
+
+SaveChart(policyBacklog, "policy-backlog-step-area-light");
 
 var cost = Chart.Create()
     .WithTitle("License Cost Trend")
@@ -298,12 +498,9 @@ var cost = Chart.Create()
     .WithSize(760, 460)
     .WithValueFormatter(value => "$" + value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture))
     .WithXLabels("Q1", "Q2", "Q3", "Q4")
-    .AddSmoothArea("Projected", Points(860000, 940000, 1050000, 1160000), ChartColor.FromRgb(37, 99, 235))
-    .AddSmoothLine("Actual", Points(820000, 970000, 1010000, 1210000), ChartColor.FromRgb(14, 165, 233));
+    .AddColumnAreaCombo("Actual", Points(820000, 970000, 1010000, 1210000), "Projected", Points(860000, 940000, 1050000, 1160000), ChartColor.FromRgb(14, 165, 233), ChartColor.FromRgb(37, 99, 235));
 
-cost.SaveSvg(Path.Combine(output, "license-cost-light.svg"));
-cost.SaveHtml(Path.Combine(output, "license-cost-light.html"));
-cost.SavePng(Path.Combine(output, "license-cost-light.png"));
+SaveChart(cost, "license-cost-light");
 
 var regional = Chart.Create()
     .WithTitle("Certificate Transparency by Region")
@@ -321,6 +518,278 @@ var regional = Chart.Create()
 regional.SaveSvg(Path.Combine(output, "ct-regional-light.svg"));
 regional.SaveHtml(Path.Combine(output, "ct-regional-light.html"));
 regional.SavePng(Path.Combine(output, "ct-regional-light.png"));
+
+var latencyDistribution = Chart.Create()
+    .WithTitle("Endpoint Latency Distribution")
+    .WithSubtitle("Histogram bins raw samples without caller-side preprocessing")
+    .WithXAxis("Latency")
+    .WithYAxis("Samples")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .AddHistogram("P95 samples", new[] { 28d, 31d, 36d, 42d, 47d, 58d, 64d, 72d, 86d, 91d, 118d, 146d, 182d }, 5, ChartColor.FromRgb(37, 99, 235));
+
+latencyDistribution.SaveSvg(Path.Combine(output, "endpoint-latency-histogram-light.svg"));
+latencyDistribution.SaveHtml(Path.Combine(output, "endpoint-latency-histogram-light.html"));
+latencyDistribution.SavePng(Path.Combine(output, "endpoint-latency-histogram-light.png"));
+
+var readinessLollipop = Chart.Create()
+    .WithTitle("Control Readiness")
+    .WithSubtitle("Lollipop markers keep category comparison lighter than bars")
+    .WithXAxis("Control")
+    .WithYAxis("Coverage")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("SPF", "DMARC", "DNSSEC", "MTA-STS", "TLS-RPT")
+    .AddLollipop("Coverage", Points(96, 88, 74, 63, 58), ChartColor.FromRgb(96, 165, 250))
+    .AddHorizontalLine(80, "target", ChartColor.FromRgb(251, 191, 36));
+
+readinessLollipop.SaveSvg(Path.Combine(output, "control-readiness-lollipop-dark.svg"));
+readinessLollipop.SaveHtml(Path.Combine(output, "control-readiness-lollipop-dark.html"));
+readinessLollipop.SavePng(Path.Combine(output, "control-readiness-lollipop-dark.png"));
+
+var latencyRanges = Chart.Create()
+    .WithTitle("Endpoint Latency Ranges")
+    .WithSubtitle("Range bars show observed min/max values")
+    .WithXAxis("Probe")
+    .WithYAxis("Response time")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " ms")
+    .WithXLabels("DNS", "TCP", "TLS", "HTTP", "Render")
+    .AddRangeBar("Observed", new[] {
+        new ChartInterval(1, 18, 42),
+        new ChartInterval(2, 44, 88),
+        new ChartInterval(3, 96, 142),
+        new ChartInterval(4, 128, 196),
+        new ChartInterval(5, 144, 232)
+    }, ChartColor.FromRgb(14, 165, 233));
+
+latencyRanges.SaveSvg(Path.Combine(output, "endpoint-latency-range-light.svg"));
+latencyRanges.SaveHtml(Path.Combine(output, "endpoint-latency-range-light.html"));
+latencyRanges.SavePng(Path.Combine(output, "endpoint-latency-range-light.png"));
+
+var latencySpread = Chart.Create()
+    .WithTitle("Endpoint Latency Spread")
+    .WithSubtitle("Box plots summarize min, quartiles, median, and max")
+    .WithXAxis("Probe")
+    .WithYAxis("Response time")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " ms")
+    .WithXLabels("DNS", "TCP", "TLS", "HTTP")
+    .AddBoxPlot("Latency", new[] {
+        new ChartBoxPlot(1, 18, 24, 31, 38, 48),
+        new ChartBoxPlot(2, 42, 56, 64, 82, 104),
+        new ChartBoxPlot(3, 86, 102, 118, 146, 188),
+        new ChartBoxPlot(4, 112, 128, 146, 184, 228)
+    }, ChartColor.FromRgb(96, 165, 250));
+
+latencySpread.SaveSvg(Path.Combine(output, "endpoint-latency-boxplot-dark.svg"));
+latencySpread.SaveHtml(Path.Combine(output, "endpoint-latency-boxplot-dark.html"));
+latencySpread.SavePng(Path.Combine(output, "endpoint-latency-boxplot-dark.png"));
+
+var exposureClusters = Chart.Create()
+    .WithTitle("Exposure Clusters")
+    .WithSubtitle("Bubble size shows affected assets per cluster")
+    .WithXAxis("Reachability")
+    .WithYAxis("Exploitability")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .AddBubble("Assets", new[] {
+        new ChartBubble(1.0, 24, 8),
+        new ChartBubble(1.6, 42, 18),
+        new ChartBubble(2.3, 31, 42),
+        new ChartBubble(3.1, 68, 71),
+        new ChartBubble(3.8, 54, 36)
+    }, ChartColor.FromRgb(37, 99, 235));
+
+exposureClusters.SaveSvg(Path.Combine(output, "exposure-clusters-bubble-light.svg"));
+exposureClusters.SaveHtml(Path.Combine(output, "exposure-clusters-bubble-light.html"));
+exposureClusters.SavePng(Path.Combine(output, "exposure-clusters-bubble-light.png"));
+
+var remediationTrendPoints = new[] {
+    new ChartPoint(1, 118),
+    new ChartPoint(2, 104),
+    new ChartPoint(3, 96),
+    new ChartPoint(4, 82),
+    new ChartPoint(5, 74),
+    new ChartPoint(6, 61)
+};
+var remediationTrend = Chart.Create()
+    .WithTitle("Observed Remediation Trend")
+    .WithSubtitle("Scatter observations with computed least-squares trend line")
+    .WithXAxis("Week")
+    .WithYAxis("Open findings")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithXLabels("W1", "W2", "W3", "W4", "W5", "W6")
+    .AddScatter("Observed", remediationTrendPoints, ChartColor.FromRgb(37, 99, 235))
+    .AddTrendLine("Trend", remediationTrendPoints, ChartColor.FromRgb(245, 158, 11))
+    .AddMeanLine("mean", remediationTrendPoints, ChartColor.FromRgb(14, 165, 233))
+    .AddStandardDeviationBand("1 sigma", remediationTrendPoints, 1, ChartColor.FromRgb(96, 165, 250), 0.12);
+
+remediationTrend.SaveSvg(Path.Combine(output, "observed-remediation-trend-light.svg"));
+remediationTrend.SaveHtml(Path.Combine(output, "observed-remediation-trend-light.html"));
+remediationTrend.SavePng(Path.Combine(output, "observed-remediation-trend-light.png"));
+
+var confidenceIntervals = Chart.Create()
+    .WithTitle("Detection Confidence")
+    .WithSubtitle("Error bars show observed lower and upper bounds")
+    .WithXAxis("Run")
+    .WithYAxis("Confidence")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("Baseline", "Tuning", "Canary", "Rollout", "Steady")
+    .AddErrorBar("Confidence", new[] {
+        new ChartErrorBar(1, 42, 35, 51),
+        new ChartErrorBar(2, 58, 49, 66),
+        new ChartErrorBar(3, 63, 54, 78),
+        new ChartErrorBar(4, 72, 63, 83),
+        new ChartErrorBar(5, 81, 74, 88)
+    }, ChartColor.FromRgb(96, 165, 250));
+
+confidenceIntervals.SaveSvg(Path.Combine(output, "detection-confidence-errorbar-dark.svg"));
+confidenceIntervals.SaveHtml(Path.Combine(output, "detection-confidence-errorbar-dark.html"));
+confidenceIntervals.SavePng(Path.Combine(output, "detection-confidence-errorbar-dark.png"));
+
+var signalWindows = Chart.Create()
+    .WithTitle("Signal Windows")
+    .WithSubtitle("Candlesticks summarize open, high, low, and close values")
+    .WithXAxis("Window")
+    .WithYAxis("Signal")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithXLabels("W1", "W2", "W3", "W4", "W5", "W6")
+    .AddCandlestick("Signal", new[] {
+        new ChartCandlestick(1, 42, 51, 35, 48),
+        new ChartCandlestick(2, 58, 66, 49, 54),
+        new ChartCandlestick(3, 63, 78, 54, 72),
+        new ChartCandlestick(4, 72, 84, 67, 76),
+        new ChartCandlestick(5, 76, 82, 68, 71),
+        new ChartCandlestick(6, 71, 88, 69, 83)
+    });
+
+signalWindows.SaveSvg(Path.Combine(output, "signal-windows-candlestick-light.svg"));
+signalWindows.SaveHtml(Path.Combine(output, "signal-windows-candlestick-light.html"));
+signalWindows.SavePng(Path.Combine(output, "signal-windows-candlestick-light.png"));
+
+var signalOhlc = Chart.Create()
+    .WithTitle("Signal Windows OHLC")
+    .WithSubtitle("OHLC ticks keep dense open/high/low/close windows compact")
+    .WithXAxis("Window")
+    .WithYAxis("Signal")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithXLabels("W1", "W2", "W3", "W4", "W5", "W6")
+    .AddOhlc("Signal", new[] {
+        new ChartCandlestick(1, 42, 51, 35, 48),
+        new ChartCandlestick(2, 58, 66, 49, 54),
+        new ChartCandlestick(3, 63, 78, 54, 72),
+        new ChartCandlestick(4, 72, 84, 67, 76),
+        new ChartCandlestick(5, 76, 82, 68, 71),
+        new ChartCandlestick(6, 71, 88, 69, 83)
+    });
+
+signalOhlc.SaveSvg(Path.Combine(output, "signal-windows-ohlc-dark.svg"));
+signalOhlc.SaveHtml(Path.Combine(output, "signal-windows-ohlc-dark.html"));
+signalOhlc.SavePng(Path.Combine(output, "signal-windows-ohlc-dark.png"));
+
+var forecastEnvelope = Chart.Create()
+    .WithTitle("Forecast Envelope")
+    .WithSubtitle("Range bands show expected lower and upper bounds")
+    .WithXAxis("Run")
+    .WithYAxis("Expected Range")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithXLabels("R1", "R2", "R3", "R4", "R5", "R6")
+    .AddRangeBand("Expected", new[] {
+        new ChartRangeBand(1, 32, 44),
+        new ChartRangeBand(2, 38, 58),
+        new ChartRangeBand(3, 51, 72),
+        new ChartRangeBand(4, 63, 86),
+        new ChartRangeBand(5, 68, 92),
+        new ChartRangeBand(6, 74, 96)
+    }, ChartColor.FromRgb(96, 165, 250));
+
+forecastEnvelope.SaveSvg(Path.Combine(output, "forecast-envelope-rangeband-dark.svg"));
+forecastEnvelope.SaveHtml(Path.Combine(output, "forecast-envelope-rangeband-dark.html"));
+forecastEnvelope.SavePng(Path.Combine(output, "forecast-envelope-rangeband-dark.png"));
+
+var forecastInterval = Chart.Create()
+    .WithTitle("Forecast Interval")
+    .WithSubtitle("Range areas emphasize smoothed prediction intervals beside an observed trend")
+    .WithXAxis("Run")
+    .WithYAxis("Expected Range")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithXLabels("R1", "R2", "R3", "R4", "R5", "R6", "R7")
+    .AddRangeArea("Prediction interval", new[] {
+        new ChartRangeBand(1, 28, 44),
+        new ChartRangeBand(2, 34, 55),
+        new ChartRangeBand(3, 42, 68),
+        new ChartRangeBand(4, 54, 78),
+        new ChartRangeBand(5, 61, 88),
+        new ChartRangeBand(6, 66, 94),
+        new ChartRangeBand(7, 72, 98)
+    }, ChartColor.FromRgb(14, 165, 233))
+    .AddSmoothLine("Observed", Points(36, 49, 61, 70, 80, 86, 91), ChartColor.FromRgb(37, 99, 235));
+
+forecastInterval.SaveSvg(Path.Combine(output, "forecast-interval-rangearea-light.svg"));
+forecastInterval.SaveHtml(Path.Combine(output, "forecast-interval-rangearea-light.html"));
+forecastInterval.SavePng(Path.Combine(output, "forecast-interval-rangearea-light.png"));
+
+var remediationLift = Chart.Create()
+    .WithTitle("Remediation Lift")
+    .WithSubtitle("Dumbbells compare before and after values")
+    .WithXAxis("Control")
+    .WithYAxis("Coverage")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .WithXLabels("SPF", "DMARC", "DNSSEC", "MTA-STS", "TLS-RPT")
+    .AddDumbbell("Before/after", new[] {
+        new ChartDumbbell(1, 32, 44),
+        new ChartDumbbell(2, 38, 58),
+        new ChartDumbbell(3, 51, 72),
+        new ChartDumbbell(4, 43, 67),
+        new ChartDumbbell(5, 58, 81)
+    }, ChartColor.FromRgb(37, 99, 235));
+
+remediationLift.SaveSvg(Path.Combine(output, "remediation-lift-dumbbell-light.svg"));
+remediationLift.SaveHtml(Path.Combine(output, "remediation-lift-dumbbell-light.html"));
+remediationLift.SavePng(Path.Combine(output, "remediation-lift-dumbbell-light.png"));
+
+var findingsPareto = Chart.Create()
+    .WithTitle("Findings Pareto")
+    .WithSubtitle("Contribution bars plus cumulative percentage line")
+    .WithXAxis("Severity")
+    .WithYAxis("Share")
+    .WithTheme(ChartTheme.ReportDark())
+    .WithSize(760, 460)
+    .WithDataLabels()
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .AddPareto("Findings", new[] {
+        new ChartParetoItem("Critical", 50),
+        new ChartParetoItem("High", 28),
+        new ChartParetoItem("Medium", 14),
+        new ChartParetoItem("Low", 8)
+    }, ChartColor.FromRgb(96, 165, 250), ChartColor.FromRgb(251, 191, 36));
+
+findingsPareto.SaveSvg(Path.Combine(output, "findings-pareto-dark.svg"));
+findingsPareto.SaveHtml(Path.Combine(output, "findings-pareto-dark.html"));
+findingsPareto.SavePng(Path.Combine(output, "findings-pareto-dark.png"));
 
 GalleryWriter.Write(output);
 Console.WriteLine("Generated files in: " + output);

@@ -19,6 +19,7 @@ dotnet add package ChartForgeX
 For local development from this repository, reference `ChartForgeX/ChartForgeX.csproj` directly and run the quality loop before publishing packages.
 
 Contribution and release notes live in `CONTRIBUTING.md`, `RELEASING.md`, and `CHANGELOG.md`.
+The dependency-free rendering quality direction is documented in `docs/dependency-free-quality-roadmap.md`.
 
 ## Quality gates
 
@@ -36,7 +37,7 @@ Run the full local quality loop with:
 ./Build.ps1
 ```
 
-That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs the core library, creates a `.snupkg` symbol package, verifies package contents, verifies the package has no runtime NuGet dependencies, and installs the freshly packed package into a clean temporary console app. The gallery is written to `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`.
+That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs the core library, creates a `.snupkg` symbol package, verifies package contents, verifies the package has no runtime NuGet dependencies, and installs the freshly packed package into a clean temporary console app. The generated demo entry points are `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/catalog.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`, and `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`.
 
 The GitHub Actions workflow is configured for private repositories and requires a self-hosted runner with the labels `self-hosted` and `private`.
 
@@ -99,6 +100,122 @@ static IEnumerable<ChartPoint> Points(params double[] y) {
 }
 ```
 
+Small-multiple reports can compose several charts into one static, responsive HTML page:
+
+```csharp
+var report = ChartGrid.Create()
+    .WithTitle("Control Scorecards")
+    .WithSubtitle("Dependency-free small multiples for generated reports")
+    .WithTheme(ChartTheme.ReportLight())
+    .WithColumns(2)
+    .WithPadding(32)
+    .WithPanelSize(520, 320)
+    .WithPanelFit(ChartGridPanelFit.Contain)
+    .Add(gaugeChart)
+    .Add(trendChart)
+    .Add(coverageChart)
+    .Add(findingsChart)
+    .WithSharedAxes();
+
+report.SaveHtml("scorecards.html");
+report.SaveSvg("scorecards.svg");
+report.SavePng("scorecards.png");
+```
+
+For a single chart, `WithXAxisBounds(minimum, maximum)` and `WithYAxisBounds(minimum, maximum)` pin cartesian axes explicitly. `WithAutomaticXAxisBounds()` and `WithAutomaticYAxisBounds()` return them to data-driven scaling.
+
+Generated numeric x-axis ticks can be formatted independently from y-axis values and data labels:
+
+```csharp
+var timeline = Chart.Create()
+    .WithXAxisBounds(0, 4)
+    .WithXAxisValueFormatter(value => "D+" + value.ToString("0", System.Globalization.CultureInfo.InvariantCulture))
+    .AddLine("Incidents", new[] {
+        new ChartPoint(0, 12),
+        new ChartPoint(2, 18),
+        new ChartPoint(4, 16)
+    });
+```
+
+Data labels can be controlled globally or per series:
+
+```csharp
+var labels = Chart.Create()
+    .WithDataLabels()
+    .AddBar("Visible", Points(42))
+    .AddLine("Hidden", Points(84));
+
+labels.Series[1].WithDataLabels(false);
+```
+
+Bar-line combo charts add a bar series first and render the line on top:
+
+```csharp
+var combo = Chart.Create()
+    .WithYAxis("Volume")
+    .WithSecondaryYAxis("Pass rate", value => value.ToString("0") + "%")
+    .WithSecondaryYAxisBounds(0, 100)
+    .WithXLabels("Mon", "Tue", "Wed")
+    .AddBarLineCombo(
+        "Volume",
+        Points(4200, 6400, 5800),
+        "Pass rate",
+        Points(88, 93, 91),
+        smoothLine: true,
+        lineAxis: ChartAxisSide.Secondary);
+```
+
+Column/area and scatter/line helpers are available for common mixed-report panels:
+
+```csharp
+var forecast = Chart.Create()
+    .WithXLabels("Q1", "Q2", "Q3")
+    .AddColumnAreaCombo("Actual", Points(42, 64, 58), "Projected", Points(46, 68, 62));
+
+var observed = Chart.Create()
+    .AddScatterLineCombo("Observed", Points(12, 18, 17), "Target", Points(14, 16, 20));
+```
+
+## Chart catalog
+
+| Chart type | API | Good for |
+| --- | --- | --- |
+| Line | `AddLine`, `AddSmoothLine` | Trends, time series, thresholds |
+| Step line | `AddStepLine` | State changes, threshold-like movement |
+| Area | `AddArea`, `AddStepArea`, `AddSmoothArea`, `AddStackedArea`, `AddSmoothStackedArea` | Filled trends, step-filled states, stacked contribution bands, and cumulative-looking report areas |
+| Scatter | `AddScatter`, `AddTrendLine` | Independent point distributions and fitted trend lines |
+| Statistical overlays | `AddMeanLine`, `AddMedianLine`, `AddStandardDeviationBand` | Computed mean, median, and sigma report annotations |
+| Slope | `AddSlope` | Before/after endpoint comparisons |
+| Combo | `AddBarLineCombo`, `AddColumnLineCombo`, `AddBarAreaCombo`, `AddColumnAreaCombo`, `AddScatterLineCombo`, `UseSecondaryYAxis` | Shared-axis or secondary-axis mixed charts for volume, targets, forecasts, and observed-vs-trend panels |
+| Bar | `AddBar` | Category comparison, grouped and stacked bars |
+| Histogram | `AddHistogram` | Raw numeric distributions |
+| Lollipop | `AddLollipop` | Light-weight category comparison |
+| Bubble | `AddBubble` | X/Y points with a third size value |
+| Error bar | `AddErrorBar` | Point estimates with lower and upper bounds |
+| Candlestick / OHLC | `AddCandlestick`, `AddOhlc` | Open/high/low/close windows |
+| Range band | `AddRangeBand` | Forecast, tolerance, and confidence envelopes |
+| Range area | `AddRangeArea` | Smoothed prediction intervals with emphasized upper and lower bounds |
+| Dumbbell | `AddDumbbell` | Before/after or paired-value comparisons |
+| Pareto | `AddPareto` | Sorted contributions plus cumulative percentage |
+| Range bar | `AddRangeBar` | Min/max or observed interval values |
+| Box plot | `AddBoxPlot` | Quartiles, median, whiskers, raw sample summaries |
+| Horizontal bar | `AddHorizontalBar`, `WithStackedHorizontalBars` | Long category names and stacked composition across long categories |
+| Heatmap | `AddHeatmapRow` | Matrix values and coverage grids |
+| Gauge | `AddGauge` | Single score or KPI |
+| Circle | `AddCircle` | Compact single-value progress KPIs |
+| Radial bar | `AddRadialBar` | Circular progress rings for multiple KPI percentages |
+| Bullet | `AddBullet` | Value, target, and qualitative ranges |
+| Waterfall | `AddWaterfall` | Cumulative positive and negative changes |
+| Radar | `AddRadar` | Multi-axis profile comparison |
+| Polar area | `AddPolarArea` | Equal-angle radial contribution comparison |
+| Funnel | `AddFunnel` | Stage drop-off |
+| Treemap | `AddTreemap` | Part-to-whole composition across many labeled items |
+| Timeline | `AddTimelineItem`, `AddTimelineRange` | Date or numeric ranges |
+| Gantt | `AddGanttTask`, `AddGanttMilestone`, `WithGanttToday` | Project schedules with progress, dependencies, milestones, and current-date markers |
+| Sankey | `AddSankey`, `ChartSankeyLink` | Weighted flows between stages, systems, or outcomes |
+| Tree | `AddTree`, `ChartTreeLink` | Hierarchies, ownership maps, and control structures |
+| Pie and donut | `AddPie`, `AddDonut` | Simple proportional breakdowns |
+
 PNG output uses a dependency-free rasterizer. When a platform TrueType font can be loaded, PNG text is rendered from real font outlines; otherwise ChartForgeX falls back to its built-in tiny chart font. You can prefer a specific `.ttf` file or `.ttc` collection for report consistency:
 
 ```csharp
@@ -117,6 +234,13 @@ You can also select by family, subfamily, full, or PostScript face name:
 
 ```csharp
 chart.WithPngFont("/System/Library/Fonts/HelveticaNeue.ttc", faceName: "Helvetica Neue")
+     .SavePng("chart.png");
+```
+
+PNG edges are supersampled by default. You can raise or lower the internal supersampling scale when you need to trade render time for raster edge quality:
+
+```csharp
+chart.WithPngSupersampling(4)
      .SavePng("chart.png");
 ```
 
@@ -163,6 +287,24 @@ var monthly = Chart.Create()
     .AddSmoothLine("Primary domain checks", Points(82, 84, 86, 87, 88, 89, 91, 92, 93, 94, 95, 96));
 ```
 
+Step line charts are available for state changes and threshold-like report series:
+
+```csharp
+var stateChanges = Chart.Create()
+    .WithTitle("Policy State Changes")
+    .WithXLabels("Draft", "Review", "Approved", "Published")
+    .AddStepLine("Controls", Points(12, 18, 18, 26));
+```
+
+Step-area charts fill discrete state changes when the magnitude matters:
+
+```csharp
+var stepArea = Chart.Create()
+    .WithTitle("Policy Backlog")
+    .WithXLabels("Draft", "Review", "Approved", "Published")
+    .AddStepArea("Open controls", Points(12, 18, 18, 26));
+```
+
 Long category labels can be rotated when every label matters:
 
 ```csharp
@@ -184,6 +326,190 @@ var grouped = Chart.Create()
     .AddBar("Previous run", Points(12, 41, 97, 118, 188));
 ```
 
+Histograms can bin raw values directly:
+
+```csharp
+var latencyDistribution = Chart.Create()
+    .WithTitle("Endpoint Latency Distribution")
+    .WithXAxis("Latency")
+    .WithYAxis("Samples")
+    .AddHistogram("P95 samples", new[] { 28d, 31d, 36d, 42d, 47d, 58d, 64d, 72d }, binCount: 4);
+```
+
+Lollipop charts provide bar-like comparison with lighter visual weight:
+
+```csharp
+var posture = Chart.Create()
+    .WithTitle("Control Readiness")
+    .WithDataLabels()
+    .WithXLabels("SPF", "DMARC", "DNSSEC")
+    .AddLollipop("Coverage", Points(96, 88, 74));
+```
+
+Bubble charts encode x, y, and marker size in one report panel:
+
+```csharp
+var exposure = Chart.Create()
+    .WithTitle("Exposure Clusters")
+    .WithXAxis("Reachability")
+    .WithYAxis("Exploitability")
+    .AddBubble("Assets", new[] {
+        new ChartBubble(1, 24, 8),
+        new ChartBubble(2, 42, 18),
+        new ChartBubble(3, 31, 42)
+    });
+```
+
+Trend lines can be computed from scatter or other cartesian points:
+
+```csharp
+var observations = Points(12, 19, 24, 33, 41);
+var trend = Chart.Create()
+    .WithTitle("Observed Remediation Trend")
+    .AddScatter("Observed", observations)
+    .AddTrendLine("Trend", observations);
+```
+
+Statistical overlays compute report annotations from source points:
+
+```csharp
+var observed = Points(12, 19, 24, 33, 41);
+var stats = Chart.Create()
+    .AddLine("Observed", observed)
+    .AddMeanLine("mean", observed)
+    .AddMedianLine("median", observed)
+    .AddStandardDeviationBand("1 sigma", observed);
+```
+
+Error bars show uncertainty around point estimates:
+
+```csharp
+var confidence = Chart.Create()
+    .WithTitle("Detection Confidence")
+    .WithXAxis("Run")
+    .WithYAxis("Score")
+    .AddErrorBar("Confidence", new[] {
+        new ChartErrorBar(1, 42, 35, 51),
+        new ChartErrorBar(2, 58, 49, 66),
+        new ChartErrorBar(3, 63, 54, 78)
+    });
+```
+
+Candlestick charts show open, high, low, and close windows:
+
+```csharp
+var candles = Chart.Create()
+    .WithTitle("Signal Windows")
+    .WithXAxis("Window")
+    .WithYAxis("Score")
+    .AddCandlestick("Window", new[] {
+        new ChartCandlestick(1, 42, 51, 35, 48),
+        new ChartCandlestick(2, 58, 66, 49, 54),
+        new ChartCandlestick(3, 63, 78, 54, 72)
+    });
+```
+
+OHLC charts use the same `ChartCandlestick` values with compact open and close ticks:
+
+```csharp
+var ohlc = Chart.Create()
+    .WithTitle("Signal Windows")
+    .WithXAxis("Window")
+    .WithYAxis("Score")
+    .AddOhlc("Window", new[] {
+        new ChartCandlestick(1, 42, 51, 35, 48),
+        new ChartCandlestick(2, 58, 66, 49, 54),
+        new ChartCandlestick(3, 63, 78, 54, 72)
+    });
+```
+
+Range-band charts draw forecast, tolerance, or confidence envelopes:
+
+```csharp
+var forecast = Chart.Create()
+    .WithTitle("Forecast Envelope")
+    .WithXAxis("Run")
+    .WithYAxis("Expected Range")
+    .AddRangeBand("Expected", new[] {
+        new ChartRangeBand(1, 32, 44),
+        new ChartRangeBand(2, 38, 58),
+        new ChartRangeBand(3, 51, 72)
+    });
+```
+
+Range-area charts are interval envelopes with stronger area emphasis and optional smoothing:
+
+```csharp
+var interval = Chart.Create()
+    .WithTitle("Forecast Interval")
+    .WithXAxis("Run")
+    .WithYAxis("Expected Range")
+    .AddRangeArea("Prediction interval", new[] {
+        new ChartRangeBand(1, 32, 44),
+        new ChartRangeBand(2, 38, 58),
+        new ChartRangeBand(3, 51, 72)
+    });
+```
+
+Dumbbell charts compare paired values across categories:
+
+```csharp
+var remediation = Chart.Create()
+    .WithTitle("Remediation Lift")
+    .WithXLabels("SPF", "DMARC", "DNSSEC")
+    .AddDumbbell("Before/after", new[] {
+        new ChartDumbbell(1, 32, 44),
+        new ChartDumbbell(2, 38, 58),
+        new ChartDumbbell(3, 51, 72)
+    });
+```
+
+Pareto charts sort raw category values and add a cumulative percentage line:
+
+```csharp
+var pareto = Chart.Create()
+    .WithTitle("Findings Pareto")
+    .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+    .AddPareto("Findings", new[] {
+        new ChartParetoItem("Critical", 50),
+        new ChartParetoItem("Medium", 30),
+        new ChartParetoItem("Low", 20)
+    });
+```
+
+Range bars show interval values such as min/max observations:
+
+```csharp
+var latencyRanges = Chart.Create()
+    .WithTitle("Endpoint Latency Ranges")
+    .WithXLabels("DNS", "TCP", "TLS")
+    .AddRangeBar("Observed", new[] {
+        new ChartInterval(1, 20, 42),
+        new ChartInterval(2, 44, 88),
+        new ChartInterval(3, 96, 142)
+    });
+```
+
+Box plots summarize distributions with whiskers, quartiles, and medians:
+
+```csharp
+var latencySpread = Chart.Create()
+    .WithTitle("Endpoint Latency Spread")
+    .WithXLabels("DNS", "TCP")
+    .AddBoxPlot("Latency", new[] {
+        new ChartBoxPlot(1, 18, 24, 31, 38, 48),
+        new ChartBoxPlot(2, 42, 56, 64, 82, 104)
+    });
+```
+
+Box plots can also compute the five-number summary from raw samples:
+
+```csharp
+var rawLatency = Chart.Create()
+    .WithTitle("Raw Latency Spread")
+    .AddBoxPlot("Latency", 1, new[] { 18d, 24d, 31d, 38d, 48d });
+```
+
 Horizontal bars are available for long report categories:
 
 ```csharp
@@ -193,6 +519,18 @@ var coverage = Chart.Create()
     .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
     .WithXLabels("SPF alignment", "DMARC policy enforcement", "DNSSEC coverage")
     .AddHorizontalBar("Coverage", Points(96, 88, 74));
+```
+
+Multiple horizontal bar series can be stacked for composition reports:
+
+```csharp
+var composition = Chart.Create()
+    .WithStackedHorizontalBars()
+    .WithStackTotals()
+    .WithXLabels("Mail authentication", "Transport security")
+    .AddHorizontalBar("Complete", Points(40, 55))
+    .AddHorizontalBar("Partial", Points(15, 20))
+    .AddHorizontalBar("Missing", Points(5, 10));
 ```
 
 Heatmaps are available for compact report matrices. Each heatmap series is one row; point `X` chooses the column and point `Y` is the cell value:
@@ -227,6 +565,14 @@ var targets = Chart.Create()
     .AddBullet("DNSSEC coverage", 74, 90, 0, 100, new[] { 55d, 78d });
 ```
 
+Circle charts show compact single-value progress KPIs:
+
+```csharp
+var ready = Chart.Create()
+    .WithTitle("Policy Readiness")
+    .AddCircle("Ready", 87, 0, 100);
+```
+
 Waterfall charts are available for explaining cumulative change:
 
 ```csharp
@@ -248,6 +594,15 @@ var posture = Chart.Create()
     .AddRadar("Target posture", Points(96, 90, 94, 98, 92, 90));
 ```
 
+Polar area charts use equal-angle radial segments whose radius is scaled by value:
+
+```csharp
+var polar = Chart.Create()
+    .WithTitle("Control Contribution")
+    .WithXLabels("Mail auth", "DNSSEC", "TLS", "CT")
+    .AddPolarArea("Control share", Points(92, 74, 88, 96));
+```
+
 Funnel charts are available for staged report flows:
 
 ```csharp
@@ -265,6 +620,44 @@ var remediation = Chart.Create()
     .WithDataLabels()
     .AddTimelineItem("Certificate renewal", new DateTime(2026, 1, 4), new DateTime(2026, 2, 10))
     .AddTimelineItem("DMARC enforcement", new DateTime(2026, 1, 18), new DateTime(2026, 3, 5));
+```
+
+Gantt charts add schedule progress, dependencies, milestones, and current-date markers:
+
+```csharp
+var plan = Chart.Create()
+    .WithTitle("Domain Remediation Gantt")
+    .WithDataLabels()
+    .WithGanttToday(new DateTime(2026, 2, 18))
+    .AddGanttTask("Inventory scope", new DateTime(2026, 1, 5), new DateTime(2026, 1, 24), 0.9)
+    .AddGanttTask("Owner remediation", new DateTime(2026, 1, 20), new DateTime(2026, 2, 24), 0.62, dependsOn: 0)
+    .AddGanttMilestone("Executive sign-off", new DateTime(2026, 3, 6), dependsOn: 1);
+```
+
+Sankey charts show weighted movement between named stages:
+
+```csharp
+var flow = Chart.Create()
+    .WithTitle("Finding Flow")
+    .WithDataLabels()
+    .AddSankey("Findings", new[] {
+        new ChartSankeyLink("Discovered", "Validated", 70),
+        new ChartSankeyLink("Validated", "Remediated", 44),
+        new ChartSankeyLink("Validated", "Monitoring", 26)
+    });
+```
+
+Tree charts render parent-child hierarchy maps:
+
+```csharp
+var hierarchy = Chart.Create()
+    .WithTitle("Control Hierarchy")
+    .AddTree("Controls", new[] {
+        new ChartTreeLink("Security posture", "Mail authentication"),
+        new ChartTreeLink("Security posture", "Certificate lifecycle"),
+        new ChartTreeLink("Mail authentication", "SPF"),
+        new ChartTreeLink("Mail authentication", "DKIM")
+    });
 ```
 
 They can also be stacked when the report needs category totals:
@@ -358,9 +751,23 @@ JPG is not included. JPG has no transparency and is a poor fit for charts with s
 ### v0.1
 
 - Line chart
+- Step line chart
 - Area chart
+- Stacked area chart
 - Scatter chart
+- Slope chart
 - Bar chart
+- Histogram chart
+- Lollipop chart
+- Bubble chart
+- Error-bar chart
+- Candlestick chart
+- OHLC chart
+- Range-band chart
+- Dumbbell chart
+- Pareto chart helper
+- Range bar chart
+- Box plot chart
 - Horizontal bar chart
 - Pie and donut charts
 - Static line and band annotations
@@ -375,13 +782,21 @@ JPG is not included. JPG has no transparency and is a poor fit for charts with s
 - Grouped SVG bar rendering for multiple bar series
 - Stacked bar rendering for category totals
 - Horizontal bar rendering for long categories
+- Step line, histogram, lollipop, range bar, range band, dumbbell, and slope charts
+- Bubble charts, trend lines, statistical overlays, and error bars
+- Box plots, Pareto charts, candlestick charts, and OHLC charts
 - Heatmap matrices
 - Gauge charts
 - Bullet charts
 - Waterfall charts
 - Radar charts
+- Polar area charts
 - Funnel charts
+- Treemap charts
 - Timeline charts
+- Gantt charts
+- Sankey charts
+- Tree charts
 - Sparklines
 - Date/time axes
 - Data labels

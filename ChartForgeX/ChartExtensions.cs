@@ -66,4 +66,53 @@ public static class ChartExtensions {
     /// <param name="chart">The chart to render.</param>
     /// <param name="path">The output file path.</param>
     public static void SavePng(this Chart chart, string path) => File.WriteAllBytes(path, chart.ToPng());
+
+    /// <summary>
+    /// Renders a chart grid to SVG markup.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <returns>SVG markup.</returns>
+    public static string ToSvg(this ChartGrid grid) => new SvgChartGridRenderer().Render(grid);
+
+    /// <summary>
+    /// Renders a chart grid to a standalone HTML fragment containing inline SVG charts.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <returns>An HTML fragment.</returns>
+    public static string ToHtmlFragment(this ChartGrid grid) => new HtmlChartGridRenderer().RenderFragment(grid);
+
+    /// <summary>
+    /// Renders a chart grid to a complete HTML document.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <returns>An HTML page.</returns>
+    public static string ToHtmlPage(this ChartGrid grid) => new HtmlChartGridRenderer().RenderPage(grid);
+
+    /// <summary>
+    /// Renders a chart grid to PNG bytes.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <returns>A PNG image.</returns>
+    public static byte[] ToPng(this ChartGrid grid) => new PngChartGridRenderer().Render(grid);
+
+    /// <summary>
+    /// Saves a chart grid as an SVG file.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <param name="path">The output file path.</param>
+    public static void SaveSvg(this ChartGrid grid, string path) => File.WriteAllText(path, grid.ToSvg(), Encoding.UTF8);
+
+    /// <summary>
+    /// Saves a chart grid as a complete HTML file.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <param name="path">The output file path.</param>
+    public static void SaveHtml(this ChartGrid grid, string path) => File.WriteAllText(path, grid.ToHtmlPage(), Encoding.UTF8);
+
+    /// <summary>
+    /// Saves a chart grid as a PNG file.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <param name="path">The output file path.</param>
+    public static void SavePng(this ChartGrid grid, string path) => File.WriteAllBytes(path, grid.ToPng());
 }

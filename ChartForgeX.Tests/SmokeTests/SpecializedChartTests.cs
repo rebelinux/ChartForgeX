@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using ChartForgeX;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
@@ -7,6 +8,307 @@ using ChartForgeX.Primitives;
 namespace ChartForgeX.Tests;
 
 internal static partial class SmokeTests {
+    private static void HistogramValuesRenderAsBinnedBars() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddHistogram("Latency samples", new[] { 1d, 2d, 2d, 3d, 5d }, 2, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"bar\"") == 2, "Histogram values should render one bar per requested bin.");
+        Assert(svg.Contains(">1-3</text>", StringComparison.Ordinal), "Histogram bins should render range labels.");
+        Assert(svg.Contains(">3-5</text>", StringComparison.Ordinal), "Histogram bins should render range labels.");
+        Assert(svg.Contains(">3</text>", StringComparison.Ordinal), "Histogram data labels should render bin counts.");
+        Assert(chart.ToPng().Length > 64, "Histogram charts should render PNG output.");
+    }
+
+    private static void LollipopSeriesRenderStemsAndMarkers() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .WithXLabels("A", "B", "C")
+            .AddLollipop("Coverage", Points(74, 88, 96), ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"lollipop-stem\"") == 3, "Lollipop charts should render one stem per point.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"lollipop-marker\"") == 3, "Lollipop charts should render one marker per point.");
+        Assert(svg.Contains(">96</text>", StringComparison.Ordinal), "Lollipop data labels should render values when enabled.");
+        Assert(chart.ToPng().Length > 64, "Lollipop charts should render PNG output.");
+    }
+
+    private static void RangeBarSeriesRenderIntervals() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .WithXLabels("DNS", "TCP", "TLS")
+            .AddRangeBar("Observed range", new[] {
+                new ChartInterval(1, 20, 42),
+                new ChartInterval(2, 44, 88),
+                new ChartInterval(3, 96, 142)
+            }, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-bar\"") == 3, "Range bar charts should render one interval bar per interval.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-bar-cap\"") == 6, "Range bar charts should render two caps per interval.");
+        Assert(svg.Contains(">20-42</text>", StringComparison.Ordinal), "Range bar data labels should render interval bounds when enabled.");
+        Assert(chart.ToPng().Length > 64, "Range bar charts should render PNG output.");
+    }
+
+    private static void BoxPlotSeriesRenderStatisticalSummaries() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .WithXLabels("DNS", "TCP")
+            .AddBoxPlot("Latency spread", new[] {
+                new ChartBoxPlot(1, 18, 24, 31, 38, 48),
+                new ChartBoxPlot(2, 42, 56, 64, 82, 104)
+            }, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"box-plot\"") == 2, "Box plots should render one group per summary.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"box-body\"") == 2, "Box plots should render quartile boxes.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"box-median\"") == 2, "Box plots should render median lines.");
+        Assert(svg.Contains(">31</text>", StringComparison.Ordinal), "Box plot data labels should render medians when enabled.");
+        var raw = Chart.Create().WithSize(640, 360).WithDataLabels().AddBoxPlot("Raw samples", 1, new[] { 18d, 24d, 31d, 38d, 48d }, ChartColor.FromRgb(37, 99, 235)).ToSvg();
+        Assert(raw.Contains(">31</text>", StringComparison.Ordinal), "Raw-value box plot overload should compute the median.");
+        Assert(File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.BoxPlot.cs")).Contains("PngStrokeHalo", StringComparison.Ordinal), "Box plot PNG strokes should keep readable raster halos.");
+        Assert(chart.ToPng().Length > 64, "Box plots should render PNG output.");
+    }
+
+    private static void BubbleSeriesRenderScaledMarkers() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddBubble("Risk clusters", new[] {
+                new ChartBubble(1, 24, 8),
+                new ChartBubble(2, 42, 18),
+                new ChartBubble(3, 31, 42)
+            }, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"bubble\"") == 3, "Bubble charts should render one scaled marker per bubble.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"bubble-highlight\"") == 3, "Bubble charts should render marker highlights.");
+        Assert(svg.Contains(">42</text>", StringComparison.Ordinal), "Bubble data labels should render size values when enabled.");
+        Assert(chart.ToPng().Length > 64, "Bubble charts should render PNG output.");
+    }
+
+    private static void TrendLineSeriesRenderComputedRegressionLines() {
+        var points = new[] {
+            new ChartPoint(1, 12),
+            new ChartPoint(2, 19),
+            new ChartPoint(3, 24),
+            new ChartPoint(4, 33),
+            new ChartPoint(5, 41)
+        };
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .AddScatter("Observed", points, ChartColor.FromRgb(37, 99, 235))
+            .AddTrendLine("Trend", points, ChartColor.FromRgb(245, 158, 11));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"trend-line\"") == 1, "Trend lines should render one computed line.");
+        Assert(svg.Contains("stroke-dasharray=\"8 6\"", StringComparison.Ordinal), "Trend lines should render as dashed reference lines.");
+        Assert(svg.Contains("data-cfx-slope=\"", StringComparison.Ordinal), "Trend lines should expose computed slope metadata.");
+        Assert(svg.Contains(">Trend</text>", StringComparison.Ordinal), "Trend lines should participate in the legend.");
+        Assert(chart.ToPng().Length > 64, "Trend lines should render PNG output.");
+    }
+
+    private static void ErrorBarSeriesRenderBoundsAndMarkers() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddErrorBar("Confidence", new[] {
+                new ChartErrorBar(1, 42, 35, 51),
+                new ChartErrorBar(2, 58, 49, 66),
+                new ChartErrorBar(3, 63, 54, 78)
+            }, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"error-bar\"") == 3, "Error-bar charts should render one group per point estimate.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"error-cap\"") == 6, "Error-bar charts should render two caps per point estimate.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"error-marker\"") == 3, "Error-bar charts should render point estimate markers.");
+        Assert(svg.Contains(">63</text>", StringComparison.Ordinal), "Error-bar data labels should render point estimates when enabled.");
+        Assert(File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.ErrorBar.cs")).Contains("PngStrokeHalo", StringComparison.Ordinal), "Error-bar PNG strokes should keep readable raster halos.");
+        Assert(chart.ToPng().Length > 64, "Error-bar charts should render PNG output.");
+    }
+
+    private static void CandlestickSeriesRenderOhlcBodiesAndWicks() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddCandlestick("Windows", new[] {
+                new ChartCandlestick(1, 42, 51, 35, 48),
+                new ChartCandlestick(2, 58, 66, 49, 54),
+                new ChartCandlestick(3, 63, 78, 54, 72)
+            });
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"candlestick\"") == 3, "Candlestick charts should render one group per OHLC value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"candlestick-wick\"") == 3, "Candlestick charts should render one wick per OHLC value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"candlestick-body\"") == 3, "Candlestick charts should render one body per OHLC value.");
+        Assert(svg.Contains(">72</text>", StringComparison.Ordinal), "Candlestick data labels should render close values when enabled.");
+        Assert(File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.Candlestick.cs")).Contains("PngStrokeHalo", StringComparison.Ordinal), "Candlestick PNG strokes should keep readable raster halos.");
+        Assert(chart.ToPng().Length > 64, "Candlestick charts should render PNG output.");
+    }
+
+    private static void OhlcSeriesRenderOpenAndCloseTicks() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddOhlc("Windows", new[] {
+                new ChartCandlestick(1, 42, 51, 35, 48),
+                new ChartCandlestick(2, 58, 66, 49, 54),
+                new ChartCandlestick(3, 63, 78, 54, 72)
+            });
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"ohlc\"") == 3, "OHLC charts should render one group per OHLC value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"ohlc-stem\"") == 3, "OHLC charts should render one high-low stem per value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"ohlc-open\"") == 3, "OHLC charts should render one open tick per value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"ohlc-close\"") == 3, "OHLC charts should render one close tick per value.");
+        Assert(!svg.Contains("data-cfx-role=\"candlestick-body\"", StringComparison.Ordinal), "OHLC charts should not render candlestick bodies.");
+        Assert(svg.Contains(">72</text>", StringComparison.Ordinal), "OHLC data labels should render close values when enabled.");
+        Assert(File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.Ohlc.cs")).Contains("PngStrokeHalo", StringComparison.Ordinal), "OHLC PNG strokes should keep readable raster halos.");
+        Assert(chart.ToPng().Length > 64, "OHLC charts should render PNG output.");
+    }
+
+    private static void RangeBandSeriesRenderFilledEnvelopes() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddRangeBand("Forecast band", new[] {
+                new ChartRangeBand(1, 32, 44),
+                new ChartRangeBand(2, 38, 58),
+                new ChartRangeBand(3, 51, 72)
+            }, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-band\"") == 1, "Range-band charts should render one filled envelope.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-band-upper\"") == 1, "Range-band charts should render an upper boundary.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-band-lower\"") == 1, "Range-band charts should render a lower boundary.");
+        Assert(svg.Contains(">51-72</text>", StringComparison.Ordinal), "Range-band data labels should render lower and upper values when enabled.");
+        Assert(chart.ToPng().Length > 64, "Range-band charts should render PNG output.");
+    }
+
+    private static void RangeAreaSeriesRenderFilledIntervalAreas() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddRangeArea("Prediction interval", new[] {
+                new ChartRangeBand(1, 32, 44),
+                new ChartRangeBand(2, 38, 58),
+                new ChartRangeBand(3, 51, 72)
+            }, ChartColor.FromRgb(14, 165, 233));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-area\"") == 1, "Range-area charts should render one filled interval area.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-area-upper\"") == 1, "Range-area charts should render an emphasized upper boundary.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-area-lower\"") == 1, "Range-area charts should render an emphasized lower boundary.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"range-area-midline\"") == 1, "Range-area charts should render an interval midpoint guide.");
+        Assert(svg.Contains(">51-72</text>", StringComparison.Ordinal), "Range-area data labels should render lower and upper values when enabled.");
+        Assert(chart.ToPng().Length > 64, "Range-area charts should render PNG output.");
+    }
+
+    private static void StackedAreaSeriesRenderCumulativeFilledBands() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .WithXLabels("Mon", "Tue", "Wed")
+            .AddStackedArea("Passed", Points(120, 160, 190), ChartColor.FromRgb(16, 185, 129))
+            .AddSmoothStackedArea("Warnings", Points(24, 18, 12), ChartColor.FromRgb(251, 191, 36));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"stacked-area\"") == 2, "Stacked area charts should render one filled band per stacked series.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"stacked-area-line\"") == 4, "Stacked area charts should render readable upper boundaries.");
+        Assert(GetAttribute(svg, "<clipPath", "x") > 0, "Stacked area charts should keep using the shared cartesian plot clip.");
+        Assert(svg.Contains(">Warnings</text>", StringComparison.Ordinal), "Stacked area charts should render legend labels.");
+        Assert(chart.ToPng().Length > 64, "Stacked area charts should render PNG output.");
+    }
+
+    private static void SlopeSeriesRenderEndpointComparisons() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddSlope("DMARC", 58, 88, "Before", "After", ChartColor.FromRgb(37, 99, 235))
+            .AddSlope("DNSSEC", 42, 74, ChartColor.FromRgb(16, 185, 129));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"slope\"") == 2, "Slope charts should render one comparison group per slope series.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"slope-line\"") == 4, "Slope charts should render halo and foreground lines.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"slope-start\"") == 2, "Slope charts should render one start marker per comparison.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"slope-end\"") == 2, "Slope charts should render one end marker per comparison.");
+        Assert(svg.Contains(">Before</text>", StringComparison.Ordinal), "Slope charts should apply endpoint labels to the x-axis.");
+        Assert(svg.Contains(">After</text>", StringComparison.Ordinal), "Slope charts should apply endpoint labels to the x-axis.");
+        Assert(svg.Contains(">88</text>", StringComparison.Ordinal), "Slope data labels should render endpoint values when enabled.");
+        Assert(chart.ToPng().Length > 64, "Slope charts should render PNG output.");
+    }
+
+    private static void DumbbellSeriesRenderPairedComparisons() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .AddDumbbell("Before/after", new[] {
+                new ChartDumbbell(1, 32, 44),
+                new ChartDumbbell(2, 38, 58),
+                new ChartDumbbell(3, 51, 72)
+            }, ChartColor.FromRgb(37, 99, 235));
+        var svg = chart.ToSvg();
+        Assert(CountOccurrences(svg, "data-cfx-role=\"dumbbell\"") == 3, "Dumbbell charts should render one group per paired value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"dumbbell-connector\"") == 3, "Dumbbell charts should render one connector per paired value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"dumbbell-start\"") == 3, "Dumbbell charts should render one start marker per paired value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"dumbbell-end\"") == 3, "Dumbbell charts should render one end marker per paired value.");
+        Assert(svg.Contains(">51-72</text>", StringComparison.Ordinal), "Dumbbell data labels should render paired values when enabled.");
+        Assert(chart.ToPng().Length > 64, "Dumbbell charts should render PNG output.");
+    }
+
+    private static void ParetoItemsRenderSortedBarsAndCumulativeLine() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .WithValueFormatter(value => value.ToString("0", CultureInfo.InvariantCulture) + "%")
+            .AddPareto("Findings", new[] {
+                new ChartParetoItem("Medium", 30),
+                new ChartParetoItem("Critical", 50),
+                new ChartParetoItem("Low", 20)
+            }, ChartColor.FromRgb(37, 99, 235), ChartColor.FromRgb(245, 158, 11));
+        var svg = chart.ToSvg();
+        Assert(chart.Series.Count == 2, "Pareto charts should add contribution bars and a cumulative line.");
+        Assert(chart.Series[0].Kind == ChartSeriesKind.Bar, "Pareto contribution values should render as bars.");
+        Assert(chart.Series[1].Kind == ChartSeriesKind.Line, "Pareto cumulative values should render as a line.");
+        Assert(chart.Options.XAxisLabels[0].Text == "Critical", "Pareto charts should sort categories by descending value.");
+        Assert(Math.Abs(chart.Series[0].Points[0].Y - 50) < 0.001, "Pareto contribution bars should use percentage share.");
+        Assert(Math.Abs(chart.Series[1].Points[2].Y - 100) < 0.001, "Pareto cumulative line should end at one hundred percent.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"bar\"") == 3, "Pareto charts should render one bar per item.");
+        Assert(CountOccurrences(svg, ">50%</text>") == 1, "Pareto charts should avoid duplicate first-point bar and cumulative labels.");
+        Assert(svg.Contains(">100%</text>", StringComparison.Ordinal), "Pareto data labels should include cumulative percentages.");
+        Assert(svg.Contains(">Cumulative Findings</text>", StringComparison.Ordinal), "Pareto charts should render the cumulative series legend.");
+        Assert(chart.ToPng().Length > 64, "Pareto charts should render PNG output.");
+    }
+
+    private static void BarLineComboRendersBarsAndLine() {
+        var chart = Chart.Create()
+            .WithSize(640, 360)
+            .WithYAxis("Volume")
+            .WithSecondaryYAxis("Rate", value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
+            .WithSecondaryYAxisBounds(0, 100)
+            .WithXLabels("Mon", "Tue", "Wed")
+            .AddBarLineCombo(
+                "Volume",
+                Points(4200, 6400, 5800),
+                "Pass rate",
+                Points(88, 93, 91),
+                ChartColor.FromRgb(37, 99, 235),
+                ChartColor.FromRgb(14, 165, 233),
+                smoothLine: true,
+                lineAxis: ChartAxisSide.Secondary);
+
+        var svg = chart.ToSvg();
+        Assert(chart.Series.Count == 2, "Bar-line combos should add exactly two series.");
+        Assert(chart.Series[0].Kind == ChartSeriesKind.Bar, "Bar-line combos should add bars first so lines render on top.");
+        Assert(chart.Series[1].Kind == ChartSeriesKind.Line && chart.Series[1].Smooth, "Bar-line combos should add the requested smooth line series.");
+        Assert(chart.Series[1].YAxis == ChartAxisSide.Secondary, "Bar-line combos should allow the overlaid line to use the secondary y-axis.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"bar\"") == 3, "Bar-line combos should render one bar per bar point.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"line\"") == 1, "Bar-line combos should render one visible line path.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"line-marker\"") == 3, "Bar-line combos should render one marker per line point.");
+        Assert(svg.Contains("data-cfx-role=\"secondary-y-axis\"", StringComparison.Ordinal), "Secondary-axis combos should render a right-side SVG axis.");
+        Assert(svg.Contains("data-cfx-role=\"secondary-y-axis-title\"", StringComparison.Ordinal), "Secondary-axis combos should render the right-side axis title.");
+        Assert(svg.Contains(">100%</text>", StringComparison.Ordinal), "Secondary-axis combos should use the secondary tick formatter.");
+        Assert(svg.Contains(">Volume</text>", StringComparison.Ordinal), "Bar-line combos should render the bar legend label.");
+        Assert(svg.Contains(">Pass rate</text>", StringComparison.Ordinal), "Bar-line combos should render the line legend label.");
+        Assert(chart.ToPng().Length > 64, "Bar-line combos should render PNG output.");
+
+        var secondaryOnly = Chart.Create().WithSize(420, 280).WithSecondaryYAxis("Rate").AddLine("Rate", Points(88, 93, 91));
+        secondaryOnly.Series[0].UseSecondaryYAxis();
+        Assert(!secondaryOnly.ToSvg().Contains("Infinity", StringComparison.Ordinal), "Secondary-axis-only charts should still render finite SVG geometry.");
+    }
+
     private static void MultipleBarSeriesRenderAsGroupedBars() {
         var svg = Chart.Create().WithSize(640, 360).WithXLabels("Mon", "Tue", "Wed").AddBar("Current", Points(10, 20, 30)).AddBar("Previous", Points(8, 18, 22)).ToSvg();
         Assert(CountOccurrences(svg, "data-cfx-role=\"bar\"") == 6, "Two bar series with three points each should render six bar rectangles.");
@@ -26,6 +328,29 @@ internal static partial class SmokeTests {
         Assert(svg.Contains(">SPF alignment</text>", StringComparison.Ordinal), "Horizontal bar charts should render category labels on the y-axis.");
         Assert(svg.Contains(">100</text>", StringComparison.Ordinal), "Horizontal bar charts should render data labels when enabled.");
         Assert(GetAttribute(svg, "data-cfx-role=\"horizontal-bar\" data-cfx-series=\"0\" data-cfx-point=\"0\"", "width") > GetAttribute(svg, "data-cfx-role=\"horizontal-bar\" data-cfx-series=\"0\" data-cfx-point=\"2\"", "width"), "Larger horizontal bar values should produce wider bars.");
+    }
+
+    private static void StackedHorizontalBarsRenderSegmentsAndTotals() {
+        var chart = Chart.Create()
+            .WithSize(700, 380)
+            .WithStackedHorizontalBars()
+            .WithStackTotals()
+            .WithXLabels("Mail authentication", "Transport security")
+            .AddHorizontalBar("Complete", Points(40, 55), ChartColor.FromRgb(16, 185, 129))
+            .AddHorizontalBar("Partial", Points(15, 20), ChartColor.FromRgb(245, 158, 11))
+            .AddHorizontalBar("Missing", Points(5, 10), ChartColor.FromRgb(239, 68, 68));
+
+        var svg = chart.ToSvg();
+        Assert(chart.Options.BarMode == ChartBarMode.Stacked, "Stacked horizontal bars should use stacked bar mode.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"horizontal-bar\"") == 6, "Stacked horizontal bars should render one segment per series point.");
+        var firstCompleteY = GetAttribute(svg, "data-cfx-role=\"horizontal-bar\" data-cfx-series=\"0\" data-cfx-point=\"0\"", "y");
+        var firstPartialY = GetAttribute(svg, "data-cfx-role=\"horizontal-bar\" data-cfx-series=\"1\" data-cfx-point=\"0\"", "y");
+        var firstCompleteX = GetAttribute(svg, "data-cfx-role=\"horizontal-bar\" data-cfx-series=\"0\" data-cfx-point=\"0\"", "x");
+        var firstPartialX = GetAttribute(svg, "data-cfx-role=\"horizontal-bar\" data-cfx-series=\"1\" data-cfx-point=\"0\"", "x");
+        Assert(Math.Abs(firstCompleteY - firstPartialY) < 0.001, "Stacked horizontal segments for one category should share the same vertical lane.");
+        Assert(firstPartialX > firstCompleteX, "Stacked horizontal segments should begin after earlier same-sign segments.");
+        Assert(svg.Contains(">60</text>", StringComparison.Ordinal), "Stacked horizontal bars should render positive totals when requested.");
+        Assert(chart.ToPng().Length > 64, "Stacked horizontal bars should render PNG output.");
     }
 
     private static void HeatmapRowsRenderMatrixCells() {
@@ -86,6 +411,88 @@ internal static partial class SmokeTests {
         Assert(statuses.Contains("data-cfx-status=\"warning\"", StringComparison.Ordinal), "Mid-range gauges should expose warning status.");
     }
 
+    private static void RadialBarSeriesRenderProgressRings() {
+        var chart = Chart.Create()
+            .WithSize(720, 460)
+            .WithValueFormatter(value => value.ToString("0", CultureInfo.InvariantCulture) + "%")
+            .WithXLabels("Mail auth", "DNSSEC", "TLS")
+            .AddRadialBar("Control coverage", Points(92, 74, 88));
+
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"radial-bar-chart\"", StringComparison.Ordinal), "Radial bars should expose a chart role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"radial-bar-track\"") == 3, "Radial bars should render one track per value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"radial-bar-ring\"") == 3, "Radial bars should render one progress ring per value.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Mail auth: 92%\"", StringComparison.Ordinal), "Radial bars should expose accessible ring summaries.");
+        Assert(svg.Contains("data-cfx-role=\"radial-bar-total\"", StringComparison.Ordinal), "Radial bars should render a center total label.");
+        Assert(svg.Contains("data-cfx-role=\"radial-bar-legend-label\"", StringComparison.Ordinal), "Radial bars should render ring labels.");
+        Assert(svg.Contains(">DNSSEC</text>", StringComparison.Ordinal), "Radial bars should render axis labels through the legend.");
+        Assert(chart.ToPng().Length > 64, "Radial bars should render PNG output.");
+    }
+
+    private static void GanttTasksRenderProgressDependenciesAndMilestones() {
+        var chart = Chart.Create()
+            .WithSize(900, 480)
+            .WithDataLabels()
+            .WithGanttToday(new DateTime(2026, 2, 10))
+            .AddGanttTask("Inventory scope", new DateTime(2026, 1, 5), new DateTime(2026, 1, 24), 0.75, color: ChartColor.FromRgb(37, 99, 235))
+            .AddGanttTask("Owner remediation", new DateTime(2026, 1, 20), new DateTime(2026, 2, 24), 0.55, dependsOn: 0, color: ChartColor.FromRgb(16, 185, 129))
+            .AddGanttMilestone("Executive sign-off", new DateTime(2026, 3, 2), dependsOn: 1, color: ChartColor.FromRgb(245, 158, 11));
+
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"gantt-chart\"", StringComparison.Ordinal), "Gantt charts should expose a chart role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"gantt-task\"") == 2, "Gantt charts should render task bars.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"gantt-progress\"") == 2, "Gantt charts should render progress fills.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"gantt-dependency\"") == 2, "Gantt charts should render dependency connectors.");
+        Assert(svg.Contains("data-cfx-role=\"gantt-milestone\"", StringComparison.Ordinal), "Gantt charts should render milestones.");
+        Assert(svg.Contains("data-cfx-role=\"gantt-today\"", StringComparison.Ordinal), "Gantt charts should render today markers.");
+        Assert(svg.Contains("data-cfx-progress=\"0.75\"", StringComparison.Ordinal), "Gantt task bars should expose progress metadata.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Inventory scope: Jan 5 to Jan 24, 75% complete\"", StringComparison.Ordinal), "Gantt tasks should expose accessible summaries.");
+        Assert(svg.Contains(">75%</text>", StringComparison.Ordinal), "Gantt charts should render progress labels when enabled.");
+        Assert(chart.ToPng().Length > 64, "Gantt charts should render PNG output.");
+    }
+
+    private static void SankeyLinksRenderWeightedFlows() {
+        var chart = Chart.Create()
+            .WithSize(900, 520)
+            .WithDataLabels()
+            .AddSankey("Finding flow", new[] {
+                new ChartSankeyLink("Discovered", "Validated", 70),
+                new ChartSankeyLink("Discovered", "Accepted risk", 20),
+                new ChartSankeyLink("Validated", "Remediated", 44),
+                new ChartSankeyLink("Validated", "Monitoring", 26)
+            });
+
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"sankey-chart\"", StringComparison.Ordinal), "Sankey charts should expose a chart role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"sankey-link\"") == 4, "Sankey charts should render one weighted ribbon per link.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"sankey-node\"") == 5, "Sankey charts should render deduplicated named nodes.");
+        Assert(svg.Contains("data-cfx-value=\"70\"", StringComparison.Ordinal), "Sankey links should expose value metadata.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Discovered to Validated: 70\"", StringComparison.Ordinal), "Sankey links should expose accessible summaries.");
+        Assert(svg.Contains(">Validated</text>", StringComparison.Ordinal), "Sankey charts should render node labels when data labels are enabled.");
+        Assert(chart.ToPng().Length > 64, "Sankey charts should render PNG output.");
+    }
+
+    private static void TreeLinksRenderHierarchy() {
+        var chart = Chart.Create()
+            .WithSize(900, 520)
+            .AddTree("Control hierarchy", new[] {
+                new ChartTreeLink("Security posture", "Mail authentication"),
+                new ChartTreeLink("Security posture", "Certificate lifecycle"),
+                new ChartTreeLink("Mail authentication", "SPF"),
+                new ChartTreeLink("Mail authentication", "DKIM"),
+                new ChartTreeLink("Certificate lifecycle", "Expiry monitoring")
+            });
+
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"tree-chart\"", StringComparison.Ordinal), "Tree charts should expose a chart role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"tree-link\"") == 5, "Tree charts should render one connector per link.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"tree-node\"") == 6, "Tree charts should render deduplicated named nodes.");
+        Assert(svg.Contains("data-cfx-depth=\"2\"", StringComparison.Ordinal), "Tree nodes should expose depth metadata.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Security posture: level 0\"", StringComparison.Ordinal), "Tree nodes should expose accessible summaries.");
+        Assert(svg.Contains(">Mail authentication</text>", StringComparison.Ordinal), "Tree charts should render node labels.");
+        Assert(chart.ToPng().Length > 64, "Tree charts should render PNG output.");
+    }
+
     private static void BulletSeriesRenderTargetAndRangeBars() {
         var svg = Chart.Create()
             .WithSize(720, 420)
@@ -129,7 +536,11 @@ internal static partial class SmokeTests {
             ("heatmap", Chart.Create().WithXLabels(unsafeLabel).AddHeatmapRow(unsafeLabel, Points(96)).ToSvg()),
             ("funnel", Chart.Create().WithXLabels(unsafeLabel).AddFunnel("Funnel", Points(96)).ToSvg()),
             ("radar", Chart.Create().WithXLabels(unsafeLabel, "Safe", "Also safe").AddRadar("Radar", Points(96, 88, 74)).ToSvg()),
+            ("polar area", Chart.Create().WithXLabels(unsafeLabel, "Safe", "Also safe").AddPolarArea("Polar", Points(96, 88, 74)).ToSvg()),
             ("timeline", Chart.Create().AddTimelineItem(unsafeLabel, new DateTime(2026, 1, 1), new DateTime(2026, 2, 1)).ToSvg()),
+            ("gantt", Chart.Create().AddGanttTask(unsafeLabel, new DateTime(2026, 1, 1), new DateTime(2026, 2, 1), 0.5).ToSvg()),
+            ("sankey", Chart.Create().WithDataLabels().AddSankey("Flow", new[] { new ChartSankeyLink(unsafeLabel, "Safe", 10) }).ToSvg()),
+            ("tree", Chart.Create().AddTree("Tree", new[] { new ChartTreeLink(unsafeLabel, "Safe") }).ToSvg()),
             ("gauge", Chart.Create().AddGauge(unsafeLabel, 87).ToSvg()),
             ("donut", Chart.Create().WithXLabels(unsafeLabel).AddDonut(unsafeLabel, Points(100)).ToSvg())
         };
@@ -237,6 +648,39 @@ internal static partial class SmokeTests {
         Assert(svg.Contains(">Mail auth</text>", StringComparison.Ordinal), "Radar charts should render category labels.");
         Assert(svg.Contains(">92%</text>", StringComparison.Ordinal), "Radar charts should render optional data labels.");
         Assert(Chart.Create().AddRadar("Current", Points(92, 74, 88, 96, 81)).ToPng().Length > 64, "Radar charts should render PNG output.");
+        Assert(Chart.Create().WithSize(300, 220).WithDataLabels().WithValueFormatter(_ => "very long radar label value").AddRadar("Current", Points(92, 74, 88)).ToPng().Length > 64, "Radar PNG data labels should fit bounded plot space.");
+    }
+
+    private static void PolarAreaSeriesRenderRadialSegments() {
+        var chart = Chart.Create()
+            .WithSize(760, 460)
+            .WithDataLabels()
+            .WithValueFormatter(value => value.ToString("0", CultureInfo.InvariantCulture) + "%")
+            .WithXLabels("Mail auth", "DNSSEC", "TLS", "CT")
+            .AddPolarArea("Control share", Points(92, 74, 88, 96));
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"polar-area-chart\"", StringComparison.Ordinal), "Polar-area charts should expose a role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"polar-area-segment\"") == 4, "Polar-area charts should render one radial segment per positive value.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"polar-area-ring\"") == 4, "Polar-area charts should render radial reference rings.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Mail auth: 92%, 26.3%\"", StringComparison.Ordinal), "Polar-area segments should expose accessible summaries.");
+        Assert(svg.Contains(">92%</text>", StringComparison.Ordinal), "Polar-area data labels should render values when enabled.");
+        Assert(Chart.Create().WithXLabels("A", "B", "C").AddPolarArea("Polar", Points(30, 50, 80)).ToPng().Length > 64, "Polar-area charts should render PNG output.");
+        Assert(Chart.Create().WithSize(300, 220).WithDataLabels().WithValueFormatter(_ => "very long polar label value").AddPolarArea("Polar", Points(30, 50, 80)).ToPng().Length > 64, "Polar-area PNG data labels should fit bounded plot space.");
+    }
+
+    private static void CircleSeriesRenderSingleProgressRings() {
+        var chart = Chart.Create()
+            .WithSize(760, 460)
+            .WithValueFormatter(value => value.ToString("0", CultureInfo.InvariantCulture) + "%")
+            .AddCircle("Readiness", 87, 0, 100, ChartColor.FromRgb(52, 211, 153));
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"circle-chart\"", StringComparison.Ordinal), "Circle charts should expose a role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"circle-track\"") == 1, "Circle charts should render one track ring.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"circle-value\"") == 1, "Circle charts should render one value ring.");
+        Assert(svg.Contains("data-cfx-ratio=\"0.87\"", StringComparison.Ordinal), "Circle charts should expose normalized progress metadata.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Readiness: 87%, positive\"", StringComparison.Ordinal), "Circle charts should expose accessible summaries.");
+        Assert(svg.Contains(">87%</text>", StringComparison.Ordinal), "Circle charts should render the central value label.");
+        Assert(Chart.Create().AddCircle("Circle", 72).ToPng().Length > 64, "Circle charts should render PNG output.");
     }
 
     private static void FunnelSeriesRenderStagedSegments() {
@@ -255,6 +699,29 @@ internal static partial class SmokeTests {
         Assert(svg.Contains(">75.7% retained</text>", StringComparison.Ordinal), "Funnel charts should render retained percentage labels.");
         Assert(svg.Contains(">-24.3% from prev</text>", StringComparison.Ordinal), "Funnel charts should render previous-stage drop-off labels.");
         Assert(Chart.Create().AddFunnel("Funnel", Points(420, 318, 174, 96)).ToPng().Length > 64, "Funnel charts should render PNG output.");
+    }
+
+    private static void TreemapItemsRenderProportionalTiles() {
+        var chart = Chart.Create()
+            .WithSize(720, 420)
+            .WithDataLabels()
+            .AddTreemap("Findings", new[] {
+                new ChartTreemapItem("Critical", 50),
+                new ChartTreemapItem("High", 28),
+                new ChartTreemapItem("Medium", 14),
+                new ChartTreemapItem("Low", 8)
+            });
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"treemap\"", StringComparison.Ordinal), "Treemaps should expose a chart role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"treemap-tile\"") == 4, "Treemaps should render one tile per positive item.");
+        Assert(svg.Contains("data-cfx-role=\"treemap-tile-highlight\"", StringComparison.Ordinal), "Treemap SVG tiles should render polished highlights.");
+        Assert(svg.Contains("data-cfx-role=\"treemap-label\"", StringComparison.Ordinal), "Treemaps should render tile labels when space allows.");
+        Assert(svg.Contains(">Critical</text>", StringComparison.Ordinal), "Treemaps should render item labels.");
+        Assert(svg.Contains(">50</text>", StringComparison.Ordinal), "Treemaps should render item values when space allows.");
+        var criticalArea = GetAttribute(svg, "data-cfx-role=\"treemap-tile\" data-cfx-point=\"0\"", "width") * GetAttribute(svg, "data-cfx-role=\"treemap-tile\" data-cfx-point=\"0\"", "height");
+        var lowArea = GetAttribute(svg, "data-cfx-role=\"treemap-tile\" data-cfx-point=\"3\"", "width") * GetAttribute(svg, "data-cfx-role=\"treemap-tile\" data-cfx-point=\"3\"", "height");
+        Assert(criticalArea > lowArea, "Larger treemap values should receive larger tile areas.");
+        Assert(chart.ToPng().Length > 64, "Treemap charts should render PNG output.");
     }
 
     private static void TimelineItemsRenderDateRanges() {

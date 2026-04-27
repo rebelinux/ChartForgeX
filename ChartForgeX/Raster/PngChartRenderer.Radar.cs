@@ -36,11 +36,11 @@ public sealed partial class PngChartRenderer {
                 c.DrawLine(points[i].X, points[i].Y, next.X, next.Y, color, 2);
                 c.DrawCircle(points[i].X, points[i].Y, 4.7, chart.Options.Theme.CardBackground);
                 c.DrawCircle(points[i].X, points[i].Y, 3.8, color);
-                if (chart.Options.ShowDataLabels) {
+                if (ShouldDrawDataLabels(chart, item.Series)) {
                     var label = FormatValue(chart, RadarValue(item.Series, categories[i]));
                     var labelPoint = RadarDataLabelPoint(points[i], i, categories.Count, seriesOrder, series.Count);
                     var fontSize = chart.Options.Theme.DataLabelFontSize;
-                    DrawReadablePngLabel(c, labelPoint.X - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0, labelPoint.Y - fontSize / 2.0, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+                    DrawReadablePngLabel(c, plot, labelPoint.X - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0, labelPoint.Y - fontSize / 2.0, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
                 }
             }
         }

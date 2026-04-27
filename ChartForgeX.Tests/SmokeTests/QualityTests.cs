@@ -77,6 +77,70 @@ internal static partial class SmokeTests {
         }
     }
 
+    private static void ReadmeDocumentsChartCatalog() {
+        var readme = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "README.md"));
+        Assert(readme.Contains("## Chart catalog", StringComparison.Ordinal), "README should include a chart catalog.");
+        foreach (var api in new[] {
+            "AddLine",
+            "AddSmoothLine",
+            "AddStepLine",
+            "AddArea",
+            "AddStepArea",
+            "AddSmoothArea",
+            "AddStackedArea",
+            "AddSmoothStackedArea",
+            "AddScatter",
+            "AddTrendLine",
+            "AddMeanLine",
+            "AddMedianLine",
+            "AddStandardDeviationBand",
+            "AddSlope",
+            "AddBarLineCombo",
+            "AddColumnLineCombo",
+            "AddBarAreaCombo",
+            "AddColumnAreaCombo",
+            "AddScatterLineCombo",
+            "AddBar",
+            "AddHistogram",
+            "AddLollipop",
+            "AddBubble",
+            "AddErrorBar",
+            "AddCandlestick",
+            "AddOhlc",
+            "AddRangeBand",
+            "AddRangeArea",
+            "AddDumbbell",
+            "AddPareto",
+            "AddRangeBar",
+            "AddBoxPlot",
+            "AddHorizontalBar",
+            "WithStackedHorizontalBars",
+            "AddHeatmapRow",
+            "AddGauge",
+            "AddCircle",
+            "AddRadialBar",
+            "AddBullet",
+            "AddWaterfall",
+            "AddRadar",
+            "AddPolarArea",
+            "AddFunnel",
+            "AddTreemap",
+            "AddTimelineItem",
+            "AddTimelineRange",
+            "AddGanttTask",
+            "AddGanttMilestone",
+            "WithGanttToday",
+            "AddSankey",
+            "ChartSankeyLink",
+            "AddTree",
+            "ChartTreeLink",
+            "AddPie",
+            "AddDonut"
+        }) {
+            Assert(readme.Contains("`" + api, StringComparison.Ordinal), "README chart catalog should document " + api + ".");
+        }
+    }
+
     private static void GitHubActionsUsePrivateRunners() {
         var workflowRoot = Path.Combine(FindRepositoryRoot(), ".github", "workflows");
         Assert(Directory.Exists(workflowRoot), "Repository should include GitHub Actions workflows.");
@@ -127,15 +191,34 @@ internal static partial class SmokeTests {
         var timelineStart = new DateTime(2026, 1, 1);
         var charts = new[] {
             Chart.Create().WithSize(640, 360).AddLine("Line", Points(10, 20, 16)),
+            Chart.Create().WithSize(640, 360).AddStepArea("Step area", Points(10, 20, 16)),
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddBar("Bar", Points(10, 20, 16)),
+            Chart.Create().WithSize(640, 360).AddScatter("Scatter", Points(10, 20, 16)).AddTrendLine("Trend", Points(10, 20, 16)),
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddHorizontalBar("Horizontal", Points(10, 20, 16)),
+            Chart.Create().WithSize(640, 360).AddBubble("Bubble", new[] { new ChartBubble(1, 10, 6), new ChartBubble(2, 20, 16), new ChartBubble(3, 16, 28) }),
+            Chart.Create().WithSize(640, 360).AddErrorBar("Error", new[] { new ChartErrorBar(1, 10, 8, 14), new ChartErrorBar(2, 20, 17, 23), new ChartErrorBar(3, 16, 13, 22) }),
+            Chart.Create().WithSize(640, 360).AddCandlestick("Candles", new[] { new ChartCandlestick(1, 10, 14, 8, 12), new ChartCandlestick(2, 20, 23, 17, 18), new ChartCandlestick(3, 16, 22, 13, 21) }),
+            Chart.Create().WithSize(640, 360).AddOhlc("OHLC", new[] { new ChartCandlestick(1, 10, 14, 8, 12), new ChartCandlestick(2, 20, 23, 17, 18), new ChartCandlestick(3, 16, 22, 13, 21) }),
+            Chart.Create().WithSize(640, 360).AddRangeBand("Band", new[] { new ChartRangeBand(1, 8, 14), new ChartRangeBand(2, 17, 23), new ChartRangeBand(3, 13, 22) }),
+            Chart.Create().WithSize(640, 360).AddRangeArea("Area", new[] { new ChartRangeBand(1, 8, 14), new ChartRangeBand(2, 17, 23), new ChartRangeBand(3, 13, 22) }),
+            Chart.Create().WithSize(640, 360).AddStackedArea("Passed", Points(10, 20, 16)).AddStackedArea("Warnings", Points(2, 4, 3)),
+            Chart.Create().WithSize(640, 360).AddSlope("Current", 42, 88).AddSlope("Target", 58, 94),
+            Chart.Create().WithSize(640, 360).AddDumbbell("Dumbbell", new[] { new ChartDumbbell(1, 8, 14), new ChartDumbbell(2, 17, 23), new ChartDumbbell(3, 13, 22) }),
+            Chart.Create().WithSize(640, 360).AddPareto("Pareto", new[] { new ChartParetoItem("A", 50), new ChartParetoItem("B", 30), new ChartParetoItem("C", 20) }),
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddHeatmapRow("Heat", Points(96, 82, 74)),
             Chart.Create().WithSize(640, 360).AddGauge("Gauge", 87),
+            Chart.Create().WithSize(640, 360).AddCircle("Circle", 87),
+            Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddRadialBar("Radial", Points(96, 82, 74)),
             Chart.Create().WithSize(640, 360).AddBullet("Bullet", 82, 90),
             Chart.Create().WithSize(640, 360).AddWaterfall("Waterfall", Points(18, -42, 9)),
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddRadar("Radar", Points(92, 74, 88)),
+            Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddPolarArea("Polar", Points(92, 74, 88)),
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddFunnel("Funnel", Points(420, 318, 174)),
+            Chart.Create().WithSize(640, 360).AddTreemap("Treemap", new[] { new ChartTreemapItem("A", 50), new ChartTreemapItem("B", 30), new ChartTreemapItem("C", 20) }),
             Chart.Create().WithSize(640, 360).AddTimelineItem("Timeline", timelineStart, timelineStart.AddDays(14)),
+            Chart.Create().WithSize(640, 360).WithGanttToday(timelineStart.AddDays(8)).AddGanttTask("Gantt", timelineStart, timelineStart.AddDays(14), 0.5),
+            Chart.Create().WithSize(640, 360).AddSankey("Sankey", new[] { new ChartSankeyLink("A", "B", 10), new ChartSankeyLink("B", "C", 7) }),
+            Chart.Create().WithSize(640, 360).AddTree("Tree", new[] { new ChartTreeLink("A", "B"), new ChartTreeLink("A", "C") }),
             Chart.Create().WithSize(640, 360).WithXLabels("Passed", "Warnings", "Failed").AddDonut("Donut", Points(70, 20, 10)),
             Chart.Create().WithSize(360, 90).WithSparkline().AddSmoothArea("Spark", Points(10, 14, 13, 19))
         };
@@ -207,6 +290,33 @@ internal static partial class SmokeTests {
         Assert(partialAlpha > 0, "PNG supersampling should create partially transparent edge pixels around diagonal strokes.");
     }
 
+    private static void PngSupersamplingScaleIsConfigurable() {
+        var low = Chart.Create()
+            .WithSize(180, 120)
+            .WithPngSupersampling(1)
+            .AddLine("Diagonal", new[] { new ChartPoint(1, 1), new ChartPoint(3, 3) }, ChartColor.FromRgb(96, 165, 250));
+        var high = Chart.Create()
+            .WithSize(180, 120)
+            .WithPngSupersampling(4)
+            .AddLine("Diagonal", new[] { new ChartPoint(1, 1), new ChartPoint(3, 3) }, ChartColor.FromRgb(96, 165, 250));
+        foreach (var chart in new[] { low, high }) {
+            chart.Options.ShowAxes = false;
+            chart.Options.ShowCard = false;
+            chart.Options.ShowGrid = false;
+            chart.Options.ShowHeader = false;
+            chart.Options.ShowLegend = false;
+            chart.Options.ShowPlotBackground = false;
+        }
+
+        var lowPng = low.ToPng();
+        var highPng = high.ToPng();
+        Assert(ReadBigEndianInt32(lowPng, 16) == 180 && ReadBigEndianInt32(lowPng, 20) == 120, "PNG supersampling should not alter low-quality output dimensions.");
+        Assert(ReadBigEndianInt32(highPng, 16) == 180 && ReadBigEndianInt32(highPng, 20) == 120, "PNG supersampling should not alter high-quality output dimensions.");
+        Assert(!lowPng.SequenceEqual(highPng), "Changing PNG supersampling should affect raster output.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPngSupersampling(0), "PNG supersampling should reject values below one.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().Options.PngSupersamplingScale = 5, "PNG supersampling should reject values above four.");
+    }
+
     private static void PngSmoothSeriesUseCurvedRasterPaths() {
         var points = new[] { new ChartPoint(1, 10), new ChartPoint(2, 90), new ChartPoint(3, 20), new ChartPoint(4, 82), new ChartPoint(5, 24) };
         var straight = Chart.Create()
@@ -273,6 +383,7 @@ internal static partial class SmokeTests {
             .Select(File.ReadAllText));
         Assert(canvas.Contains("DrawTextEmphasized", StringComparison.Ordinal), "PNG raster canvas should expose an emphasized text path for SVG font-weight parity.");
         Assert(canvas.Contains("MeasureTextEmphasizedWidth", StringComparison.Ordinal), "PNG raster canvas should measure emphasized text with its extra painted width.");
+        Assert(canvas.Contains("SampleImageBilinear", StringComparison.Ordinal), "PNG raster canvas should scale composed grid panels with bilinear sampling instead of nearest-neighbor aliasing.");
         Assert(renderer.Contains("DrawTextEmphasized", StringComparison.Ordinal), "PNG chart renderer should use emphasized text for report-grade title, legend, and data labels.");
         Assert(renderer.Contains("EstimatePngEmphasizedTextWidth", StringComparison.Ordinal), "PNG chart renderer should center and clamp emphasized labels using emphasized text width.");
         Assert(renderer.Contains("TextFontSizeForEmphasizedWidth", StringComparison.Ordinal), "PNG chart renderer should size emphasized labels using emphasized width so future long labels fit.");
@@ -591,18 +702,49 @@ internal static partial class SmokeTests {
             File.WriteAllText(Path.Combine(output, "zeta.html"), "<!doctype html><title>Zeta</title><svg></svg>");
             File.WriteAllText(Path.Combine(output, "zeta.svg"), Chart.Create().WithSize(640, 360).WithTitle("Zeta").AddBar("Values", Points(1, 2, 3)).ToSvg());
             File.WriteAllBytes(Path.Combine(output, "zeta.png"), Chart.Create().WithSize(640, 360).WithTitle("Zeta").AddBar("Values", Points(1, 2, 3)).ToPng());
+            File.WriteAllText(Path.Combine(output, "report.html"), "<!doctype html><title>Report</title><svg></svg>");
             File.WriteAllText(Path.Combine(output, "visual-baseline.json"), "{\"version\":1,\"charts\":[{\"name\":\"alpha\",\"width\":320,\"height\":180,\"svg\":{\"minVisualNodes\":2},\"png\":{\"minVisiblePixels\":64,\"minDistinctColors\":8}},{\"name\":\"zeta\",\"width\":640,\"height\":360,\"svg\":{\"minVisualNodes\":2},\"png\":{\"minVisiblePixels\":64,\"minDistinctColors\":8}}]}");
 
             GalleryWriter.Write(output);
             var gallery = File.ReadAllText(Path.Combine(output, "index.html"));
             Assert(gallery.Contains("<title>ChartForgeX Examples</title>", StringComparison.Ordinal), "Gallery should render a stable title.");
-            Assert(CountOccurrences(gallery, "<article class=\"card\">") == 2, "Gallery should render one card per generated chart page.");
-            Assert(CountOccurrences(gallery, "<iframe ") == 2, "Gallery should render chart previews.");
+            Assert(CountOccurrences(gallery, "<article class=\"card\">") == 3, "Gallery should render one card per generated chart page.");
+            Assert(CountOccurrences(gallery, "<iframe ") == 3, "Gallery should render chart previews.");
             Assert(!gallery.Contains("<script", StringComparison.OrdinalIgnoreCase), "Gallery should remain JavaScript-free.");
             AssertSelfContainedMarkup(gallery, "example gallery");
             Assert(gallery.Contains("alpha.html", StringComparison.Ordinal), "Gallery should link chart HTML output.");
             Assert(gallery.Contains("alpha.svg", StringComparison.Ordinal), "Gallery should link chart SVG output.");
             Assert(gallery.Contains("alpha.png", StringComparison.Ordinal), "Gallery should link chart PNG output.");
+            Assert(gallery.Contains("catalog.html", StringComparison.Ordinal), "Gallery should link the grouped catalog page.");
+            Assert(gallery.Contains("quality-dashboard.html", StringComparison.Ordinal), "Gallery should link the artifact quality dashboard.");
+            Assert(gallery.Contains("svg-png-comparison.html", StringComparison.Ordinal), "Gallery should link the SVG/PNG comparison page.");
+            Assert(gallery.Contains("report.html", StringComparison.Ordinal), "Gallery should link HTML-only report output.");
+            Assert(!gallery.Contains("report.svg", StringComparison.Ordinal), "Gallery should not link missing SVG output for HTML-only reports.");
+            Assert(!gallery.Contains("report.png", StringComparison.Ordinal), "Gallery should not link missing PNG output for HTML-only reports.");
+
+            var catalog = File.ReadAllText(Path.Combine(output, "catalog.html"));
+            Assert(catalog.Contains("<title>ChartForgeX Chart Catalog</title>", StringComparison.Ordinal), "Catalog should render a stable title.");
+            Assert(catalog.Contains("Additional Examples", StringComparison.Ordinal), "Catalog should include uncategorized generated outputs.");
+            Assert(catalog.Contains("alpha.html", StringComparison.Ordinal), "Catalog should link chart HTML output.");
+            Assert(catalog.Contains("alpha.svg", StringComparison.Ordinal), "Catalog should link chart SVG output.");
+            Assert(catalog.Contains("alpha.png", StringComparison.Ordinal), "Catalog should link chart PNG output.");
+            Assert(catalog.Contains("report.html", StringComparison.Ordinal), "Catalog should link HTML-only report output.");
+            Assert(!catalog.Contains("report.svg", StringComparison.Ordinal), "Catalog should not link missing SVG output for HTML-only reports.");
+            Assert(!catalog.Contains("report.png", StringComparison.Ordinal), "Catalog should not link missing PNG output for HTML-only reports.");
+            Assert(catalog.Contains("svg-png-comparison.html", StringComparison.Ordinal), "Catalog should link the SVG/PNG comparison page.");
+            Assert(catalog.Contains("quality-dashboard.html", StringComparison.Ordinal), "Catalog should link the artifact quality dashboard.");
+            Assert(CountOccurrences(catalog, "<article class=\"card\">") == 3, "Catalog should render one card per generated chart page.");
+            Assert(!catalog.Contains("<script", StringComparison.OrdinalIgnoreCase), "Catalog should remain JavaScript-free.");
+            AssertSelfContainedMarkup(catalog, "chart catalog");
+
+            var dashboard = File.ReadAllText(Path.Combine(output, "quality-dashboard.html"));
+            Assert(dashboard.Contains("<title>ChartForgeX Quality Dashboard</title>", StringComparison.Ordinal), "Quality dashboard should render a stable title.");
+            Assert(dashboard.Contains("Chart pairs", StringComparison.Ordinal) && dashboard.Contains("Clean pairs", StringComparison.Ordinal), "Quality dashboard should summarize generated artifact health.");
+            Assert(dashboard.Contains("2 pairs", StringComparison.Ordinal) && dashboard.Contains("2 clean", StringComparison.Ordinal), "Quality dashboard should summarize clean SVG/PNG pairs.");
+            Assert(dashboard.Contains("alpha.svg", StringComparison.Ordinal) && dashboard.Contains("alpha.png", StringComparison.Ordinal), "Quality dashboard should link generated SVG/PNG artifacts.");
+            Assert(dashboard.Contains("svg-png-comparison.html#alpha", StringComparison.Ordinal), "Quality dashboard should deep-link chart review sections.");
+            Assert(!dashboard.Contains("<script", StringComparison.OrdinalIgnoreCase), "Quality dashboard should remain JavaScript-free.");
+            AssertSelfContainedMarkup(dashboard, "quality dashboard");
 
             var comparison = File.ReadAllText(Path.Combine(output, "svg-png-comparison.html"));
             Assert(comparison.Contains("ChartForgeX SVG/PNG visual comparison", StringComparison.Ordinal), "Gallery writer should generate an SVG/PNG comparison page.");
@@ -618,7 +760,10 @@ internal static partial class SmokeTests {
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.svg\">SVG</a>", StringComparison.Ordinal), "Comparison page should link directly to SVG assets.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.png\">PNG</a>", StringComparison.Ordinal), "Comparison page should link directly to PNG assets.");
             Assert(comparison.Contains("<span class=\"format\">WIPE</span>", StringComparison.Ordinal), "Comparison page should include a center-wipe pane for SVG/PNG visual parity review.");
+            Assert(comparison.Contains("href=\"catalog.html\"", StringComparison.Ordinal), "Comparison page should link the grouped catalog page.");
+            Assert(comparison.Contains("href=\"quality-dashboard.html\"", StringComparison.Ordinal), "Comparison page should link the artifact quality dashboard.");
             Assert(comparison.Contains("href=\"svg-png-comparison.json\"", StringComparison.Ordinal), "Comparison page should link its parity manifest.");
+            Assert(comparison.Contains("<section id=\"alpha\"", StringComparison.Ordinal), "Comparison page should expose stable chart anchors.");
             Assert(CountOccurrences(comparison, "Review clean") == 2, "Comparison page should label warning-free chart pairs.");
             Assert(comparison.Contains("aspect-ratio:320/180", StringComparison.Ordinal), "Comparison page should preserve chart aspect ratios for fair SVG/PNG review.");
             Assert(comparison.Contains("320x180", StringComparison.Ordinal), "Comparison page should show asset dimensions for SVG/PNG parity review.");

@@ -137,6 +137,45 @@ internal sealed class RgbaCanvas {
         DrawText(x + EmphasisOffset(fontSize), y, text, color, fontSize);
     }
 
+    public void DrawImage(int x, int y, int width, int height, byte[] rgba) {
+        if (rgba == null) throw new ArgumentNullException(nameof(rgba));
+        if (width <= 0 || height <= 0) return;
+        if (rgba.Length < width * height * 4) throw new ArgumentException("RGBA buffer is smaller than the requested image dimensions.", nameof(rgba));
+        for (var yy = 0; yy < height; yy++) for (var xx = 0; xx < width; xx++) {
+            var dx = x + xx;
+            var dy = y + yy;
+            if (dx < 0 || dy < 0 || dx >= _pixelWidth || dy >= _pixelHeight) continue;
+            var source = (yy * width + xx) * 4;
+            var alpha = rgba[source + 3];
+            if (alpha == 0) continue;
+            BlendPixel(dx, dy, ChartColor.FromRgba(rgba[source], rgba[source + 1], rgba[source + 2], alpha));
+        }
+    }
+
+    public void DrawImageScaled(int x, int y, int destinationWidth, int destinationHeight, int sourceWidth, int sourceHeight, byte[] rgba) {
+        if (rgba == null) throw new ArgumentNullException(nameof(rgba));
+        if (destinationWidth <= 0 || destinationHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0) return;
+        if (rgba.Length < sourceWidth * sourceHeight * 4) throw new ArgumentException("RGBA buffer is smaller than the requested source dimensions.", nameof(rgba));
+        if (destinationWidth == sourceWidth && destinationHeight == sourceHeight) {
+            DrawImage(x, y, sourceWidth, sourceHeight, rgba);
+            return;
+        }
+
+        for (var dy = 0; dy < destinationHeight; dy++) for (var dx = 0; dx < destinationWidth; dx++) {
+            var targetX = x + dx;
+            var targetY = y + dy;
+            if (targetX < 0 || targetY < 0 || targetX >= _pixelWidth || targetY >= _pixelHeight) continue;
+            var color = SampleImageBilinear(
+                rgba,
+                sourceWidth,
+                sourceHeight,
+                (dx + 0.5) * sourceWidth / destinationWidth - 0.5,
+                (dy + 0.5) * sourceHeight / destinationHeight - 0.5);
+            if (color.A == 0) continue;
+            BlendPixel(targetX, targetY, color);
+        }
+    }
+
     public void DrawTextRotated(double anchorX, double anchorY, string text, ChartColor color, double fontSize, double degrees, double originX, double originY) {
         DrawTextRotatedCore(anchorX, anchorY, text, color, fontSize, degrees, originX, originY, false);
     }
@@ -671,6 +710,58 @@ internal sealed class RgbaCanvas {
     private static ChartColor WithOpacity(ChartColor color, double opacity) {
         opacity = Math.Max(0, Math.Min(1, opacity));
         return ChartColor.FromRgba(color.R, color.G, color.B, (byte)Math.Round(color.A * opacity));
+    }
+
+    private static ChartColor SampleImageBilinear(byte[] rgba, int width, int height, double x, double y) {
+        var x0 = Math.Max(0, Math.Min(width - 1, (int)Math.Floor(x)));
+        var y0 = Math.Max(0, Math.Min(height - 1, (int)Math.Floor(y)));
+        var x1 = Math.Min(width - 1, x0 + 1);
+        var y1 = Math.Min(height - 1, y0 + 1);
+        var fx = Math.Max(0, Math.Min(1, x - x0));
+        var fy = Math.Max(0, Math.Min(1, y - y0));
+        var top = MixSample(ReadSample(rgba, width, x0, y0), ReadSample(rgba, width, x1, y0), fx);
+        var bottom = MixSample(ReadSample(rgba, width, x0, y1), ReadSample(rgba, width, x1, y1), fx);
+        return ToColor(MixSample(top, bottom, fy));
+    }
+
+    private static ImageSample ReadSample(byte[] rgba, int width, int x, int y) {
+        var offset = (y * width + x) * 4;
+        var alpha = rgba[offset + 3] / 255.0;
+        return new ImageSample(rgba[offset] * alpha, rgba[offset + 1] * alpha, rgba[offset + 2] * alpha, alpha);
+    }
+
+    private static ImageSample MixSample(ImageSample left, ImageSample right, double amount) {
+        var inverse = 1 - amount;
+        return new ImageSample(
+            left.Red * inverse + right.Red * amount,
+            left.Green * inverse + right.Green * amount,
+            left.Blue * inverse + right.Blue * amount,
+            left.Alpha * inverse + right.Alpha * amount);
+    }
+
+    private static ChartColor ToColor(ImageSample sample) {
+        if (sample.Alpha <= 0.000001) return ChartColor.Transparent;
+        return ChartColor.FromRgba(
+            ClampByte(sample.Red / sample.Alpha),
+            ClampByte(sample.Green / sample.Alpha),
+            ClampByte(sample.Blue / sample.Alpha),
+            ClampByte(sample.Alpha * 255));
+    }
+
+    private static byte ClampByte(double value) => (byte)Math.Round(Math.Max(0, Math.Min(255, value)));
+
+    private readonly struct ImageSample {
+        public readonly double Red;
+        public readonly double Green;
+        public readonly double Blue;
+        public readonly double Alpha;
+
+        public ImageSample(double red, double green, double blue, double alpha) {
+            Red = red;
+            Green = green;
+            Blue = blue;
+            Alpha = alpha;
+        }
     }
 
     private static ChartColor GradientColor(ChartColor topColor, ChartColor bottomColor, double amount) {
