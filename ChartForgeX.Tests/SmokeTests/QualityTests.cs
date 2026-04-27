@@ -582,7 +582,7 @@ internal static partial class SmokeTests {
             Assert(comparison.Contains("2 dimension matches", StringComparison.Ordinal), "Comparison page should summarize SVG/PNG dimension parity.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.svg\">SVG</a>", StringComparison.Ordinal), "Comparison page should link directly to SVG assets.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.png\">PNG</a>", StringComparison.Ordinal), "Comparison page should link directly to PNG assets.");
-            Assert(comparison.Contains("<span class=\"format\">OVERLAY</span>", StringComparison.Ordinal), "Comparison page should include an overlay pane for SVG/PNG visual parity review.");
+            Assert(comparison.Contains("<span class=\"format\">WIPE</span>", StringComparison.Ordinal), "Comparison page should include a center-wipe pane for SVG/PNG visual parity review.");
             Assert(comparison.Contains("href=\"svg-png-comparison.json\"", StringComparison.Ordinal), "Comparison page should link its parity manifest.");
             Assert(CountOccurrences(comparison, "Dimension match") == 2, "Comparison page should label matching SVG/PNG dimensions per chart.");
             Assert(comparison.Contains("aspect-ratio:320/180", StringComparison.Ordinal), "Comparison page should preserve chart aspect ratios for fair SVG/PNG review.");
@@ -592,7 +592,7 @@ internal static partial class SmokeTests {
             var manifest = File.ReadAllText(Path.Combine(output, "svg-png-comparison.json"));
             Assert(manifest.Contains("\"chartPairs\": 2", StringComparison.Ordinal), "Comparison manifest should summarize generated SVG/PNG pairs.");
             Assert(manifest.Contains("\"dimensionMatches\": 2", StringComparison.Ordinal), "Comparison manifest should summarize SVG/PNG dimension parity.");
-            Assert(manifest.Contains("\"overlay\"", StringComparison.Ordinal), "Comparison manifest should describe available parity review modes.");
+            Assert(manifest.Contains("\"center-wipe\"", StringComparison.Ordinal), "Comparison manifest should describe available parity review modes.");
             Assert(manifest.Contains("\"name\": \"alpha\"", StringComparison.Ordinal), "Comparison manifest should list chart assets by name.");
             Assert(manifest.Contains("\"dimensionsMatch\": true", StringComparison.Ordinal), "Comparison manifest should flag dimension parity per chart.");
             Assert(manifest.Contains("\"bytes\":", StringComparison.Ordinal), "Comparison manifest should include asset byte sizes.");
