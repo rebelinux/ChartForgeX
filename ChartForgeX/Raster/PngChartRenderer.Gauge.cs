@@ -1,6 +1,7 @@
 using System;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
 
 namespace ChartForgeX.Raster;
 
@@ -24,10 +25,10 @@ public sealed partial class PngChartRenderer {
         var statusColor = GaugeStatusColor(chart, status);
         var color = gauge.Color ?? statusColor;
         var cx = plot.Left + plot.Width / 2;
-        var cy = plot.Top + plot.Height * 0.66;
-        var radius = Math.Max(48, Math.Min(plot.Width * 0.36, plot.Height * 0.52));
-        var stroke = Math.Max(14, (int)Math.Round(radius * 0.16));
-        c.DrawArc(cx, cy, radius, Math.PI, Math.PI * 2, chart.Options.Theme.Grid, stroke);
+        var cy = plot.Top + plot.Height * ChartVisualPrimitives.GaugeCenterYFactor;
+        var radius = Math.Max(ChartVisualPrimitives.GaugeMinRadius, Math.Min(plot.Width * ChartVisualPrimitives.GaugeRadiusWidthFactor, plot.Height * ChartVisualPrimitives.GaugeRadiusHeightFactor));
+        var stroke = Math.Max(ChartVisualPrimitives.GaugeMinStrokeWidth, radius * ChartVisualPrimitives.GaugeStrokeRadiusFactor);
+        c.DrawArc(cx, cy, radius, Math.PI, Math.PI * 2, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.GaugeTrackOpacity), stroke);
         c.DrawArc(cx, cy, radius, Math.PI, Math.PI + Math.PI * ratio, color, stroke);
         var label = FormatValue(chart, value);
         var theme = chart.Options.Theme;
@@ -36,18 +37,22 @@ public sealed partial class PngChartRenderer {
         var tickFontSize = theme.TickLabelFontSize;
         var statusLabel = status.Replace("-", " ");
         var labelWidth = Math.Max(48, Math.Min(plot.Width - 24, radius * 1.8));
-        DrawPngTextEmphasizedCenteredX(c, cx, cy - radius * 0.1 - valueFontSize / 2.0, label, theme.Text, valueFontSize, labelWidth);
-        DrawPngTextEmphasizedCenteredX(c, cx, cy + 34 - nameFontSize + 1, gauge.Name, theme.MutedText, nameFontSize, labelWidth);
-        var statusFontSize = TextFontSizeForEmphasizedWidth(statusLabel, labelWidth, tickFontSize);
-        statusLabel = TrimReadablePngLabelToWidth(statusLabel, statusFontSize, labelWidth);
-        var statusLeft = cx - EstimatePngEmphasizedTextWidth(statusLabel, statusFontSize) / 2.0;
-        c.DrawCircle(statusLeft - 9, cy + 53, 5.2, theme.CardBackground);
-        c.DrawCircle(statusLeft - 9, cy + 53, 2.5, statusColor);
-        c.DrawTextEmphasized(statusLeft, cy + 57 - statusFontSize + 1, statusLabel, theme.MutedText, statusFontSize);
-        var minLabel = FormatValue(chart, min);
-        var maxLabel = FormatValue(chart, max);
-        c.DrawText(cx - radius - EstimatePngTextWidth(minLabel, tickFontSize) / 2.0, cy + 27 - tickFontSize + 1, minLabel, theme.MutedText, tickFontSize);
-        c.DrawText(cx + radius - EstimatePngTextWidth(maxLabel, tickFontSize) / 2.0, cy + 27 - tickFontSize + 1, maxLabel, theme.MutedText, tickFontSize);
+        if (gauge.ShowDataLabels != false) {
+            DrawPngTextEmphasizedCenteredX(c, cx, cy - radius * ChartVisualPrimitives.GaugeValueOffsetFactor - valueFontSize / 2.0, label, theme.Text, valueFontSize, labelWidth);
+            DrawPngTextEmphasizedCenteredX(c, cx, cy + ChartVisualPrimitives.GaugeTitleOffsetY - nameFontSize + 1, gauge.Name, theme.MutedText, nameFontSize, labelWidth);
+            var statusFontSize = TextFontSizeForEmphasizedWidth(statusLabel, labelWidth, tickFontSize);
+            statusLabel = TrimReadablePngLabelToWidth(statusLabel, statusFontSize, labelWidth);
+            var statusLeft = cx - EstimatePngEmphasizedTextWidth(statusLabel, statusFontSize) / 2.0;
+            c.DrawCircle(statusLeft - ChartVisualPrimitives.GaugeStatusMarkerOffsetX, cy + ChartVisualPrimitives.GaugeStatusMarkerOffsetY, ChartVisualPrimitives.PngStatusMarkerOutlineRadius, theme.CardBackground);
+            c.DrawCircle(statusLeft - ChartVisualPrimitives.GaugeStatusMarkerOffsetX, cy + ChartVisualPrimitives.GaugeStatusMarkerOffsetY, ChartVisualPrimitives.StatusMarkerRadius, statusColor);
+            c.DrawTextEmphasized(statusLeft, cy + ChartVisualPrimitives.GaugeStatusTextOffsetY - statusFontSize + 1, statusLabel, theme.MutedText, statusFontSize);
+        }
+        if (chart.Options.ShowAxes) {
+            var minLabel = FormatValue(chart, min);
+            var maxLabel = FormatValue(chart, max);
+            c.DrawText(cx - radius - EstimatePngTextWidth(minLabel, tickFontSize) / 2.0, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY - tickFontSize + 1, minLabel, theme.MutedText, tickFontSize);
+            c.DrawText(cx + radius - EstimatePngTextWidth(maxLabel, tickFontSize) / 2.0, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY - tickFontSize + 1, maxLabel, theme.MutedText, tickFontSize);
+        }
     }
 
     private static bool IsGaugeChart(Chart chart) {

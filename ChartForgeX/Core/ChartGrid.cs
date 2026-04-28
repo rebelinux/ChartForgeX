@@ -16,6 +16,7 @@ public sealed class ChartGrid {
     private int _columns = 2;
     private int _gap = 18;
     private int _padding = 24;
+    private int _pngOutputScale = 1;
     private ChartSize? _panelSize;
     private ChartGridPanelFit _panelFit = ChartGridPanelFit.Contain;
     private ChartTheme? _theme;
@@ -66,6 +67,17 @@ public sealed class ChartGrid {
         set {
             if (value < 0) throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be greater than or equal to zero.");
             _padding = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the output pixel multiplier used by composed PNG grid exports.
+    /// </summary>
+    public int PngOutputScale {
+        get => _pngOutputScale;
+        set {
+            if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG output scale must be between one and four.");
+            _pngOutputScale = value;
         }
     }
 
@@ -141,6 +153,20 @@ public sealed class ChartGrid {
     /// <param name="padding">The padding in pixels.</param>
     /// <returns>The current chart grid.</returns>
     public ChartGrid WithPadding(int padding) { Padding = padding; return this; }
+
+    /// <summary>
+    /// Sets the output pixel multiplier used by composed PNG grid exports.
+    /// </summary>
+    /// <param name="scale">The output scale from one to four. Higher values emit larger PNG dimensions with the same logical grid layout.</param>
+    /// <returns>The current chart grid.</returns>
+    public ChartGrid WithPngOutputScale(int scale) { PngOutputScale = scale; return this; }
+
+    /// <summary>
+    /// Sets the output pixel multiplier used by composed PNG grid exports using a named density preset.
+    /// </summary>
+    /// <param name="scale">The output density preset.</param>
+    /// <returns>The current chart grid.</returns>
+    public ChartGrid WithPngOutputScale(ChartPngOutputScale scale) => WithPngOutputScale((int)scale);
 
     /// <summary>
     /// Sets a fixed panel size for composed SVG and PNG grid exports.

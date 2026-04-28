@@ -12,8 +12,9 @@ public sealed partial class PngChartRenderer {
     private static void DrawSankey(RgbaCanvas c, Chart chart, ChartRect plot) {
         var model = BuildSankeyModel(chart, plot);
         if (model.Nodes.Count == 0 || model.Links.Count == 0) return;
+        var showDataLabels = chart.Series.First(series => series.Kind == ChartSeriesKind.Sankey).ShowDataLabels ?? chart.Options.ShowDataLabels;
         foreach (var link in model.Links) DrawSankeyLink(c, chart, model, link);
-        foreach (var node in model.Nodes) DrawSankeyNode(c, chart, plot, model, node);
+        foreach (var node in model.Nodes) DrawSankeyNode(c, chart, plot, model, node, showDataLabels);
     }
 
     private static bool IsSankeyChart(Chart chart) {
@@ -21,22 +22,24 @@ public sealed partial class PngChartRenderer {
         return false;
     }
 
-    private static void DrawSankeyNode(RgbaCanvas c, Chart chart, ChartRect plot, SankeyModel model, SankeyNode node) {
+    private static void DrawSankeyNode(RgbaCanvas c, Chart chart, ChartRect plot, SankeyModel model, SankeyNode node, bool showDataLabels) {
         var theme = chart.Options.Theme;
         var color = theme.Palette[node.Index % theme.Palette.Length];
-        var radius = Math.Min(7, model.NodeWidth / 2);
-        c.FillRoundedRectVerticalGradient(node.X, node.Y, model.NodeWidth, node.Height, radius, Blend(ChartColor.White, color, 0.88), Blend(ChartColor.Black, color, 0.94));
-        c.StrokeRoundedRect(node.X, node.Y, model.NodeWidth, node.Height, radius, ApplyOpacity(theme.CardBackground, 0.62));
-        if (!chart.Options.ShowDataLabels) return;
+        var radius = Math.Min(ChartVisualPrimitives.SankeyNodeCornerRadiusMax, model.NodeWidth / 2);
+        c.FillRoundedRectVerticalGradient(node.X, node.Y, model.NodeWidth, node.Height, radius, SankeyNodeGradientTop(color), SankeyNodeGradientBottom(color));
+        c.StrokeRoundedRect(node.X, node.Y, model.NodeWidth, node.Height, radius, ApplyOpacity(theme.CardBackground, ChartVisualPrimitives.SankeyNodeBorderOpacity), ChartVisualPrimitives.SankeyNodeBorderStrokeWidth);
+        if (!showDataLabels) return;
         var fontSize = PngTickFontSize(chart);
         var labelMaxWidth = Math.Max(64, plot.Width / Math.Max(2, model.MaxLayer + 1) * 0.62);
         var label = TrimReadablePngLabelToWidth(node.Label, fontSize, labelMaxWidth);
         if (label.Length == 0) return;
+        var labelWidth = EstimatePngEmphasizedTextWidth(label, fontSize);
         var y = node.Y + node.Height / 2 - fontSize / 2;
+        var labelBounds = new ChartRect(chart.Options.Padding.Left, chart.Options.Padding.Top, chart.Options.Size.Width - chart.Options.Padding.Left - chart.Options.Padding.Right, chart.Options.Size.Height - chart.Options.Padding.Top - chart.Options.Padding.Bottom);
         if (node.Layer == model.MaxLayer) {
-            c.DrawTextEmphasized(node.X - EstimatePngEmphasizedTextWidth(label, fontSize) - 10, y, label, theme.MutedText, fontSize);
+            DrawReadablePngLabel(c, labelBounds, node.X - labelWidth - 10, y, label, theme.MutedText, theme.CardBackground, fontSize);
         } else {
-            c.DrawTextEmphasized(node.X + model.NodeWidth + 10, y, label, theme.MutedText, fontSize);
+            DrawReadablePngLabel(c, labelBounds, node.X + model.NodeWidth + 10, y, label, theme.MutedText, theme.CardBackground, fontSize);
         }
     }
 
@@ -48,20 +51,20 @@ public sealed partial class PngChartRenderer {
         var x1 = target.X;
         var midX = x0 + (x1 - x0) * 0.55;
         var half = Math.Max(1, link.Width / 2);
-        var points = new List<ChartPoint>(34);
-        for (var step = 0; step <= 16; step++) {
-            var t = step / 16.0;
+        var points = new List<ChartPoint>((ChartVisualPrimitives.SankeyLinkCurveSegments + 1) * 2);
+        for (var step = 0; step <= ChartVisualPrimitives.SankeyLinkCurveSegments; step++) {
+            var t = step / (double)ChartVisualPrimitives.SankeyLinkCurveSegments;
             points.Add(new ChartPoint(Cubic(x0, midX, midX, x1, t), Cubic(link.SourceY - half, link.SourceY - half, link.TargetY - half, link.TargetY - half, t)));
         }
 
-        for (var step = 16; step >= 0; step--) {
-            var t = step / 16.0;
+        for (var step = ChartVisualPrimitives.SankeyLinkCurveSegments; step >= 0; step--) {
+            var t = step / (double)ChartVisualPrimitives.SankeyLinkCurveSegments;
             points.Add(new ChartPoint(Cubic(x0, midX, midX, x1, t), Cubic(link.SourceY + half, link.SourceY + half, link.TargetY + half, link.TargetY + half, t)));
         }
 
-        var fill = ChartColor.FromRgba(color.R, color.G, color.B, 86);
-        c.FillPolygon(points, fill);
-        for (var i = 1; i < points.Count; i++) c.DrawLine(points[i - 1].X, points[i - 1].Y, points[i].X, points[i].Y, ChartColor.FromRgba(color.R, color.G, color.B, 42), 1);
+        c.FillPolygon(points, ApplyOpacity(color, ChartVisualPrimitives.SankeyLinkFillOpacity));
+        var stroke = ApplyOpacity(color, ChartVisualPrimitives.SankeyLinkStrokeOpacity);
+        for (var i = 1; i < points.Count; i++) c.DrawLine(points[i - 1].X, points[i - 1].Y, points[i].X, points[i].Y, stroke, ChartVisualPrimitives.SankeyLinkStrokeWidth);
     }
 
     private static SankeyModel BuildSankeyModel(Chart chart, ChartRect plot) {
@@ -106,26 +109,26 @@ public sealed partial class PngChartRenderer {
 
     private static void LayoutSankeyNodes(List<SankeyNode> nodes, ChartRect plot, out double nodeWidth, out double scale, out int maxLayer) {
         maxLayer = Math.Max(1, nodes.Max(node => node.Layer));
-        nodeWidth = Math.Max(14, Math.Min(24, plot.Width / (maxLayer + 1) * 0.08));
+        nodeWidth = Math.Max(ChartVisualPrimitives.SankeyNodeMinWidth, Math.Min(ChartVisualPrimitives.SankeyNodeMaxWidth, plot.Width / (maxLayer + 1) * ChartVisualPrimitives.SankeyNodeWidthFactor));
         scale = double.PositiveInfinity;
         for (var layer = 0; layer <= maxLayer; layer++) {
             var layerNodes = nodes.Where(node => node.Layer == layer).ToArray();
             if (layerNodes.Length == 0) continue;
             var sum = layerNodes.Sum(node => node.Value);
-            scale = Math.Min(scale, (plot.Height - Math.Max(0, layerNodes.Length - 1) * 18) / Math.Max(0.000001, sum));
+            scale = Math.Min(scale, (plot.Height - Math.Max(0, layerNodes.Length - 1) * ChartVisualPrimitives.SankeyNodeGap) / Math.Max(0.000001, sum));
         }
 
         if (double.IsInfinity(scale) || scale <= 0) scale = 1;
         var effectiveScale = scale;
         for (var layer = 0; layer <= maxLayer; layer++) {
             var layerNodes = nodes.Where(node => node.Layer == layer).OrderBy(node => node.Index).ToArray();
-            var totalHeight = layerNodes.Sum(node => Math.Max(8, node.Value * effectiveScale)) + Math.Max(0, layerNodes.Length - 1) * 18;
+            var totalHeight = layerNodes.Sum(node => Math.Max(ChartVisualPrimitives.SankeyNodeMinHeight, node.Value * effectiveScale)) + Math.Max(0, layerNodes.Length - 1) * ChartVisualPrimitives.SankeyNodeGap;
             var y = plot.Top + Math.Max(0, (plot.Height - totalHeight) / 2);
             foreach (var node in layerNodes) {
                 node.X = maxLayer == 0 ? plot.Left + plot.Width / 2 - nodeWidth / 2 : plot.Left + node.Layer / (double)maxLayer * (plot.Width - nodeWidth);
-                node.Height = Math.Max(8, node.Value * effectiveScale);
+                node.Height = Math.Max(ChartVisualPrimitives.SankeyNodeMinHeight, node.Value * effectiveScale);
                 node.Y = y;
-                y += node.Height + 18;
+                y += node.Height + ChartVisualPrimitives.SankeyNodeGap;
             }
         }
     }
@@ -149,6 +152,10 @@ public sealed partial class PngChartRenderer {
 
     private static string SankeyNodeLabel(Chart chart, int index) =>
         index >= 0 && index < chart.Options.SankeyNodeLabels.Count ? chart.Options.SankeyNodeLabels[index] : "Node " + (index + 1).ToString(CultureInfo.InvariantCulture);
+
+    private static ChartColor SankeyNodeGradientTop(ChartColor color) => Blend(ChartColor.White, color, ChartVisualPrimitives.SankeyNodeGradientTopBlend);
+
+    private static ChartColor SankeyNodeGradientBottom(ChartColor color) => Blend(ChartColor.Black, color, ChartVisualPrimitives.SankeyNodeGradientBottomBlend);
 
     private sealed class SankeyNode {
         public SankeyNode(int index, string label) { Index = index; Label = label; }

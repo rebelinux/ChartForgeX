@@ -28,6 +28,7 @@ public sealed partial class SvgChartRenderer {
         var centerLabel = FormatValue(chart, average);
         var labelWidth = Math.Max(54, Math.Min(plot.Width * 0.32, outerRadius * 1.25));
         var centerDiskRadius = Math.Max(26, outerRadius - count * (stroke + gap) - 2);
+        var showLabels = series.ShowDataLabels != false;
 
         sb.AppendLine("<g data-cfx-role=\"radial-bar-chart\">");
         for (var i = 0; i < count; i++) {
@@ -41,15 +42,17 @@ public sealed partial class SvgChartRenderer {
             var summary = label + ": " + valueLabel;
             var end = start + Math.PI * 2 * ratio;
 
-            sb.AppendLine($"<path data-cfx-role=\"radial-bar-track\" data-cfx-point=\"{i}\" d=\"{BuildRadialBarArc(cx, cy, radius, start, start + Math.PI * 2)}\" fill=\"none\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(stroke)}\" stroke-linecap=\"round\" opacity=\"0.44\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"radial-bar-track\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" d=\"{BuildRadialBarArc(cx, cy, radius, start, start + Math.PI * 2)}\" fill=\"none\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(stroke)}\" stroke-linecap=\"round\" opacity=\"{F(ChartVisualPrimitives.RadialTrackOpacity)}\"/>");
             if (ratio > 0) {
-                sb.AppendLine($"<path data-cfx-role=\"radial-bar-ring\" data-cfx-point=\"{i}\" data-cfx-value=\"{F(point.Y)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{BuildRadialBarArc(cx, cy, radius, start, end)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(stroke)}\" stroke-linecap=\"round\"/>");
+                sb.AppendLine($"<path data-cfx-role=\"radial-bar-ring\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(point.Y)}\" data-cfx-percent=\"{F(ratio)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{BuildRadialBarArc(cx, cy, radius, start, end)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(stroke)}\" stroke-linecap=\"round\"/>");
             }
         }
 
-        sb.AppendLine($"<circle data-cfx-role=\"radial-bar-center\" cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"{F(centerDiskRadius)}\" fill=\"{t.CardBackground.ToCss()}\" fill-opacity=\"0.86\" stroke=\"{t.Grid.ToCss()}\" stroke-opacity=\"0.20\"/>");
-        DrawSvgTextCenteredX(sb, chart, "radial-bar-total", centerLabel, cx, cy - t.TitleFontSize * 0.42, t.Text, Math.Max(26, t.TitleFontSize * 1.32), labelWidth, "850", t.CardBackground, 3.2);
-        DrawSvgTextCenteredX(sb, chart, "radial-bar-title", series.Name, cx, cy + t.LegendFontSize + 14, t.MutedText, Math.Max(9, t.LegendFontSize - 1), labelWidth, "700", t.CardBackground, 2.4, middleBaseline: false);
+        sb.AppendLine($"<circle data-cfx-role=\"radial-bar-center\" cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"{F(centerDiskRadius)}\" fill=\"{t.CardBackground.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.RadialCenterFillOpacity)}\" stroke=\"{t.Grid.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.RadialCenterStrokeOpacity)}\"/>");
+        if (showLabels) {
+            DrawSvgTextCenteredX(sb, chart, "radial-bar-total", centerLabel, cx, cy - t.TitleFontSize * 0.42, t.Text, Math.Max(26, t.TitleFontSize * 1.32), labelWidth, "850", t.CardBackground, 3.2);
+            DrawSvgTextCenteredX(sb, chart, "radial-bar-title", series.Name, cx, cy + t.LegendFontSize + 14, t.MutedText, Math.Max(9, t.LegendFontSize - 1), labelWidth, "700", t.CardBackground, 2.4, middleBaseline: false);
+        }
         if (chart.Options.ShowLegend) DrawRadialBarLegend(sb, chart, plot, series);
         sb.AppendLine("</g>");
     }
@@ -67,7 +70,7 @@ public sealed partial class SvgChartRenderer {
             var value = FormatValue(chart, point.Y);
             var maxLabelWidth = Math.Max(24, valueX - x - 34 - EstimateTextWidth(value, fontSize));
             label = TrimSvgLabelToWidth(label, fontSize, maxLabelWidth);
-            sb.AppendLine($"<circle data-cfx-role=\"radial-bar-legend-marker\" data-cfx-point=\"{i}\" cx=\"{F(x)}\" cy=\"{F(y - 4)}\" r=\"4.5\" fill=\"{color.ToCss()}\"/>");
+            sb.AppendLine($"<circle data-cfx-role=\"radial-bar-legend-marker\" data-cfx-point=\"{i}\" cx=\"{F(x)}\" cy=\"{F(y - 4)}\" r=\"{F(ChartVisualPrimitives.RadialLegendMarkerRadius)}\" fill=\"{color.ToCss()}\"/>");
             sb.AppendLine($"<text data-cfx-role=\"radial-bar-legend-label\" data-cfx-point=\"{i}\" x=\"{F(x + 13)}\" y=\"{F(y)}\" fill=\"{t.Text.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
             sb.AppendLine($"<text data-cfx-role=\"radial-bar-legend-value\" data-cfx-point=\"{i}\" x=\"{F(valueX)}\" y=\"{F(y)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(value)}</text>");
             y += fontSize + 10;

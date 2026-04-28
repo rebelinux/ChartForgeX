@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 using ChartForgeX.Rendering;
@@ -12,6 +13,7 @@ public sealed partial class PngChartRenderer {
         var boxCount = Math.Max(1, series.Points.Count / 5);
         var boxWidth = Math.Max(14, Math.Min(46, plot.Width / Math.Max(1, boxCount * 5.0)));
         var capWidth = boxWidth * 0.74;
+        var reserved = new List<ChartLabelBounds>();
 
         for (var pointIndex = 0; pointIndex + 4 < series.Points.Count; pointIndex += 5) {
             var minimum = series.Points[pointIndex];
@@ -29,21 +31,24 @@ public sealed partial class PngChartRenderer {
             var height = Math.Max(2, Math.Abs(yQ3 - yQ1));
             var halo = PngStrokeHalo(color);
 
-            c.DrawLine(x, yMax, x, yMin, halo, 6);
-            c.DrawLine(x - capWidth / 2, yMin, x + capWidth / 2, yMin, halo, 6);
-            c.DrawLine(x - capWidth / 2, yMax, x + capWidth / 2, yMax, halo, 6);
-            c.DrawLine(x, yMax, x, yMin, color, 2);
-            c.DrawLine(x - capWidth / 2, yMin, x + capWidth / 2, yMin, color, 2);
-            c.DrawLine(x - capWidth / 2, yMax, x + capWidth / 2, yMax, color, 2);
-            c.StrokeRoundedRect(x - boxWidth / 2, top, boxWidth, height, 5, halo, 5);
-            c.FillRoundedRect(x - boxWidth / 2, top, boxWidth, height, 5, ChartColor.FromRgba(color.R, color.G, color.B, 56));
-            c.StrokeRoundedRect(x - boxWidth / 2, top, boxWidth, height, 5, color, 2);
-            c.DrawLine(x - boxWidth / 2, yMedian, x + boxWidth / 2, yMedian, halo, 6);
-            c.DrawLine(x - boxWidth / 2, yMedian, x + boxWidth / 2, yMedian, color, 2);
+            c.DrawLine(x, yMax, x, yMin, halo, ChartVisualPrimitives.BoxPlotPngHaloStrokeWidth);
+            c.DrawLine(x - capWidth / 2, yMin, x + capWidth / 2, yMin, halo, ChartVisualPrimitives.BoxPlotPngHaloStrokeWidth);
+            c.DrawLine(x - capWidth / 2, yMax, x + capWidth / 2, yMax, halo, ChartVisualPrimitives.BoxPlotPngHaloStrokeWidth);
+            c.DrawLine(x, yMax, x, yMin, color, ChartVisualPrimitives.BoxPlotStrokeWidth);
+            c.DrawLine(x - capWidth / 2, yMin, x + capWidth / 2, yMin, color, ChartVisualPrimitives.BoxPlotStrokeWidth);
+            c.DrawLine(x - capWidth / 2, yMax, x + capWidth / 2, yMax, color, ChartVisualPrimitives.BoxPlotStrokeWidth);
+            c.StrokeRoundedRect(x - boxWidth / 2, top, boxWidth, height, ChartVisualPrimitives.BoxPlotBodyRadius, halo, ChartVisualPrimitives.BoxPlotPngBodyHaloStrokeWidth);
+            c.FillRoundedRect(x - boxWidth / 2, top, boxWidth, height, ChartVisualPrimitives.BoxPlotBodyRadius, ApplyOpacity(color, ChartVisualPrimitives.BoxPlotBodyFillOpacity));
+            c.StrokeRoundedRect(x - boxWidth / 2, top, boxWidth, height, ChartVisualPrimitives.BoxPlotBodyRadius, color, ChartVisualPrimitives.BoxPlotStrokeWidth);
+            c.DrawLine(x - boxWidth / 2, yMedian, x + boxWidth / 2, yMedian, halo, ChartVisualPrimitives.BoxPlotPngHaloStrokeWidth);
+            c.DrawLine(x - boxWidth / 2, yMedian, x + boxWidth / 2, yMedian, color, ChartVisualPrimitives.BoxPlotMedianStrokeWidth);
             if (ShouldDrawDataLabels(chart, series)) {
                 var label = FormatValue(chart, median.Y);
                 var fontSize = chart.Options.Theme.DataLabelFontSize;
-                DrawReadablePngLabel(c, plot, x - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0, yMedian - fontSize - 4, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+                var labelX = x - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0;
+                var labelY = yMedian - fontSize - 4;
+                if (!ReservePngLabel(label, labelX, labelY, chart, plot, fontSize, reserved)) continue;
+                DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
             }
         }
     }

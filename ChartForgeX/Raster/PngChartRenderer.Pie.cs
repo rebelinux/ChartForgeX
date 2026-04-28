@@ -28,7 +28,7 @@ public sealed partial class PngChartRenderer {
             var color = chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length];
             c.FillRingSlice(cx, cy, radius, inner, start, end, color);
             DrawSliceSeparator(c, cx, cy, radius, inner, start, separator);
-            if (chart.Options.ShowDataLabels && sweep > 0.22) {
+            if (ShouldDrawDataLabels(chart, series) && sweep > 0.22) {
                 var mid = start + sweep / 2;
                 var labelRadius = inner > 0 ? (inner + radius) / 2 : radius * 0.66;
                 var label = FormatPercent(values[i].Y / total);
@@ -39,10 +39,10 @@ public sealed partial class PngChartRenderer {
             start = end;
         }
 
-        c.DrawCircleOutline(cx, cy, radius, separator, 2);
-        if (inner > 0) c.DrawCircleOutline(cx, cy, inner, separator, 2);
+        c.DrawCircleOutline(cx, cy, radius, separator, ChartVisualPrimitives.SliceSeparatorStrokeWidth);
+        if (inner > 0) c.DrawCircleOutline(cx, cy, inner, separator, ChartVisualPrimitives.SliceSeparatorStrokeWidth);
 
-        if (series.Kind == ChartSeriesKind.Donut) {
+        if (series.Kind == ChartSeriesKind.Donut && series.ShowDataLabels != false) {
             var totalLabel = FormatValue(chart, total);
             const double totalFontSize = 24;
             var nameFontSize = chart.Options.Theme.TickLabelFontSize;
@@ -56,12 +56,12 @@ public sealed partial class PngChartRenderer {
 
     private static void DrawSliceSeparator(RgbaCanvas c, double cx, double cy, double outerRadius, double innerRadius, double angle, ChartColor color) {
         var startRadius = Math.Max(0, innerRadius - 0.5);
-        c.DrawLine(cx + Math.Cos(angle) * startRadius, cy + Math.Sin(angle) * startRadius, cx + Math.Cos(angle) * outerRadius, cy + Math.Sin(angle) * outerRadius, color, 2);
+        c.DrawLine(cx + Math.Cos(angle) * startRadius, cy + Math.Sin(angle) * startRadius, cx + Math.Cos(angle) * outerRadius, cy + Math.Sin(angle) * outerRadius, color, ChartVisualPrimitives.SliceSeparatorStrokeWidth);
     }
 
     private static void DrawSliceLegend(RgbaCanvas c, Chart chart, IReadOnlyList<ChartPoint> values, ChartRect plot, double total) {
         var fontSize = PngLegendFontSize(chart);
-        const double swatchSize = 10;
+        const double swatchSize = ChartVisualPrimitives.SliceLegendSwatchSize;
         var x = plot.Left + plot.Width * 0.72;
         var y = plot.Top + Math.Max(24, plot.Height * 0.18);
         for (var i = 0; i < values.Count; i++) {
@@ -71,7 +71,7 @@ public sealed partial class PngChartRenderer {
             var labelMaxWidth = Math.Max(12, plot.Right - 36 - (x + swatchSize + 8) - EstimatePngTextWidth(percent, fontSize));
             var labelFontSize = TextFontSizeForEmphasizedWidth(label, labelMaxWidth, fontSize);
             label = TrimReadablePngLabelToWidth(label, labelFontSize, labelMaxWidth);
-            c.FillRect(x, y - swatchSize + 1, swatchSize, swatchSize, color);
+            c.FillRoundedRect(x, y - swatchSize + 1, swatchSize, swatchSize, ChartVisualPrimitives.SliceLegendSwatchRadius, color);
             if (label.Length > 0) c.DrawTextEmphasized(x + swatchSize + 8, y - labelFontSize + 3, label, chart.Options.Theme.Text, labelFontSize);
             c.DrawText(plot.Right - EstimatePngTextWidth(percent, fontSize) - 12, y - fontSize + 3, percent, chart.Options.Theme.MutedText, fontSize);
             y += fontSize + 10;

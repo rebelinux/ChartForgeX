@@ -124,7 +124,7 @@ report.SavePng("scorecards.png");
 
 For a single chart, `WithXAxisBounds(minimum, maximum)` and `WithYAxisBounds(minimum, maximum)` pin cartesian axes explicitly. `WithAutomaticXAxisBounds()` and `WithAutomaticYAxisBounds()` return them to data-driven scaling.
 
-Generated numeric x-axis ticks can be formatted independently from y-axis values and data labels:
+Generated numeric x-axis ticks can be formatted independently from y-axis values and data labels. The same formatter is used by numeric timeline and Gantt summaries:
 
 ```csharp
 var timeline = Chart.Create()
@@ -242,6 +242,30 @@ PNG edges are supersampled by default. You can raise or lower the internal super
 ```csharp
 chart.WithPngSupersampling(4)
      .SavePng("chart.png");
+```
+
+Supersampling preserves the requested chart dimensions. For high-DPI assets, use a PNG output scale; the chart keeps the same logical layout but emits more pixels:
+
+```csharp
+chart.WithPngOutputScale(2)
+     .SavePng("chart@2x.png");
+```
+
+Named presets are available when you want the export density to read like an intentional quality choice:
+
+```csharp
+chart.WithPngOutputScale(ChartPngOutputScale.Retina)       // 2x
+     .SavePng("chart@2x.png");
+
+chart.WithPngOutputScale(ChartPngOutputScale.Print)        // 4x
+     .SavePng("chart@4x.png");
+```
+
+The same output scale is available for composed grid PNG exports:
+
+```csharp
+report.WithPngOutputScale(ChartPngOutputScale.Retina)
+      .SavePng("scorecards@2x.png");
 ```
 
 SVG and HTML still use the theme `FontFamily` CSS stack. The PNG font path is optional and falls back automatically when the file is missing or unsupported.

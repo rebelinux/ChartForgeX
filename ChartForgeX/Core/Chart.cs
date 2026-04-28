@@ -189,6 +189,23 @@ public sealed partial class Chart {
     }
 
     /// <summary>
+    /// Sets the output pixel multiplier used by the PNG renderer.
+    /// </summary>
+    /// <param name="scale">The output scale from one to four. Higher values emit larger PNG dimensions with the same logical chart layout.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithPngOutputScale(int scale) {
+        Options.PngOutputScale = scale;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the output pixel multiplier used by the PNG renderer using a named density preset.
+    /// </summary>
+    /// <param name="scale">The output density preset.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithPngOutputScale(ChartPngOutputScale scale) => WithPngOutputScale((int)scale);
+
+    /// <summary>
     /// Sets explicit cartesian x-axis bounds.
     /// </summary>
     /// <param name="minimum">The minimum x-axis value.</param>

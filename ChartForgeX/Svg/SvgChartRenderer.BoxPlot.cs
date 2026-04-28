@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
@@ -13,6 +14,7 @@ public sealed partial class SvgChartRenderer {
         var boxCount = Math.Max(1, series.Points.Count / 5);
         var boxWidth = Math.Max(14, Math.Min(46, plot.Width / Math.Max(1, boxCount * 5.0)));
         var capWidth = boxWidth * 0.74;
+        var reservedLabels = new List<ChartLabelBounds>();
 
         for (var pointIndex = 0; pointIndex + 4 < series.Points.Count; pointIndex += 5) {
             var minimum = series.Points[pointIndex];
@@ -31,14 +33,16 @@ public sealed partial class SvgChartRenderer {
             var item = pointIndex / 5;
             var summary = FormatValue(chart, minimum.Y) + "-" + FormatValue(chart, maximum.Y) + ", median " + FormatValue(chart, median.Y);
 
-            sb.AppendLine($"<g data-cfx-role=\"box-plot\" data-cfx-series=\"{index}\" data-cfx-point=\"{item}\" role=\"img\" aria-label=\"{Escape(summary)}\">");
-            sb.AppendLine($"<line data-cfx-role=\"box-whisker\" x1=\"{F(x)}\" y1=\"{F(yMax)}\" x2=\"{F(x)}\" y2=\"{F(yMin)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\" opacity=\"0.82\"/>");
-            sb.AppendLine($"<line data-cfx-role=\"box-cap\" x1=\"{F(x - capWidth / 2)}\" y1=\"{F(yMin)}\" x2=\"{F(x + capWidth / 2)}\" y2=\"{F(yMin)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
-            sb.AppendLine($"<line data-cfx-role=\"box-cap\" x1=\"{F(x - capWidth / 2)}\" y1=\"{F(yMax)}\" x2=\"{F(x + capWidth / 2)}\" y2=\"{F(yMax)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
-            sb.AppendLine($"<rect data-cfx-role=\"box-body\" x=\"{F(x - boxWidth / 2)}\" y=\"{F(top)}\" width=\"{F(boxWidth)}\" height=\"{F(height)}\" rx=\"5\" fill=\"{color.ToCss()}\" opacity=\"0.22\" stroke=\"{color.ToCss()}\" stroke-width=\"2\"/>");
-            sb.AppendLine($"<line data-cfx-role=\"box-median\" x1=\"{F(x - boxWidth / 2)}\" y1=\"{F(yMedian)}\" x2=\"{F(x + boxWidth / 2)}\" y2=\"{F(yMedian)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2.4\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<g data-cfx-role=\"box-plot\" data-cfx-series=\"{index}\" data-cfx-point=\"{item}\" data-cfx-x=\"{F(minimum.X)}\" data-cfx-min=\"{F(minimum.Y)}\" data-cfx-q1=\"{F(q1.Y)}\" data-cfx-median=\"{F(median.Y)}\" data-cfx-q3=\"{F(q3.Y)}\" data-cfx-max=\"{F(maximum.Y)}\" role=\"img\" aria-label=\"{Escape(summary)}\">");
+            sb.AppendLine($"<title>{Escape(summary)}</title>");
+            sb.AppendLine($"<line data-cfx-role=\"box-whisker\" x1=\"{F(x)}\" y1=\"{F(yMax)}\" x2=\"{F(x)}\" y2=\"{F(yMin)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.BoxPlotStrokeWidth)}\" stroke-linecap=\"round\" opacity=\"{F(ChartVisualPrimitives.BoxPlotWhiskerOpacity)}\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"box-cap\" x1=\"{F(x - capWidth / 2)}\" y1=\"{F(yMin)}\" x2=\"{F(x + capWidth / 2)}\" y2=\"{F(yMin)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.BoxPlotStrokeWidth)}\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"box-cap\" x1=\"{F(x - capWidth / 2)}\" y1=\"{F(yMax)}\" x2=\"{F(x + capWidth / 2)}\" y2=\"{F(yMax)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.BoxPlotStrokeWidth)}\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<rect data-cfx-role=\"box-body\" x=\"{F(x - boxWidth / 2)}\" y=\"{F(top)}\" width=\"{F(boxWidth)}\" height=\"{F(height)}\" rx=\"{F(ChartVisualPrimitives.BoxPlotBodyRadius)}\" fill=\"{color.ToCss()}\" opacity=\"{F(ChartVisualPrimitives.BoxPlotBodyFillOpacity)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.BoxPlotStrokeWidth)}\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"box-median\" x1=\"{F(x - boxWidth / 2)}\" y1=\"{F(yMedian)}\" x2=\"{F(x + boxWidth / 2)}\" y2=\"{F(yMedian)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.BoxPlotMedianStrokeWidth)}\" stroke-linecap=\"round\"/>");
             sb.AppendLine("</g>");
-            if (ShouldDrawDataLabels(chart, series)) DrawDataLabel(sb, chart, FormatValue(chart, median.Y), x, yMedian - 11, plot);
+            var label = FormatValue(chart, median.Y);
+            if (ShouldDrawDataLabels(chart, series) && ReserveSvgLabel(label, x, yMedian - 11, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, yMedian - 11, plot);
         }
     }
 }

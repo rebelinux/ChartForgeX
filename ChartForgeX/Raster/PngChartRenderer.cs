@@ -40,7 +40,7 @@ public sealed partial class PngChartRenderer {
         var previousOutlineFont = CurrentOutlineFont;
         CurrentOutlineFont = outlineFont;
         try {
-            var c = new RgbaCanvas(o.Size.Width, o.Size.Height, o.PngSupersamplingScale, outlineFont);
+            var c = new RgbaCanvas(o.Size.Width, o.Size.Height, o.PngSupersamplingScale, outlineFont, o.PngOutputScale);
             c.Clear(o.TransparentBackground ? ChartColor.Transparent : t.Background);
             if (o.ShowCard && t.UseCard) DrawCardSurface(c, o, t);
             var plot = ChartLayout.PlotArea(o);
@@ -162,7 +162,7 @@ public sealed partial class PngChartRenderer {
             DrawAnnotationBands(c, chart, plot, map);
             foreach (var yv in yTicks) {
                 var y = map.Y(yv);
-                if (o.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, t.Grid, 1);
+                if (o.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, t.Grid, ChartVisualPrimitives.GridStrokeWidth);
                 if (o.ShowAxes) {
                     var label = FormatValue(chart, yv);
                     var fontSize = PngTickFontSize(chart);
@@ -173,14 +173,14 @@ public sealed partial class PngChartRenderer {
             for (var i = 0; i < xTicks.Count; i++) {
                 var x = map.X(xTicks[i]);
                 var label = xLabels[i];
-                if (o.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ChartColor.FromRgba(t.Grid.R, t.Grid.G, t.Grid.B, (byte)(t.Grid.A / 2)), 1);
+                if (o.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(t.Grid, ChartVisualPrimitives.GridVerticalOpacity), ChartVisualPrimitives.GridStrokeWidth);
                 if (o.ShowAxes) DrawXAxisTickLabel(c, chart, plot, label, x, xLabels);
             }
             if (o.ShowAxes) {
                 var zeroY = map.Y(0);
-                if (zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, t.Axis, 1);
-                c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, 1);
-                c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, 1);
+                if (zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, t.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
+                c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+                c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
                 if (secondaryMap != null && secondaryTicks != null) DrawSecondaryYAxis(c, chart, plot, secondaryMap, secondaryTicks);
                 DrawAxisTitles(c, chart, plot, xLabels);
             }
@@ -223,6 +223,11 @@ public sealed partial class PngChartRenderer {
 
     private static bool ShouldDrawDataLabels(Chart chart, ChartSeries series) => series.ShowDataLabels ?? chart.Options.ShowDataLabels;
 
+    private static bool HasHorizontalBarDataLabels(Chart chart) {
+        foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.HorizontalBar && ShouldDrawDataLabels(chart, series)) return true;
+        return false;
+    }
+
     private static bool HasSecondaryYAxis(Chart chart) {
         foreach (var series in chart.Series) {
             if (series.YAxis == ChartAxisSide.Secondary) return true;
@@ -256,12 +261,12 @@ public sealed partial class PngChartRenderer {
         foreach (var annotation in chart.Annotations) {
             if (annotation.Kind == ChartAnnotationKind.HorizontalLine) {
                 var y = Clamp(map.Y(annotation.Value), plot.Top, plot.Bottom);
-                c.DrawDashedLine(plot.Left, y, plot.Right, y, annotation.Color, 1);
-                DrawTinyAnnotationPill(c, chart, annotation, plot.Right - 4, y - 7, "end");
+                c.DrawDashedLine(plot.Left, y, plot.Right, y, annotation.Color, ChartVisualPrimitives.AnnotationLineStrokeWidth, ChartVisualPrimitives.AnnotationLineDash, ChartVisualPrimitives.AnnotationLineGap);
+                DrawTinyAnnotationPill(c, chart, annotation, plot, plot.Right - 4, y - 7, "end");
             } else if (annotation.Kind == ChartAnnotationKind.VerticalLine) {
                 var x = Clamp(map.X(annotation.Value), plot.Left, plot.Right);
-                c.DrawDashedLine(x, plot.Top, x, plot.Bottom, annotation.Color, 1);
-                DrawTinyAnnotationPill(c, chart, annotation, x + 8, plot.Top + 16, "start");
+                c.DrawDashedLine(x, plot.Top, x, plot.Bottom, annotation.Color, ChartVisualPrimitives.AnnotationLineStrokeWidth, ChartVisualPrimitives.AnnotationLineDash, ChartVisualPrimitives.AnnotationLineGap);
+                DrawTinyAnnotationPill(c, chart, annotation, plot, x + 8, plot.Top + 16, "start");
             }
         }
     }
@@ -283,7 +288,7 @@ public sealed partial class PngChartRenderer {
         c.DrawText(rectX + 8, rectY + (height - fontSize) / 2, annotation.Label, annotation.Color, fontSize);
     }
 
-    private static void DrawTinyAnnotationPill(RgbaCanvas c, Chart chart, ChartAnnotation annotation, double x, double y, string anchor) {
+    private static void DrawTinyAnnotationPill(RgbaCanvas c, Chart chart, ChartAnnotation annotation, ChartRect plot, double x, double y, string anchor) {
         if (string.IsNullOrWhiteSpace(annotation.Label)) return;
         var theme = chart.Options.Theme;
         var fontSize = PngTickFontSize(chart);
@@ -291,8 +296,8 @@ public sealed partial class PngChartRenderer {
         var width = Math.Max(34, textWidth + 16);
         var height = EstimatePngTextHeight(fontSize) + 10;
         var rectX = anchor == "end" ? x - width : x;
-        rectX = Clamp(rectX, chart.Options.Padding.Left, chart.Options.Size.Width - chart.Options.Padding.Right - width);
-        var rectY = Clamp(y - height / 2, 18, chart.Options.Size.Height - chart.Options.Padding.Bottom - height);
+        rectX = Clamp(rectX, plot.Left + 4, plot.Right - width - 4);
+        var rectY = Clamp(y - height / 2, plot.Top + 4, plot.Bottom - height - 4);
         var fill = ChartColor.FromRgba(theme.CardBackground.R, theme.CardBackground.G, theme.CardBackground.B, theme.CardBackground.A == 0 ? (byte)224 : theme.CardBackground.A);
         var border = ChartColor.FromRgba(annotation.Color.R, annotation.Color.G, annotation.Color.B, 110);
 
@@ -308,21 +313,21 @@ public sealed partial class PngChartRenderer {
         for (var i = 0; i < xTicks.Count; i++) {
             var x = map.X(xTicks[i]);
             var label = xLabels[i];
-            if (o.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ChartColor.FromRgba(t.Grid.R, t.Grid.G, t.Grid.B, (byte)(t.Grid.A / 2)), 1);
+            if (o.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(t.Grid, ChartVisualPrimitives.HorizontalBarValueGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (o.ShowAxes) DrawXAxisTickLabel(c, chart, plot, label, x, xLabels);
         }
 
         foreach (var category in categories) {
             var y = map.Y(category);
-            if (o.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, ChartColor.FromRgba(t.Grid.R, t.Grid.G, t.Grid.B, (byte)(t.Grid.A / 3)), 1);
+            if (o.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, ApplyOpacity(t.Grid, ChartVisualPrimitives.HorizontalBarCategoryGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (o.ShowAxes) DrawHorizontalCategoryLabel(c, chart, plot, FormatX(chart, category), y);
         }
 
         if (o.ShowAxes) {
             var zeroX = map.X(0);
-            if (zeroX > plot.Left && zeroX < plot.Right) c.DrawLine(zeroX, plot.Top, zeroX, plot.Bottom, t.Axis, 1);
-            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, 1);
-            c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, 1);
+            if (zeroX > plot.Left && zeroX < plot.Right) c.DrawLine(zeroX, plot.Top, zeroX, plot.Bottom, t.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
+            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+            c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
             DrawAxisTitles(c, chart, plot, xLabels);
         }
     }
@@ -342,16 +347,27 @@ public sealed partial class PngChartRenderer {
     private static string FormatPercent(double v) => v.ToString("0.#%", CultureInfo.InvariantCulture);
     private static double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(max, value));
 
-    private static byte[] WritePng(RgbaCanvas canvas) => PngWriter.WriteRgba(canvas.Width, canvas.Height, canvas.ToOutputPixels());
+    private static byte[] WritePng(RgbaCanvas canvas) => PngWriter.WriteRgba(canvas.OutputWidth, canvas.OutputHeight, canvas.ToOutputPixels());
 
     private static IReadOnlyList<double> GetXTicks(Chart chart, ChartRange range, ChartRect plot) {
-        if (chart.Options.XAxisLabels.Count == 0) return ChartTicks.GenerateInside(range.MinX, range.MaxX, chart.Options.TickCount);
+        if (chart.Options.XAxisLabels.Count == 0) {
+            var ticks = ChartTicks.GenerateInside(range.MinX, range.MaxX, chart.Options.TickCount);
+            if (chart.Options.XAxisLabelDensity == ChartLabelDensity.All || ticks.Count < 3) return ticks;
+            var generatedLabels = new List<ChartAxisLabel>(ticks.Count);
+            foreach (var tick in ticks) generatedLabels.Add(new ChartAxisLabel(tick, FormatXAxisValue(chart, tick)));
+            return SelectXAxisTickValues(chart, range, plot, generatedLabels);
+        }
+
         var labels = new List<ChartAxisLabel>();
         foreach (var label in chart.Options.XAxisLabels) {
             if (label.Value >= range.MinX && label.Value <= range.MaxX) labels.Add(label);
         }
 
         labels.Sort((left, right) => left.Value.CompareTo(right.Value));
+        return SelectXAxisTickValues(chart, range, plot, labels);
+    }
+
+    private static IReadOnlyList<double> SelectXAxisTickValues(Chart chart, ChartRange range, ChartRect plot, IReadOnlyList<ChartAxisLabel> labels) {
         if (chart.Options.XAxisLabelDensity == ChartLabelDensity.All || labels.Count < 3) return LabelValues(labels);
 
         var fontSize = PngTickFontSize(chart);

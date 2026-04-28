@@ -1,0 +1,28 @@
+using ChartForgeX;
+using ChartForgeX.Core;
+
+namespace ChartForgeX.Tests;
+
+internal static partial class SmokeTests {
+    private static void RadarHonorsAxesAndGridVisibility() {
+        var axesOff = RadarSample()
+            .WithAxes(false)
+            .ToSvg();
+        Assert(axesOff.Contains("data-cfx-role=\"radar-area\"", System.StringComparison.Ordinal), "Radar polygons should still render when axes are disabled.");
+        Assert(!axesOff.Contains("data-cfx-role=\"radar-axis-label\"", System.StringComparison.Ordinal), "Radar category labels should hide when axes are disabled.");
+        Assert(!axesOff.Contains("data-cfx-role=\"radar-ring-label\"", System.StringComparison.Ordinal), "Radar ring labels should hide when axes are disabled.");
+
+        var gridOff = RadarSample()
+            .WithGrid(false)
+            .ToSvg();
+        Assert(gridOff.Contains("data-cfx-role=\"radar-outline\"", System.StringComparison.Ordinal), "Radar outlines should still render when grid is disabled.");
+        Assert(!gridOff.Contains("data-cfx-role=\"radar-ring\"", System.StringComparison.Ordinal), "Radar rings should hide when grid is disabled.");
+        Assert(!gridOff.Contains("data-cfx-role=\"radar-spoke\"", System.StringComparison.Ordinal), "Radar spokes should hide when grid is disabled.");
+        Assert(RadarSample().WithAxes(false).WithGrid(false).ToPng().Length > 64, "Compact radar options should render valid PNG output.");
+    }
+
+    private static Chart RadarSample() => Chart.Create()
+        .WithSize(520, 360)
+        .WithXLabels("Coverage", "Policy", "Alerts", "Response")
+        .AddRadar("Current", Points(92, 74, 88, 81));
+}

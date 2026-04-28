@@ -29,11 +29,11 @@ public sealed partial class PngChartRenderer {
         foreach (var point in upperPath) polygon.Add(point);
         for (var i = lowerPath.Count - 1; i >= 0; i--) polygon.Add(lowerPath[i]);
         c.FillPolygonVerticalGradient(polygon, ChartColor.FromRgba(color.R, color.G, color.B, 118), ChartColor.FromRgba(color.R, color.G, color.B, 18));
-        DrawDashedPngPath(c, middlePath, ChartColor.FromRgba(color.R, color.G, color.B, 126), 1, 5, 6);
-        DrawPngLinePath(c, upperPath, PngStrokeHalo(color), series.StrokeWidth + 4);
-        DrawPngLinePath(c, lowerPath, PngStrokeHalo(color), series.StrokeWidth + 4);
+        DrawDashedPngPath(c, middlePath, ApplyOpacity(color, ChartVisualPrimitives.RangeAreaMidlineOpacity), ChartVisualPrimitives.RangeAreaMidlineStrokeWidth, ChartVisualPrimitives.RangeAreaDash, ChartVisualPrimitives.RangeAreaGap);
+        DrawPngLinePath(c, upperPath, PngStrokeHalo(color), series.StrokeWidth + ChartVisualPrimitives.RangeAreaHaloStrokeExtra);
+        DrawPngLinePath(c, lowerPath, PngStrokeHalo(color), series.StrokeWidth + ChartVisualPrimitives.RangeAreaHaloStrokeExtra);
         DrawPngLinePath(c, upperPath, color, series.StrokeWidth);
-        DrawPngLinePath(c, lowerPath, ChartColor.FromRgba(color.R, color.G, color.B, 224), Math.Max(1.5, series.StrokeWidth * 0.9));
+        DrawPngLinePath(c, lowerPath, ApplyOpacity(color, ChartVisualPrimitives.RangeAreaLowerStrokeOpacity), Math.Max(ChartVisualPrimitives.RangeAreaMinStrokeWidth, series.StrokeWidth));
 
         if (!ShouldDrawDataLabels(chart, series)) return;
         var reserved = new List<ChartLabelBounds>();
@@ -49,7 +49,7 @@ public sealed partial class PngChartRenderer {
         }
     }
 
-    private static void DrawDashedPngPath(RgbaCanvas c, IReadOnlyList<ChartPoint> points, ChartColor color, int thickness, double dash, double gap) {
+    private static void DrawDashedPngPath(RgbaCanvas c, IReadOnlyList<ChartPoint> points, ChartColor color, double thickness, double dash, double gap) {
         for (var i = 1; i < points.Count; i++) {
             var a = points[i - 1];
             var b = points[i];

@@ -13,6 +13,7 @@ public sealed partial class SvgChartRenderer {
         var s = chart.Series[index];
         var layout = HorizontalBarLayout(chart, plot, index);
         var zeroX = Math.Min(plot.Right, Math.Max(plot.Left, map.X(0)));
+        var reservedLabels = new List<ChartLabelBounds>();
         for (var pointIndex = 0; pointIndex < s.Points.Count; pointIndex++) {
             var p = s.Points[pointIndex];
             var baseValue = chart.Options.BarMode == ChartBarMode.Stacked ? StackHorizontalBaseValue(chart, index, p) : 0;
@@ -22,15 +23,18 @@ public sealed partial class SvgChartRenderer {
             var width = Math.Abs(valueX - baseX);
             var y = map.Y(p.X) + layout.Offset - layout.BarHeight / 2;
             var radius = chart.Options.BarMode == ChartBarMode.Stacked ? Math.Min(3, layout.BarHeight / 2) : Math.Min(7, layout.BarHeight / 2);
-            sb.AppendLine($"<rect data-cfx-role=\"horizontal-bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" x=\"{F(left)}\" y=\"{F(y)}\" width=\"{F(width)}\" height=\"{F(layout.BarHeight)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-seriesFill{index})\" opacity=\"0.94\"/>");
+            sb.AppendLine($"<rect data-cfx-role=\"horizontal-bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" data-cfx-category=\"{F(p.X)}\" data-cfx-value=\"{F(p.Y)}\" data-cfx-base=\"{F(baseValue)}\" x=\"{F(left)}\" y=\"{F(y)}\" width=\"{F(width)}\" height=\"{F(layout.BarHeight)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-seriesFill{index})\" opacity=\"{F(ChartVisualPrimitives.BarFillOpacity)}\"/>");
+            DrawSvgBarHighlight(sb, left, y, width, layout.BarHeight);
             if (ShouldDrawDataLabels(chart, s)) {
                 var label = FormatValue(chart, p.Y);
                 if (chart.Options.BarMode == ChartBarMode.Stacked) {
                     if (width < EstimateTextWidth(label, chart.Options.Theme.DataLabelFontSize) + 8) continue;
+                    if (!ReserveSvgLabel(label, left + width / 2, y + layout.BarHeight / 2, chart, plot, reservedLabels)) continue;
                     DrawDataLabel(sb, chart, label, left + width / 2, y + layout.BarHeight / 2, plot);
                 } else {
                     var labelX = p.Y >= 0 ? left + width + 8 : left - 8;
                     var anchor = p.Y >= 0 ? "start" : "end";
+                    if (!ReserveSvgHorizontalLabel(label, labelX, y + layout.BarHeight / 2, anchor, chart, plot, reservedLabels)) continue;
                     DrawHorizontalValueLabel(sb, chart, label, labelX, y + layout.BarHeight / 2, anchor, plot);
                 }
             }
@@ -82,14 +86,19 @@ public sealed partial class SvgChartRenderer {
             foreach (var point in series.Points) AddStackTotal(point.Y >= 0 ? positiveTotals : negativeTotals, point.X, point.Y);
         }
 
-        DrawHorizontalStackTotalSet(sb, chart, positiveTotals, plot, map, 8, "start");
-        DrawHorizontalStackTotalSet(sb, chart, negativeTotals, plot, map, -8, "end");
+        var reservedLabels = new List<ChartLabelBounds>();
+        DrawHorizontalStackTotalSet(sb, chart, positiveTotals, plot, map, 8, "start", reservedLabels);
+        DrawHorizontalStackTotalSet(sb, chart, negativeTotals, plot, map, -8, "end", reservedLabels);
     }
 
-    private static void DrawHorizontalStackTotalSet(StringBuilder sb, Chart chart, Dictionary<double, double> totals, ChartRect plot, ChartMapper map, double offset, string anchor) {
+    private static void DrawHorizontalStackTotalSet(StringBuilder sb, Chart chart, Dictionary<double, double> totals, ChartRect plot, ChartMapper map, double offset, string anchor, List<ChartLabelBounds> reservedLabels) {
         foreach (var item in totals.OrderBy(item => item.Key)) {
             if (Math.Abs(item.Value) < 0.000001) continue;
-            DrawHorizontalValueLabel(sb, chart, FormatValue(chart, item.Value), map.X(item.Value) + offset, map.Y(item.Key), anchor, plot);
+            var label = FormatValue(chart, item.Value);
+            var x = map.X(item.Value) + offset;
+            var y = map.Y(item.Key);
+            if (!ReserveSvgHorizontalLabel(label, x, y, anchor, chart, plot, reservedLabels)) continue;
+            DrawHorizontalValueLabel(sb, chart, label, x, y, anchor, plot);
         }
     }
 }

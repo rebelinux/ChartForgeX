@@ -23,7 +23,9 @@ public sealed partial class SvgChartRenderer {
         if (tiles.Count == 0) return;
 
         var t = chart.Options.Theme;
+        var showLabels = series.ShowDataLabels != false;
         sb.AppendLine("<g data-cfx-role=\"treemap\">");
+        DrawTreemapTileGradients(sb, chart, id, series, seriesIndex);
         for (var i = 0; i < tiles.Count; i++) {
             var tile = tiles[i];
             var rect = tile.Rect;
@@ -32,22 +34,36 @@ public sealed partial class SvgChartRenderer {
             var label = FormatX(chart, tile.Point.X);
             var value = FormatValue(chart, tile.Point.Y);
             var summary = label + ": " + value;
-            var radius = Math.Min(8, Math.Min(rect.Width, rect.Height) * 0.08);
-            DrawTreemapTile(sb, chart, id, seriesIndex, tile.PointIndex, rect, color, radius, summary, series.Color.HasValue);
-            DrawTreemapTileLabels(sb, chart, rect, label, value, color);
+            var radius = Math.Min(ChartVisualPrimitives.TreemapTileCornerRadiusMax, Math.Min(rect.Width, rect.Height) * ChartVisualPrimitives.TreemapTileCornerRadiusFactor);
+            DrawTreemapTile(sb, chart, id, seriesIndex, tile.PointIndex, rect, color, radius, summary, label, tile.Point.Y, series.Color.HasValue);
+            if (showLabels) DrawTreemapTileLabels(sb, chart, rect, label, value, color);
         }
 
         sb.AppendLine("</g>");
     }
 
-    private static void DrawTreemapTile(StringBuilder sb, Chart chart, string id, int seriesIndex, int pointIndex, ChartRect rect, ChartColor color, double radius, string summary, bool hasSeriesColor) {
-        var fill = hasSeriesColor ? $"url(#{id}-seriesFill{seriesIndex})" : $"url(#{id}-sliceFill{pointIndex % chart.Options.Theme.Palette.Length})";
+    private static void DrawTreemapTileGradients(StringBuilder sb, Chart chart, string id, ChartSeries series, int seriesIndex) {
+        sb.AppendLine("<defs>");
+        if (series.Color.HasValue) {
+            var color = series.Color.Value;
+            sb.AppendLine($"<linearGradient id=\"{id}-treemapFillSeries{seriesIndex}\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"{TreemapTileGradientTop(color).ToHex()}\"/><stop offset=\"100%\" stop-color=\"{TreemapTileGradientBottom(color).ToHex()}\"/></linearGradient>");
+        }
+
+        for (var i = 0; i < chart.Options.Theme.Palette.Length; i++) {
+            var color = chart.Options.Theme.Palette[i];
+            sb.AppendLine($"<linearGradient id=\"{id}-treemapFill{i}\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"{TreemapTileGradientTop(color).ToHex()}\"/><stop offset=\"100%\" stop-color=\"{TreemapTileGradientBottom(color).ToHex()}\"/></linearGradient>");
+        }
+        sb.AppendLine("</defs>");
+    }
+
+    private static void DrawTreemapTile(StringBuilder sb, Chart chart, string id, int seriesIndex, int pointIndex, ChartRect rect, ChartColor color, double radius, string summary, string label, double value, bool hasSeriesColor) {
+        var fill = hasSeriesColor ? $"url(#{id}-treemapFillSeries{seriesIndex})" : $"url(#{id}-treemapFill{pointIndex % chart.Options.Theme.Palette.Length})";
         var highlightInset = Math.Min(radius, rect.Width / 4);
         var highlightEnd = rect.X + rect.Width - highlightInset;
-        sb.AppendLine($"<rect data-cfx-role=\"treemap-tile\" data-cfx-point=\"{pointIndex}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(rect.X)}\" y=\"{F(rect.Y)}\" width=\"{F(rect.Width)}\" height=\"{F(rect.Height)}\" rx=\"{F(radius)}\" fill=\"{fill}\"/>");
-        sb.AppendLine($"<rect data-cfx-role=\"treemap-tile-border\" data-cfx-point=\"{pointIndex}\" x=\"{F(rect.X + 0.5)}\" y=\"{F(rect.Y + 0.5)}\" width=\"{F(Math.Max(0, rect.Width - 1))}\" height=\"{F(Math.Max(0, rect.Height - 1))}\" rx=\"{F(Math.Max(0, radius - 0.5))}\" fill=\"none\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-opacity=\"0.70\" stroke-width=\"1.4\"/>");
+        sb.AppendLine($"<rect data-cfx-role=\"treemap-tile\" data-cfx-point=\"{pointIndex}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(value)}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(rect.X)}\" y=\"{F(rect.Y)}\" width=\"{F(rect.Width)}\" height=\"{F(rect.Height)}\" rx=\"{F(radius)}\" fill=\"{fill}\"/>");
+        sb.AppendLine($"<rect data-cfx-role=\"treemap-tile-border\" data-cfx-point=\"{pointIndex}\" x=\"{F(rect.X + 0.5)}\" y=\"{F(rect.Y + 0.5)}\" width=\"{F(Math.Max(0, rect.Width - 1))}\" height=\"{F(Math.Max(0, rect.Height - 1))}\" rx=\"{F(Math.Max(0, radius - 0.5))}\" fill=\"none\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.TreemapTileBorderOpacity)}\" stroke-width=\"{F(ChartVisualPrimitives.TreemapTileBorderStrokeWidth)}\"/>");
         if (highlightEnd > rect.X + highlightInset && rect.Height > 12) {
-            sb.AppendLine($"<line data-cfx-role=\"treemap-tile-highlight\" data-cfx-point=\"{pointIndex}\" x1=\"{F(rect.X + highlightInset)}\" y1=\"{F(rect.Y + 1.35)}\" x2=\"{F(highlightEnd)}\" y2=\"{F(rect.Y + 1.35)}\" stroke=\"#fff\" stroke-opacity=\"0.22\" stroke-width=\"1\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"treemap-tile-highlight\" data-cfx-point=\"{pointIndex}\" x1=\"{F(rect.X + highlightInset)}\" y1=\"{F(rect.Y + 1.35)}\" x2=\"{F(highlightEnd)}\" y2=\"{F(rect.Y + 1.35)}\" stroke=\"#fff\" stroke-opacity=\"{F(ChartVisualPrimitives.TreemapTileHighlightOpacity)}\" stroke-width=\"{F(ChartVisualPrimitives.TreemapTileHighlightStrokeWidth)}\" stroke-linecap=\"round\"/>");
         }
     }
 
@@ -71,9 +87,13 @@ public sealed partial class SvgChartRenderer {
         var valueFontSize = TextFontSizeForSvgWidth(value, maxWidth, Math.Min(t.DataLabelFontSize, Math.Max(8, rect.Height * 0.18)));
         var fittedValue = TrimSvgLabelToWidth(value, valueFontSize, maxWidth);
         if (fittedValue.Length > 0) {
-            sb.AppendLine($"<text data-cfx-role=\"treemap-value\" x=\"{F(rect.X + 8)}\" y=\"{F(rect.Y + 12 + labelFontSize + valueFontSize)}\" fill=\"{textColor.ToCss()}\" fill-opacity=\"0.82\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(valueFontSize)}\" font-weight=\"700\">{Escape(fittedValue)}</text>");
+            sb.AppendLine($"<text data-cfx-role=\"treemap-value\" x=\"{F(rect.X + 8)}\" y=\"{F(rect.Y + 12 + labelFontSize + valueFontSize)}\" fill=\"{textColor.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.TreemapValueOpacity)}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(valueFontSize)}\" font-weight=\"700\">{Escape(fittedValue)}</text>");
         }
     }
 
     private static bool IsTreemapChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Treemap);
+
+    private static ChartColor TreemapTileGradientTop(ChartColor color) => Blend(ChartColor.White, color, ChartVisualPrimitives.TreemapTileGradientTopBlend);
+
+    private static ChartColor TreemapTileGradientBottom(ChartColor color) => Blend(ChartColor.Black, color, ChartVisualPrimitives.TreemapTileGradientBottomBlend);
 }

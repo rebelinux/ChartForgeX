@@ -23,10 +23,7 @@ public sealed partial class PngChartRenderer {
             max = Math.Max(max, chart.Options.GanttToday.Value);
         }
 
-        if (Math.Abs(max - min) < 0.000001) max = min + 1;
-        var span = max - min;
-        min -= span * 0.04;
-        max += span * 0.04;
+        ApplyTimelineAxisBounds(chart, ref min, ref max);
         var tickFontSize = PngTickFontSize(chart);
         plot = ApplyPngGanttReserve(chart, plot, items, tickFontSize);
         var rowHeight = Math.Max(18, Math.Min(30, plot.Height / items.Count * 0.52));
@@ -40,7 +37,7 @@ public sealed partial class PngChartRenderer {
 
         foreach (var tick in ticks) {
             var x = ProjectTimelineX(tick, min, max, plot);
-            if (chart.Options.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(chart.Options.Theme.Grid, 0.55), 1);
+            if (chart.Options.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.TimelineGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
                 var label = TrimReadablePngLabelToWidth(FormatTimelineTick(chart, tick), tickFontSize, tickLabelWidth);
                 var width = EstimatePngTextWidth(label, tickFontSize);
@@ -54,7 +51,7 @@ public sealed partial class PngChartRenderer {
             rowCenters[i] = centerY;
             startXs[i] = ProjectTimelineX(item.Start, min, max, plot);
             endXs[i] = ProjectTimelineX(item.End, min, max, plot);
-            if (chart.Options.ShowGrid) c.DrawLine(plot.Left, centerY, plot.Right, centerY, ApplyOpacity(chart.Options.Theme.Grid, 0.28), 1);
+            if (chart.Options.ShowGrid) c.DrawLine(plot.Left, centerY, plot.Right, centerY, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.TimelineRowGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
                 var rowLabel = TrimReadablePngLabelToWidth(item.Name, tickFontSize, rowLabelWidth);
                 if (rowLabel.Length > 0) c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, tickFontSize) - 14, centerY - tickFontSize / 2, rowLabel, chart.Options.Theme.MutedText, tickFontSize);
@@ -80,7 +77,7 @@ public sealed partial class PngChartRenderer {
         }
 
         if (chart.Options.ShowAxes) {
-            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, 1);
+            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
             DrawTimelineAxisTitles(c, chart, plot);
         }
     }
@@ -98,21 +95,21 @@ public sealed partial class PngChartRenderer {
             var range = series.Points[0];
             var metadata = series.Points[1];
             var flags = series.Points[2];
-            items.Add(new GanttItem(series.Name, Math.Min(range.X, range.Y), Math.Max(range.X, range.Y), Clamp(metadata.X, 0, 1), (int)Math.Round(metadata.Y), flags.X >= 0.5, series.Color ?? chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length]));
+            items.Add(new GanttItem(series.Name, Math.Min(range.X, range.Y), Math.Max(range.X, range.Y), Clamp(metadata.X, 0, 1), (int)Math.Round(metadata.Y), flags.X >= 0.5, series.Color ?? chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length], ShouldDrawDataLabels(chart, series)));
         }
 
         return items;
     }
 
     private static void DrawGanttTask(RgbaCanvas c, Chart chart, GanttItem item, double left, double y, double width, double height) {
-        var radius = Math.Min(7, height / 2);
-        c.FillRoundedRect(left, y, width, height, radius, ChartColor.FromRgba(item.Color.R, item.Color.G, item.Color.B, 48));
+        var radius = Math.Min(ChartVisualPrimitives.GanttTaskCornerRadiusMax, height / 2);
+        c.FillRoundedRect(left, y, width, height, radius, ApplyOpacity(item.Color, ChartVisualPrimitives.GanttTaskTrackOpacity));
         var progressWidth = Math.Max(0, width * item.Progress);
-        if (progressWidth > 0.5) c.FillRoundedRectVerticalGradient(left, y, progressWidth, height, radius, Blend(ChartColor.White, item.Color, 0.88), Blend(ChartColor.Black, item.Color, 0.94));
-        c.StrokeRoundedRect(left, y, width, height, radius, ApplyOpacity(chart.Options.Theme.CardBackground, 0.72));
+        if (progressWidth > 0.5) c.FillRoundedRectVerticalGradient(left, y, progressWidth, height, radius, GanttTaskGradientTop(item.Color), GanttTaskGradientBottom(item.Color));
+        c.StrokeRoundedRect(left, y, width, height, radius, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.GanttTaskBorderOpacity), ChartVisualPrimitives.GanttTaskBorderStrokeWidth);
         var inset = Math.Min(radius, width / 3);
-        if (width > inset * 2 + 3) c.DrawLine(left + inset, y + 1.2, left + width - inset, y + 1.2, ChartColor.FromRgba(255, 255, 255, 48), 1);
-        if (chart.Options.ShowDataLabels && width >= Math.Max(74, EstimatePngEmphasizedTextWidth("100%", chart.Options.Theme.DataLabelFontSize) + 14)) {
+        if (width > inset * 2 + 3) c.DrawLine(left + inset, y + ChartVisualPrimitives.GanttTaskHighlightOffsetY, left + width - inset, y + ChartVisualPrimitives.GanttTaskHighlightOffsetY, ApplyOpacity(ChartColor.White, ChartVisualPrimitives.GanttTaskHighlightOpacity), ChartVisualPrimitives.GridStrokeWidth);
+        if (item.ShowDataLabels && width >= Math.Max(74, EstimatePngEmphasizedTextWidth("100%", chart.Options.Theme.DataLabelFontSize) + 14)) {
             DrawReadablePngLabelCentered(c, new ChartRect(left, y, width, height), FormatPercent(item.Progress), HeatmapTextColor(item.Color), item.Color, chart.Options.Theme.DataLabelFontSize);
         }
     }
@@ -125,29 +122,29 @@ public sealed partial class PngChartRenderer {
             new ChartPoint(x, centerY + size),
             new ChartPoint(x - size, centerY)
         };
-        c.FillPolygonVerticalGradient(points, Blend(ChartColor.White, item.Color, 0.88), Blend(ChartColor.Black, item.Color, 0.94));
-        c.DrawLine(x, centerY - size, x + size, centerY, ApplyOpacity(chart.Options.Theme.CardBackground, 0.72), 1);
-        c.DrawLine(x + size, centerY, x, centerY + size, ApplyOpacity(chart.Options.Theme.CardBackground, 0.72), 1);
-        c.DrawLine(x, centerY + size, x - size, centerY, ApplyOpacity(chart.Options.Theme.CardBackground, 0.72), 1);
-        c.DrawLine(x - size, centerY, x, centerY - size, ApplyOpacity(chart.Options.Theme.CardBackground, 0.72), 1);
+        c.FillPolygonVerticalGradient(points, GanttTaskGradientTop(item.Color), GanttTaskGradientBottom(item.Color));
+        c.DrawLine(x, centerY - size, x + size, centerY, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.GanttTaskBorderOpacity), ChartVisualPrimitives.GanttTaskBorderStrokeWidth);
+        c.DrawLine(x + size, centerY, x, centerY + size, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.GanttTaskBorderOpacity), ChartVisualPrimitives.GanttTaskBorderStrokeWidth);
+        c.DrawLine(x, centerY + size, x - size, centerY, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.GanttTaskBorderOpacity), ChartVisualPrimitives.GanttTaskBorderStrokeWidth);
+        c.DrawLine(x - size, centerY, x, centerY - size, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.GanttTaskBorderOpacity), ChartVisualPrimitives.GanttTaskBorderStrokeWidth);
     }
 
     private static void DrawGanttDependency(RgbaCanvas c, Chart chart, ChartRect plot, double fromX, double fromY, double toX, double toY) {
-        var color = ApplyOpacity(chart.Options.Theme.Axis, 0.72);
-        var midX = Clamp(fromX + Math.Max(18, (toX - fromX) / 2), plot.Left, plot.Right);
-        var startX = Clamp(fromX + 6, plot.Left, plot.Right);
-        var endX = Clamp(toX - 6, plot.Left, plot.Right);
-        c.DrawDashedLine(startX, fromY, midX, fromY, color, 1, 5, 5);
-        c.DrawDashedLine(midX, fromY, midX, toY, color, 1, 5, 5);
-        c.DrawDashedLine(midX, toY, endX, toY, color, 1, 5, 5);
-        c.DrawLine(endX, toY - 4, Clamp(toX, plot.Left, plot.Right), toY, color, 1);
-        c.DrawLine(endX, toY + 4, Clamp(toX, plot.Left, plot.Right), toY, color, 1);
+        var color = ApplyOpacity(chart.Options.Theme.Axis, ChartVisualPrimitives.GanttDependencyOpacity);
+        var midX = Clamp(fromX + Math.Max(ChartVisualPrimitives.GanttDependencyMinMidOffset, (toX - fromX) / 2), plot.Left, plot.Right);
+        var startX = Clamp(fromX + ChartVisualPrimitives.GanttDependencyEndpointInset, plot.Left, plot.Right);
+        var endX = Clamp(toX - ChartVisualPrimitives.GanttDependencyEndpointInset, plot.Left, plot.Right);
+        c.DrawDashedLine(startX, fromY, midX, fromY, color, ChartVisualPrimitives.GanttDependencyStrokeWidth, ChartVisualPrimitives.GanttDependencyDash, ChartVisualPrimitives.GanttDependencyGap);
+        c.DrawDashedLine(midX, fromY, midX, toY, color, ChartVisualPrimitives.GanttDependencyStrokeWidth, ChartVisualPrimitives.GanttDependencyDash, ChartVisualPrimitives.GanttDependencyGap);
+        c.DrawDashedLine(midX, toY, endX, toY, color, ChartVisualPrimitives.GanttDependencyStrokeWidth, ChartVisualPrimitives.GanttDependencyDash, ChartVisualPrimitives.GanttDependencyGap);
+        c.DrawLine(endX, toY - ChartVisualPrimitives.GanttDependencyArrowSize, Clamp(toX, plot.Left, plot.Right), toY, color, ChartVisualPrimitives.GanttDependencyStrokeWidth);
+        c.DrawLine(endX, toY + ChartVisualPrimitives.GanttDependencyArrowSize, Clamp(toX, plot.Left, plot.Right), toY, color, ChartVisualPrimitives.GanttDependencyStrokeWidth);
     }
 
     private static void DrawGanttToday(RgbaCanvas c, Chart chart, ChartRect plot, double min, double max) {
         var x = ProjectTimelineX(chart.Options.GanttToday!.Value, min, max, plot);
         if (x < plot.Left || x > plot.Right) return;
-        c.DrawDashedLine(x, plot.Top, x, plot.Bottom, chart.Options.Theme.Warning, 1, 6, 5);
+        c.DrawDashedLine(x, plot.Top, x, plot.Bottom, chart.Options.Theme.Warning, ChartVisualPrimitives.GanttTodayStrokeWidth, 6, 5);
         var label = "Today";
         var fontSize = chart.Options.Theme.TickLabelFontSize;
         var width = EstimatePngEmphasizedTextWidth(label, fontSize);
@@ -167,7 +164,7 @@ public sealed partial class PngChartRenderer {
     }
 
     private readonly struct GanttItem {
-        public GanttItem(string name, double start, double end, double progress, int dependsOn, bool milestone, ChartColor color) {
+        public GanttItem(string name, double start, double end, double progress, int dependsOn, bool milestone, ChartColor color, bool showDataLabels) {
             Name = name;
             Start = start;
             End = end;
@@ -175,6 +172,7 @@ public sealed partial class PngChartRenderer {
             DependsOn = dependsOn;
             Milestone = milestone;
             Color = color;
+            ShowDataLabels = showDataLabels;
         }
 
         public string Name { get; }
@@ -184,5 +182,6 @@ public sealed partial class PngChartRenderer {
         public int DependsOn { get; }
         public bool Milestone { get; }
         public ChartColor Color { get; }
+        public bool ShowDataLabels { get; }
     }
 }

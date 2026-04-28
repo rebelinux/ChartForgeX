@@ -21,7 +21,7 @@ public sealed class PngChartGridRenderer {
         var layout = ChartGridLayout.FromGrid(grid);
         var theme = grid.Theme ?? grid.Charts[0].Options.Theme;
         var background = theme.Background.A == 0 ? theme.CardBackground : theme.Background;
-        var output = new RgbaCanvas(layout.Width, layout.Height, 1);
+        var output = new RgbaCanvas(layout.Width, layout.Height, 1, null, grid.PngOutputScale);
         output.Clear(background);
         if (layout.HeaderHeight > 0) {
             var headerWidth = Math.Max(8, layout.Width - grid.Padding * 2);
@@ -31,10 +31,10 @@ public sealed class PngChartGridRenderer {
 
         foreach (var cell in layout.Cells) {
             var chartCanvas = _chartRenderer.RenderCanvas(cell.Chart);
-            output.DrawImageScaled(cell.X, cell.Y, cell.Width, cell.Height, chartCanvas.Width, chartCanvas.Height, chartCanvas.ToOutputPixels());
+            output.DrawImageScaled(cell.X, cell.Y, cell.Width, cell.Height, chartCanvas.OutputWidth, chartCanvas.OutputHeight, chartCanvas.ToOutputPixels());
         }
 
-        return PngWriter.WriteRgba(output.Width, output.Height, output.Pixels);
+        return PngWriter.WriteRgba(output.OutputWidth, output.OutputHeight, output.ToOutputPixels());
     }
 
     private static string FitText(string value, double fontSize, double maxWidth) {

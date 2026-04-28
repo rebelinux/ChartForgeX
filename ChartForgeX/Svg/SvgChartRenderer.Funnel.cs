@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
 
 namespace ChartForgeX.Svg;
 
@@ -15,7 +16,8 @@ public sealed partial class SvgChartRenderer {
 
         var t = chart.Options.Theme;
         var max = values.Max(point => point.Y);
-        var metricsReserve = values.Length > 1 ? Math.Min(168, Math.Max(126, basePlot.Width * 0.22)) : 0;
+        var showLabels = series.ShowDataLabels != false;
+        var metricsReserve = showLabels && values.Length > 1 ? Math.Min(168, Math.Max(126, basePlot.Width * 0.22)) : 0;
         var innerLeft = basePlot.Left + 44;
         var innerRight = basePlot.Right - 44 - metricsReserve;
         var plot = new ChartRect(innerLeft, basePlot.Top + 18, Math.Max(120, innerRight - innerLeft), Math.Max(90, basePlot.Height - 62));
@@ -42,18 +44,20 @@ public sealed partial class SvgChartRenderer {
             var dropOff = i == 0 ? 0 : 1 - previousRetention;
             var summary = label + ": " + value + ", retained " + FormatPercent(retention);
             if (i > 0) summary += ", drop-off " + FormatPercent(dropOff);
-            sb.AppendLine($"<path data-cfx-role=\"funnel-segment\" data-cfx-point=\"{i}\" data-cfx-retention=\"{F(retention)}\" data-cfx-dropoff=\"{F(dropOff)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"M {F(topLeft)} {F(y)} L {F(topRight)} {F(y)} L {F(bottomRight)} {F(y + segmentHeight)} L {F(bottomLeft)} {F(y + segmentHeight)} Z\" fill=\"{fill}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"2\" stroke-linejoin=\"round\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"funnel-segment\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(values[i].Y)}\" data-cfx-retention=\"{F(retention)}\" data-cfx-dropoff=\"{F(dropOff)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"M {F(topLeft)} {F(y)} L {F(topRight)} {F(y)} L {F(bottomRight)} {F(y + segmentHeight)} L {F(bottomLeft)} {F(y + segmentHeight)} Z\" fill=\"{fill}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.FunnelSegmentStrokeWidth)}\" stroke-opacity=\"{F(ChartVisualPrimitives.FunnelSegmentStrokeOpacity)}\" stroke-linejoin=\"round\"/>");
 
             var centerX = plot.Left + plot.Width / 2;
             var centerY = y + segmentHeight / 2;
             var labelColor = FunnelTextColor(color);
             var labelStroke = FunnelTextHalo(labelColor, t.CardBackground);
             var labelWidth = Math.Max(36, Math.Min(topWidth, bottomWidth) - 18);
-            DrawSvgTextCenteredX(sb, chart, "funnel-label", label, centerX, centerY - 4, labelColor, t.LegendFontSize, labelWidth, "800", labelStroke, 1.8);
-            DrawSvgTextCenteredX(sb, chart, "funnel-value", value, centerX, centerY + 15, labelColor, t.DataLabelFontSize, labelWidth, "750", labelStroke, 1.8);
-            if (i > 0) {
+            if (showLabels) {
+                DrawSvgTextCenteredX(sb, chart, "funnel-label", label, centerX, centerY - 4, labelColor, t.LegendFontSize, labelWidth, "800", labelStroke, 1.8);
+                DrawSvgTextCenteredX(sb, chart, "funnel-value", value, centerX, centerY + 15, labelColor, t.DataLabelFontSize, labelWidth, "750", labelStroke, 1.8);
+            }
+            if (showLabels && i > 0) {
                 var guideX = Math.Min(metricsX - 10, bottomRight + 8);
-                sb.AppendLine($"<line data-cfx-role=\"funnel-dropoff-line\" x1=\"{F(guideX)}\" y1=\"{F(y + gap * -0.35)}\" x2=\"{F(guideX)}\" y2=\"{F(y + segmentHeight * 0.45)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.1\" stroke-dasharray=\"3 4\" opacity=\"0.62\"/>");
+                sb.AppendLine($"<line data-cfx-role=\"funnel-dropoff-line\" x1=\"{F(guideX)}\" y1=\"{F(y + gap * -0.35)}\" x2=\"{F(guideX)}\" y2=\"{F(y + segmentHeight * 0.45)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.FunnelDropoffLineStrokeWidth)}\" stroke-dasharray=\"3 4\" opacity=\"{F(ChartVisualPrimitives.FunnelDropoffLineOpacity)}\"/>");
                 sb.AppendLine($"<text data-cfx-role=\"funnel-retention\" x=\"{F(metricsX)}\" y=\"{F(centerY - 3)}\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(FormatPercent(retention))} retained</text>");
                 sb.AppendLine($"<text data-cfx-role=\"funnel-dropoff\" x=\"{F(metricsX)}\" y=\"{F(centerY + 14)}\" fill=\"{t.Negative.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"650\">-{Escape(FormatPercent(dropOff))} from prev</text>");
             }

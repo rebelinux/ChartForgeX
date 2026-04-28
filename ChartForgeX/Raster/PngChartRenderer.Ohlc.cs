@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 using ChartForgeX.Rendering;
@@ -10,6 +11,7 @@ public sealed partial class PngChartRenderer {
         var series = chart.Series[index];
         var itemCount = Math.Max(1, series.Points.Count / 4);
         var tickWidth = Math.Max(7, Math.Min(18, plot.Width / Math.Max(1, itemCount * 6.0)));
+        var reservedLabels = new List<ChartLabelBounds>();
         for (var pointIndex = 0; pointIndex + 3 < series.Points.Count; pointIndex += 4) {
             var open = series.Points[pointIndex];
             var high = series.Points[pointIndex + 1];
@@ -24,17 +26,20 @@ public sealed partial class PngChartRenderer {
             var yClose = map.Y(close.Y);
             var halo = PngStrokeHalo(color);
 
-            c.DrawLine(x, yHigh, x, yLow, halo, 6);
-            c.DrawLine(x - tickWidth, yOpen, x, yOpen, halo, 6);
-            c.DrawLine(x, yClose, x + tickWidth, yClose, halo, 6);
-            c.DrawLine(x, yHigh, x, yLow, color, 2);
-            c.DrawLine(x - tickWidth, yOpen, x, yOpen, color, 2);
-            c.DrawLine(x, yClose, x + tickWidth, yClose, color, 2);
+            c.DrawLine(x, yHigh, x, yLow, halo, ChartVisualPrimitives.OhlcPngHaloStrokeWidth);
+            c.DrawLine(x - tickWidth, yOpen, x, yOpen, halo, ChartVisualPrimitives.OhlcPngHaloStrokeWidth);
+            c.DrawLine(x, yClose, x + tickWidth, yClose, halo, ChartVisualPrimitives.OhlcPngHaloStrokeWidth);
+            c.DrawLine(x, yHigh, x, yLow, color, ChartVisualPrimitives.OhlcStrokeWidth);
+            c.DrawLine(x - tickWidth, yOpen, x, yOpen, color, ChartVisualPrimitives.OhlcStrokeWidth);
+            c.DrawLine(x, yClose, x + tickWidth, yClose, color, ChartVisualPrimitives.OhlcStrokeWidth);
             if (!ShouldDrawDataLabels(chart, series)) continue;
 
             var label = FormatValue(chart, close.Y);
             var fontSize = chart.Options.Theme.DataLabelFontSize;
-            DrawReadablePngLabel(c, plot, x + tickWidth + 6, yClose - fontSize / 2.0, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+            var labelX = x + tickWidth + ChartVisualPrimitives.OhlcLabelOffset;
+            var labelY = yClose - fontSize / 2.0;
+            if (!ReservePngLabel(label, labelX, labelY, chart, plot, fontSize, reservedLabels)) continue;
+            DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
         }
     }
 }

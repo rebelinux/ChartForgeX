@@ -39,6 +39,7 @@ public static partial class GalleryWriter {
         AppendMetric(sb, "Baseline passes", baseline.ChartMatches);
         AppendMetric(sb, "Baseline warnings", baseline.Warnings);
         sb.AppendLine("</section>");
+        AppendQualityWatchlist(sb, pairs);
 
         foreach (var group in CatalogGroups) {
             var groupPairs = pairs.Where(pair => group.Contains(pair.Name)).ToArray();
@@ -62,6 +63,41 @@ public static partial class GalleryWriter {
         sb.AppendLine("<div class=\"metric\"><div class=\"label\">" + EscapeHtml(label) + "</div><div class=\"value\">" + value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "</div></div>");
     }
 
+    private static void AppendQualityWatchlist(System.Text.StringBuilder sb, ComparisonAsset[] pairs) {
+        var watchlist = pairs
+            .Where(pair => pair.Warnings.Length > 0 || pair.SvgHealth.TinyTextNodes > 0 || pair.SvgHealth.TinyStrokeNodes > 0 || pair.SvgHealth.TinyMarkerNodes > 0 || pair.SvgHealth.NearEdgeTextNodes > 0 || pair.PngHealth.EdgeInkPixels > 0)
+            .OrderByDescending(pair => pair.Warnings.Length)
+            .ThenByDescending(pair => pair.SvgHealth.TinyTextNodes)
+            .ThenByDescending(pair => pair.SvgHealth.TinyStrokeNodes)
+            .ThenByDescending(pair => pair.SvgHealth.TinyMarkerNodes)
+            .ThenByDescending(pair => pair.SvgHealth.ClippedTextNodes)
+            .ThenByDescending(pair => pair.PngHealth.EdgeInkPixels)
+            .ThenByDescending(pair => pair.SvgHealth.NearEdgeTextNodes)
+            .ThenBy(pair => pair.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToArray();
+        sb.AppendLine("<section class=\"group\">");
+        sb.AppendLine("<div class=\"group-head\"><div><h2>Review Watchlist</h2><p>Highest-priority SVG text bounds, marker/stroke readability, and PNG edge/foreground checks.</p></div><div class=\"stats\"><span class=\"pill " + (watchlist.Length == 0 ? "ok" : "warn") + "\">" + watchlist.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " active</span></div></div>");
+        if (watchlist.Length == 0) {
+            sb.AppendLine("<div class=\"metric\"><div class=\"label\">Current status</div><div class=\"value\">Clean</div><p>No clipped SVG text or PNG edge pressure detected in current exports.</p></div>");
+            sb.AppendLine("</section>");
+            return;
+        }
+
+        sb.AppendLine("<div class=\"table-wrap\"><table><thead><tr><th>Chart</th><th>Warnings</th><th>SVG text</th><th>SVG stroke</th><th>SVG markers</th><th>PNG edge</th><th>Open</th></tr></thead><tbody>");
+        foreach (var pair in watchlist) {
+            var warningText = pair.Warnings.Length == 0 ? "watch" : string.Join(", ", pair.Warnings);
+            var svgText = FormatSvgTextSize(pair.SvgHealth.MinimumTextFontSize) + " min / " + pair.SvgHealth.TinyTextNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tiny / " + pair.SvgHealth.ClippedTextNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " clipped / " + pair.SvgHealth.NearEdgeTextNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " near edge";
+            var svgStroke = FormatSvgStrokeWidth(pair.SvgHealth.MinimumStrokeWidth) + " min / " + pair.SvgHealth.TinyStrokeNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tiny / " + pair.SvgHealth.StrokedNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " stroked";
+            var svgMarkers = FormatSvgMarkerRadius(pair.SvgHealth.MinimumMarkerRadius) + " min / " + pair.SvgHealth.TinyMarkerNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tiny / " + pair.SvgHealth.MarkerNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " markers";
+            var pngText = pair.PngHealth.ForegroundPixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " fg / " + pair.PngHealth.EdgeInkPixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " ink / " + FormatPngContentBounds(pair.PngHealth.ContentBounds);
+            sb.AppendLine("<tr><td class=\"name\">" + EscapeHtml(pair.Name) + "</td><td class=\"status warn\">" + EscapeHtml(warningText) + "</td><td class=\"mono\">" + EscapeHtml(svgText) + "</td><td class=\"mono\">" + EscapeHtml(svgStroke) + "</td><td class=\"mono\">" + EscapeHtml(svgMarkers) + "</td><td class=\"mono\">" + EscapeHtml(pngText) + "</td><td><div class=\"links\"><a href=\"" + ComparisonFileName + "#" + EscapeHtml(pair.Name) + "\">review</a><a href=\"" + EscapeHtml(pair.Name) + ".svg\">SVG</a><a href=\"" + EscapeHtml(pair.Name) + ".png\">PNG</a></div></td></tr>");
+        }
+
+        sb.AppendLine("</tbody></table></div>");
+        sb.AppendLine("</section>");
+    }
+
     private static void AppendQualityGroup(System.Text.StringBuilder sb, string title, string description, ComparisonAsset[] pairs) {
         var clean = pairs.Count(pair => pair.Warnings.Length == 0);
         var warnings = pairs.Sum(pair => pair.Warnings.Length);
@@ -71,7 +107,9 @@ public static partial class GalleryWriter {
         foreach (var pair in pairs.OrderBy(pair => pair.Name, StringComparer.OrdinalIgnoreCase)) {
             var statusClass = pair.Warnings.Length == 0 ? "ok" : "warn";
             var statusText = pair.Warnings.Length == 0 ? "clean" : string.Join(", ", pair.Warnings);
-            sb.AppendLine("<tr><td class=\"name\">" + EscapeHtml(pair.Name) + "</td><td class=\"mono\">" + EscapeHtml(FormatDimensions(pair.SvgDimensions)) + "</td><td class=\"mono\">" + pair.SvgHealth.VisualNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " nodes</td><td class=\"mono\">" + pair.PngHealth.VisiblePixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " px / " + pair.PngHealth.DistinctColors.ToString(System.Globalization.CultureInfo.InvariantCulture) + " colors</td><td class=\"mono\">" + EscapeHtml(FormatBytes(pair.SvgBytes)) + " / " + EscapeHtml(FormatBytes(pair.PngBytes)) + "</td><td class=\"status " + statusClass + "\">" + EscapeHtml(statusText) + "</td><td><div class=\"links\"><a href=\"" + EscapeHtml(pair.Name) + ".svg\">SVG</a><a href=\"" + EscapeHtml(pair.Name) + ".png\">PNG</a><a href=\"" + ComparisonFileName + "#" + EscapeHtml(pair.Name) + "\">review</a></div></td></tr>");
+            var svgQuality = pair.SvgHealth.VisualNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " nodes / min text " + FormatSvgTextSize(pair.SvgHealth.MinimumTextFontSize) + " / min stroke " + FormatSvgStrokeWidth(pair.SvgHealth.MinimumStrokeWidth) + " / min marker " + FormatSvgMarkerRadius(pair.SvgHealth.MinimumMarkerRadius) + " / " + pair.SvgHealth.TinyTextNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tiny text / " + pair.SvgHealth.TinyStrokeNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tiny stroke / " + pair.SvgHealth.TinyMarkerNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tiny markers";
+            var pngQuality = pair.PngHealth.VisiblePixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " px / " + pair.PngHealth.ForegroundPixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " fg / " + pair.PngHealth.DistinctColors.ToString(System.Globalization.CultureInfo.InvariantCulture) + " colors / " + pair.PngHealth.EdgeInkPixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " edge ink / bounds " + FormatPngContentBounds(pair.PngHealth.ContentBounds);
+            sb.AppendLine("<tr><td class=\"name\">" + EscapeHtml(pair.Name) + "</td><td class=\"mono\">" + EscapeHtml(FormatDimensions(pair.SvgDimensions)) + "</td><td class=\"mono\">" + EscapeHtml(svgQuality) + "</td><td class=\"mono\">" + EscapeHtml(pngQuality) + "</td><td class=\"mono\">" + EscapeHtml(FormatBytes(pair.SvgBytes)) + " / " + EscapeHtml(FormatBytes(pair.PngBytes)) + "</td><td class=\"status " + statusClass + "\">" + EscapeHtml(statusText) + "</td><td><div class=\"links\"><a href=\"" + EscapeHtml(pair.Name) + ".svg\">SVG</a><a href=\"" + EscapeHtml(pair.Name) + ".png\">PNG</a><a href=\"" + ComparisonFileName + "#" + EscapeHtml(pair.Name) + "\">review</a></div></td></tr>");
         }
 
         sb.AppendLine("</tbody></table></div>");

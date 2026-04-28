@@ -33,11 +33,12 @@ This keeps output consistent without outsourcing the hard parts to an external g
 
 - Improve alpha-correct compositing and downsampling.
 - Expose bounded PNG quality controls without changing requested output dimensions.
+- Support high-DPI chart and grid PNG exports with a separate output scale so quality controls and emitted dimensions stay distinct.
 - Expand antialiasing coverage for paths, arcs, joins, caps, and polygons.
 - Improve cubic Bezier flattening and stroke joins.
 - Add more gradient support to match SVG styling where practical.
 - Continue improving the dependency-free TrueType path for measurement, kerning, and glyph rendering.
-- Add explicit visual regression coverage for PNG output, not only byte or dimension checks.
+- Keep expanding visual regression coverage for PNG output beyond byte or dimension checks. Current gallery checks include visible pixels, color diversity, high-DPI output scale, and edge-pressure detection.
 
 ## Chart Coverage
 
@@ -60,3 +61,14 @@ Future formats should be built as native emitters over the shared scene model:
 - Office-friendly formats: evaluated later based on real report needs
 
 Runtime graphics dependencies are not part of the core roadmap.
+
+## Current Quality Gate
+
+The generated example suite writes:
+
+- `quality-dashboard.html` for grouped health metrics and the review watchlist.
+- `svg-png-comparison.html` for side-by-side and wipe review.
+- `svg-png-comparison.json` for machine-readable parity and artifact health.
+- `visual-baseline.json` for release-time checks.
+
+The release baseline intentionally covers SVG visual-node minimums, SVG text-edge counts, PNG visible-pixel/color minimums, PNG edge pressure, and high-DPI PNG output scale. Refresh it only after reviewing the generated gallery.

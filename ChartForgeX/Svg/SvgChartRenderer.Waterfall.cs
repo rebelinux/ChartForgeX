@@ -26,6 +26,7 @@ public sealed partial class SvgChartRenderer {
 
         sb.AppendLine("<g data-cfx-role=\"waterfall-chart\">");
         DrawWaterfallGrid(sb, chart, plot, bounds, ticks);
+        var reservedLabels = new List<ChartLabelBounds>();
         for (var i = 0; i < steps.Count; i++) {
             var step = steps[i];
             var centerX = plot.Left + slot * i + slot / 2;
@@ -38,17 +39,17 @@ public sealed partial class SvgChartRenderer {
             var summary = WaterfallLabel(chart, step) + ": " + (step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta)) + ", " + status;
             if (i > 0) {
                 var connectorY = WaterfallY(plot, bounds, step.Start);
-                sb.AppendLine($"<line data-cfx-role=\"waterfall-connector\" x1=\"{F(centerX - slot + barWidth / 2)}\" y1=\"{F(connectorY)}\" x2=\"{F(centerX - barWidth / 2)}\" y2=\"{F(connectorY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\" stroke-dasharray=\"4 4\" opacity=\"0.58\"/>");
+                sb.AppendLine($"<line data-cfx-role=\"waterfall-connector\" x1=\"{F(centerX - slot + barWidth / 2)}\" y1=\"{F(connectorY)}\" x2=\"{F(centerX - barWidth / 2)}\" y2=\"{F(connectorY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.WaterfallConnectorStrokeWidth)}\" stroke-dasharray=\"{F(ChartVisualPrimitives.WaterfallConnectorDash)} {F(ChartVisualPrimitives.WaterfallConnectorGap)}\" opacity=\"{F(ChartVisualPrimitives.WaterfallConnectorOpacity)}\"/>");
             }
 
-            sb.AppendLine($"<rect data-cfx-role=\"waterfall-bar\" data-cfx-point=\"{i}\" data-cfx-status=\"{status}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(centerX - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"6\" fill=\"{color.ToCss()}\"/>");
+            sb.AppendLine($"<rect data-cfx-role=\"waterfall-bar\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(WaterfallLabel(chart, step))}\" data-cfx-start=\"{F(step.Start)}\" data-cfx-end=\"{F(step.End)}\" data-cfx-delta=\"{F(step.Delta)}\" data-cfx-status=\"{status}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(centerX - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"6\" fill=\"{color.ToCss()}\"/>");
             if (ShouldDrawDataLabels(chart, series)) {
                 var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
                 var labelY = step.Delta >= 0 || step.IsTotal ? top - 11 : top + height + 13;
-                DrawDataLabel(sb, chart, label, centerX, labelY, plot);
+                if (ReserveSvgLabel(label, centerX, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, centerX, labelY, plot);
             }
 
-            DrawXAxisLabel(sb, chart, plot, WaterfallLabel(chart, step), centerX, plot.Bottom + XAxisLabelOffset(chart), Clamp(chart.Options.XAxisLabelAngle, -80, 80), "waterfall-x-axis-label");
+            if (chart.Options.ShowAxes) DrawXAxisLabel(sb, chart, plot, WaterfallLabel(chart, step), centerX, plot.Bottom + XAxisLabelOffset(chart), Clamp(chart.Options.XAxisLabelAngle, -80, 80), "waterfall-x-axis-label");
         }
 
         DrawLegend(sb, chart, chart.Options.Size.Width, chart.Options.Size.Height);
@@ -59,15 +60,15 @@ public sealed partial class SvgChartRenderer {
         var t = chart.Options.Theme;
         foreach (var tick in ticks) {
             var y = WaterfallY(plot, bounds, tick);
-            if (chart.Options.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\"/>");
+            if (chart.Options.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\"/>");
             if (chart.Options.ShowAxes) sb.AppendLine($"<text data-cfx-role=\"waterfall-y-axis-label\" x=\"{F(plot.Left - 12)}\" y=\"{F(y + 4)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, tick))}</text>");
         }
 
         var zeroY = WaterfallY(plot, bounds, 0);
-        if (zeroY > plot.Top && zeroY < plot.Bottom) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(zeroY)}\" x2=\"{F(plot.Right)}\" y2=\"{F(zeroY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.4\"/>");
+        if (chart.Options.ShowAxes && zeroY > plot.Top && zeroY < plot.Bottom) sb.AppendLine($"<line data-cfx-role=\"waterfall-zero-axis\" x1=\"{F(plot.Left)}\" y1=\"{F(zeroY)}\" x2=\"{F(plot.Right)}\" y2=\"{F(zeroY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.ZeroAxisStrokeWidth)}\"/>");
         if (!chart.Options.ShowAxes) return;
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
+        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
+        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
         DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart), "waterfall-x-axis-title");
         if (!string.IsNullOrWhiteSpace(chart.YAxisTitle)) {
             var widestTick = ticks.Max(tick => EstimateTextWidth(FormatValue(chart, tick), t.TickLabelFontSize));

@@ -31,10 +31,18 @@ ChartForgeX.<version>.snupkg
 
 ## Visual Baseline
 
-Release builds validate `ChartForgeX.Examples/visual-baseline.json` against the generated SVG/PNG comparison manifest. If a visual change is intentional, inspect `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`, then refresh the baseline with:
+Release builds validate `ChartForgeX.Examples/visual-baseline.json` against the generated SVG/PNG comparison manifest. The baseline tracks SVG dimensions, high-DPI PNG output scale, minimum SVG visual-node counts, minimum PNG visible-pixel/color counts, clipped SVG text, near-edge SVG text, and PNG edge pressure.
+
+Before refreshing the baseline, inspect:
+
+- `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`
+- `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`
+- `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.json`
+
+If a visual change is intentional, refresh the baseline with:
 
 ```powershell
 ./Build.ps1 -Configuration Release -UpdateVisualBaseline
 ```
 
-Commit the refreshed baseline only with the renderer or example change that justifies it.
+Commit the refreshed baseline only with the renderer or example change that justifies it. Do not refresh the baseline to hide warnings, clipped text, edge pressure, or accidental PNG/SVG parity regressions.

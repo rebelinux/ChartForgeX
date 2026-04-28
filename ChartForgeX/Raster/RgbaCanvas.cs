@@ -9,23 +9,28 @@ internal sealed class RgbaCanvas {
     private static readonly TrueTypeFont? DefaultOutlineFont = TrueTypeFont.TryLoadDefault();
     private readonly TrueTypeFont? _outlineFont;
     private readonly int _scale;
-    private readonly int _pixelWidth;
-    private readonly int _pixelHeight;
+    private readonly int _supersamplingScale;
+    private readonly int _outputScale;
+    private readonly int _pixelWidth, _pixelHeight;
 
     public int Width { get; }
     public int Height { get; }
+    public int OutputWidth => Width * _outputScale;
+    public int OutputHeight => Height * _outputScale;
     public byte[] Pixels { get; }
 
-    public RgbaCanvas(int width, int height) : this(width, height, DefaultScale, null) {
-    }
+    public RgbaCanvas(int width, int height) : this(width, height, DefaultScale, null) { }
 
-    public RgbaCanvas(int width, int height, int scale) : this(width, height, scale, null) {
-    }
+    public RgbaCanvas(int width, int height, int scale) : this(width, height, scale, null) { }
 
-    public RgbaCanvas(int width, int height, int scale, TrueTypeFont? outlineFont) {
+    public RgbaCanvas(int width, int height, int scale, TrueTypeFont? outlineFont) : this(width, height, scale, outlineFont, 1) { }
+
+    public RgbaCanvas(int width, int height, int scale, TrueTypeFont? outlineFont, int outputScale) {
         Width = width;
         Height = height;
-        _scale = Math.Max(1, scale);
+        _supersamplingScale = Math.Max(1, scale);
+        _outputScale = Math.Max(1, outputScale);
+        _scale = _supersamplingScale * _outputScale;
         _outlineFont = outlineFont ?? DefaultOutlineFont;
         _pixelWidth = width * _scale;
         _pixelHeight = height * _scale;
@@ -55,15 +60,15 @@ internal sealed class RgbaCanvas {
         DrawLine(x, y + height, x, y, color, thickness);
     }
 
-    public void StrokeRoundedRect(double x, double y, double width, double height, double radius, ChartColor color, int thickness = 1) {
+    public void StrokeRoundedRect(double x, double y, double width, double height, double radius, ChartColor color, double thickness = 1) {
         StrokeRoundedRectPixels(x * _scale, y * _scale, width * _scale, height * _scale, radius * _scale, color, Math.Max(1, thickness * _scale));
     }
 
-    public void DrawLine(double x0, double y0, double x1, double y1, ChartColor color, int thickness) {
+    public void DrawLine(double x0, double y0, double x1, double y1, ChartColor color, double thickness) {
         DrawLinePixels(x0 * _scale, y0 * _scale, x1 * _scale, y1 * _scale, Math.Max(1, thickness * _scale), color);
     }
 
-    public void DrawDashedLine(double x0, double y0, double x1, double y1, ChartColor color, int thickness, double dash = 6, double gap = 5) {
+    public void DrawDashedLine(double x0, double y0, double x1, double y1, ChartColor color, double thickness, double dash = 6, double gap = 5) {
         var dx = x1 - x0;
         var dy = y1 - y0;
         var length = Math.Sqrt(dx * dx + dy * dy);
@@ -84,11 +89,11 @@ internal sealed class RgbaCanvas {
         DrawSoftCirclePixels(cx * _scale, cy * _scale, radius * _scale, color);
     }
 
-    public void DrawCircleOutline(double cx, double cy, double radius, ChartColor color, int thickness = 1) {
+    public void DrawCircleOutline(double cx, double cy, double radius, ChartColor color, double thickness = 1) {
         DrawArc(cx, cy, radius, 0, Math.PI * 2, color, thickness);
     }
 
-    public void DrawArc(double cx, double cy, double radius, double startAngle, double endAngle, ChartColor color, int thickness) {
+    public void DrawArc(double cx, double cy, double radius, double startAngle, double endAngle, ChartColor color, double thickness) {
         var fullCircle = Math.Abs(endAngle - startAngle) >= Math.PI * 2 - 0.000001;
         var start = fullCircle ? 0 : NormalizeAngle(startAngle);
         var end = fullCircle ? Math.PI * 2 : NormalizeAngle(endAngle);
@@ -141,9 +146,11 @@ internal sealed class RgbaCanvas {
         if (rgba == null) throw new ArgumentNullException(nameof(rgba));
         if (width <= 0 || height <= 0) return;
         if (rgba.Length < width * height * 4) throw new ArgumentException("RGBA buffer is smaller than the requested image dimensions.", nameof(rgba));
+        var targetX0 = x * _scale;
+        var targetY0 = y * _scale;
         for (var yy = 0; yy < height; yy++) for (var xx = 0; xx < width; xx++) {
-            var dx = x + xx;
-            var dy = y + yy;
+            var dx = targetX0 + xx;
+            var dy = targetY0 + yy;
             if (dx < 0 || dy < 0 || dx >= _pixelWidth || dy >= _pixelHeight) continue;
             var source = (yy * width + xx) * 4;
             var alpha = rgba[source + 3];
@@ -156,21 +163,25 @@ internal sealed class RgbaCanvas {
         if (rgba == null) throw new ArgumentNullException(nameof(rgba));
         if (destinationWidth <= 0 || destinationHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0) return;
         if (rgba.Length < sourceWidth * sourceHeight * 4) throw new ArgumentException("RGBA buffer is smaller than the requested source dimensions.", nameof(rgba));
-        if (destinationWidth == sourceWidth && destinationHeight == sourceHeight) {
+        var scaledDestinationWidth = destinationWidth * _scale;
+        var scaledDestinationHeight = destinationHeight * _scale;
+        if (scaledDestinationWidth == sourceWidth && scaledDestinationHeight == sourceHeight) {
             DrawImage(x, y, sourceWidth, sourceHeight, rgba);
             return;
         }
 
-        for (var dy = 0; dy < destinationHeight; dy++) for (var dx = 0; dx < destinationWidth; dx++) {
-            var targetX = x + dx;
-            var targetY = y + dy;
+        var targetX0 = x * _scale;
+        var targetY0 = y * _scale;
+        for (var dy = 0; dy < scaledDestinationHeight; dy++) for (var dx = 0; dx < scaledDestinationWidth; dx++) {
+            var targetX = targetX0 + dx;
+            var targetY = targetY0 + dy;
             if (targetX < 0 || targetY < 0 || targetX >= _pixelWidth || targetY >= _pixelHeight) continue;
             var color = SampleImageBilinear(
                 rgba,
                 sourceWidth,
                 sourceHeight,
-                (dx + 0.5) * sourceWidth / destinationWidth - 0.5,
-                (dy + 0.5) * sourceHeight / destinationHeight - 0.5);
+                (dx + 0.5) * sourceWidth / scaledDestinationWidth - 0.5,
+                (dy + 0.5) * sourceHeight / scaledDestinationHeight - 0.5);
             if (color.A == 0) continue;
             BlendPixel(targetX, targetY, color);
         }
@@ -294,17 +305,17 @@ internal sealed class RgbaCanvas {
 
     public byte[] ToOutputPixels() {
         if (_scale == 1) return Pixels;
-        var output = new byte[Width * Height * 4];
-        var samples = _scale * _scale;
+        var output = new byte[OutputWidth * OutputHeight * 4];
+        var samples = _supersamplingScale * _supersamplingScale;
 
-        for (var y = 0; y < Height; y++) for (var x = 0; x < Width; x++) {
+        for (var y = 0; y < OutputHeight; y++) for (var x = 0; x < OutputWidth; x++) {
             var sumA = 0;
             var sumR = 0;
             var sumG = 0;
             var sumB = 0;
 
-            for (var sy = 0; sy < _scale; sy++) for (var sx = 0; sx < _scale; sx++) {
-                var src = ((y * _scale + sy) * _pixelWidth + x * _scale + sx) * 4;
+            for (var sy = 0; sy < _supersamplingScale; sy++) for (var sx = 0; sx < _supersamplingScale; sx++) {
+                var src = ((y * _supersamplingScale + sy) * _pixelWidth + x * _supersamplingScale + sx) * 4;
                 var alpha = Pixels[src + 3];
                 sumA += alpha;
                 sumR += Pixels[src] * alpha;
@@ -312,7 +323,7 @@ internal sealed class RgbaCanvas {
                 sumB += Pixels[src + 2] * alpha;
             }
 
-            var dst = (y * Width + x) * 4;
+            var dst = (y * OutputWidth + x) * 4;
             if (sumA == 0) continue;
             output[dst] = (byte)(sumR / sumA);
             output[dst + 1] = (byte)(sumG / sumA);
@@ -359,38 +370,25 @@ internal sealed class RgbaCanvas {
 
     private void StrokeRoundedRectPixels(double x, double y, double width, double height, double radius, ChartColor color, double thickness) {
         if (width <= 0 || height <= 0 || thickness <= 0) return;
-        var x1 = Math.Max(0, (int)Math.Floor(x)); var y1 = Math.Max(0, (int)Math.Floor(y));
-        var x2 = Math.Min(_pixelWidth, (int)Math.Ceiling(x + width)); var y2 = Math.Min(_pixelHeight, (int)Math.Ceiling(y + height));
-        var innerWidth = width - thickness * 2;
-        var innerHeight = height - thickness * 2;
+        var feather = 1.0;
+        var x1 = Math.Max(0, (int)Math.Floor(x - feather)); var y1 = Math.Max(0, (int)Math.Floor(y - feather));
+        var x2 = Math.Min(_pixelWidth, (int)Math.Ceiling(x + width + feather)); var y2 = Math.Min(_pixelHeight, (int)Math.Ceiling(y + height + feather));
+        var strokeRadius = thickness / 2.0;
+        var centerInset = strokeRadius;
+        var centerWidth = Math.Max(0.000001, width - thickness);
+        var centerHeight = Math.Max(0.000001, height - thickness);
+        var centerRadius = Math.Max(0, radius - strokeRadius);
 
         for (var yy = y1; yy < y2; yy++) for (var xx = x1; xx < x2; xx++) {
             var px = xx + 0.5;
             var py = yy + 0.5;
-            var outer = InsideRoundedRect(px, py, x, y, width, height, radius);
-            var inner = innerWidth > 0 && innerHeight > 0 && InsideRoundedRect(px, py, x + thickness, y + thickness, innerWidth, innerHeight, Math.Max(0, radius - thickness));
-            if (outer && !inner) BlendPixel(xx, yy, color);
+            var distance = Math.Abs(RoundedRectSignedDistance(px, py, x + centerInset, y + centerInset, centerWidth, centerHeight, centerRadius));
+            if (distance <= strokeRadius) {
+                BlendPixel(xx, yy, color);
+            } else if (distance < strokeRadius + feather) {
+                BlendPixel(xx, yy, WithOpacity(color, strokeRadius + feather - distance));
+            }
         }
-    }
-
-    private static bool InsideRoundedRect(double px, double py, double x, double y, double width, double height, double radius) {
-        if (width <= 0 || height <= 0) return false;
-        if (px < x || py < y || px >= x + width || py >= y + height) return false;
-        radius = Math.Max(0, Math.Min(radius, Math.Min(width, height) / 2));
-        if (radius <= 0) return true;
-
-        var left = x + radius;
-        var right = x + width - radius;
-        var top = y + radius;
-        var bottom = y + height - radius;
-        if (px >= left && px < right) return true;
-        if (py >= top && py < bottom) return true;
-
-        var cx = px < left ? left : right;
-        var cy = py < top ? top : bottom;
-        var dx = px - cx;
-        var dy = py - cy;
-        return dx * dx + dy * dy <= radius * radius;
     }
 
     private static double RoundedRectSignedDistance(double px, double py, double x, double y, double width, double height, double radius) {

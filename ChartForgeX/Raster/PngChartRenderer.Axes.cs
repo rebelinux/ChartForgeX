@@ -76,7 +76,7 @@ public sealed partial class PngChartRenderer {
     private static void DrawSecondaryYAxis(RgbaCanvas c, Chart chart, ChartRect plot, ChartMapper map, IReadOnlyList<double> yTicks) {
         var theme = chart.Options.Theme;
         var fontSize = PngTickFontSize(chart);
-        c.DrawLine(plot.Right, plot.Top, plot.Right, plot.Bottom, theme.Axis, 1);
+        c.DrawLine(plot.Right, plot.Top, plot.Right, plot.Bottom, theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
         foreach (var tick in yTicks) {
             var label = FormatSecondaryValue(chart, tick);
             c.DrawText(Math.Min(chart.Options.Size.Width - EstimatePngTextWidth(label, fontSize) - 2, plot.Right + 8), map.Y(tick) - fontSize + 4, label, theme.MutedText, fontSize);
@@ -230,7 +230,7 @@ public sealed partial class PngChartRenderer {
     }
 
     private static double HorizontalValueLabelReserve(Chart chart) {
-        if (!chart.Options.ShowDataLabels && !(chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) return 0;
+        if (!HasHorizontalBarDataLabels(chart) && !(chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) return 0;
         var widest = 0.0;
         var fontSize = HorizontalValueLabelFontSize(chart);
         if (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals) {
@@ -258,7 +258,7 @@ public sealed partial class PngChartRenderer {
     private static void ApplyHorizontalValueBounds(Chart chart, ChartRange range, IReadOnlyList<double> xTicks) {
         var min = xTicks[0];
         var max = xTicks[xTicks.Count - 1];
-        if (chart.Options.ShowDataLabels || (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) {
+        if (HasHorizontalBarDataLabels(chart) || (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) {
             var span = Math.Max(1, max - min);
             var hasPositive = false;
             var hasNegative = false;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
 
 namespace ChartForgeX.Raster;
 
@@ -22,7 +23,8 @@ public sealed partial class PngChartRenderer {
 
         var max = 0.0;
         foreach (var point in values) max = Math.Max(max, point.Y);
-        var metricsReserve = values.Count > 1 ? Math.Min(168, Math.Max(126, basePlot.Width * 0.22)) : 0;
+        var showLabels = series.ShowDataLabels != false;
+        var metricsReserve = showLabels && values.Count > 1 ? Math.Min(168, Math.Max(126, basePlot.Width * 0.22)) : 0;
         var innerLeft = basePlot.Left + 44;
         var innerRight = basePlot.Right - 44 - metricsReserve;
         var plot = new ChartRect(innerLeft, basePlot.Top + 18, Math.Max(120, innerRight - innerLeft), Math.Max(90, basePlot.Height - 62));
@@ -59,9 +61,11 @@ public sealed partial class PngChartRenderer {
             var labelY = centerY - labelFontSize - 2;
             var valueY = centerY + 4;
             var halo = FunnelTextHalo(labelColor, chart.Options.Theme.CardBackground);
-            DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(label, labelFontSize) / 2.0, labelY, label, labelColor, halo, labelFontSize);
-            DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(value, valueFontSize) / 2.0, valueY, value, labelColor, halo, valueFontSize);
-            if (i > 0) {
+            if (showLabels) {
+                DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(label, labelFontSize) / 2.0, labelY, label, labelColor, halo, labelFontSize);
+                DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(value, valueFontSize) / 2.0, valueY, value, labelColor, halo, valueFontSize);
+            }
+            if (showLabels && i > 0) {
                 var retention = values[i].Y / values[0].Y;
                 var dropOff = 1 - values[i].Y / values[i - 1].Y;
                 var guideX = Math.Min(metricsX - 10, bottomRight + 8);
@@ -70,7 +74,7 @@ public sealed partial class PngChartRenderer {
                 var metricFontSize = Math.Min(
                     TextFontSizeForEmphasizedWidth(retentionLabel, Math.Max(32, basePlot.Right - metricsX - 6), PngTickFontSize(chart)),
                     TextFontSizeForEmphasizedWidth(dropOffLabel, Math.Max(32, basePlot.Right - metricsX - 6), PngTickFontSize(chart)));
-                c.DrawDashedLine(guideX, y - gap * 0.35, guideX, y + segmentHeight * 0.45, chart.Options.Theme.Axis, 1, 3, 4);
+                c.DrawDashedLine(guideX, y - gap * 0.35, guideX, y + segmentHeight * 0.45, ApplyOpacity(chart.Options.Theme.Axis, ChartVisualPrimitives.FunnelDropoffLineOpacity), ChartVisualPrimitives.FunnelDropoffLineStrokeWidth, 3, 4);
                 c.DrawTextEmphasized(metricsX, centerY - metricFontSize - 4, retentionLabel, chart.Options.Theme.MutedText, metricFontSize);
                 c.DrawTextEmphasized(metricsX, centerY + 4, dropOffLabel, chart.Options.Theme.Negative, metricFontSize);
             }
@@ -88,14 +92,14 @@ public sealed partial class PngChartRenderer {
     }
 
     private static void DrawFunnelSegmentStroke(RgbaCanvas c, Chart chart, IReadOnlyList<ChartPoint> segment) {
-        var border = ApplyOpacity(chart.Options.Theme.CardBackground, 0.80);
-        var highlight = ApplyOpacity(ChartColor.White, chart.Options.Theme.Background.R < 80 ? 0.14 : 0.22);
+        var border = ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.FunnelSegmentStrokeOpacity);
+        var highlight = ApplyOpacity(ChartColor.White, chart.Options.Theme.Background.R < 80 ? ChartVisualPrimitives.FunnelHighlightOpacityDark : ChartVisualPrimitives.FunnelHighlightOpacityLight);
         for (var i = 0; i < segment.Count; i++) {
             var next = segment[(i + 1) % segment.Count];
-            c.DrawLine(segment[i].X, segment[i].Y, next.X, next.Y, border, 1);
+            c.DrawLine(segment[i].X, segment[i].Y, next.X, next.Y, border, ChartVisualPrimitives.FunnelSegmentStrokeWidth);
         }
 
-        c.DrawLine(segment[0].X + 2, segment[0].Y + 1, segment[1].X - 2, segment[1].Y + 1, highlight, 1);
+        c.DrawLine(segment[0].X + 2, segment[0].Y + 1, segment[1].X - 2, segment[1].Y + 1, highlight, ChartVisualPrimitives.GridStrokeWidth);
     }
 
     private static ChartColor FunnelTextColor(ChartColor background) {

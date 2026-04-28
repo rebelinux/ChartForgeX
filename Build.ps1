@@ -45,10 +45,14 @@ function New-VisualBaseline {
             height = [int]$chart.svg.height
             svg = [ordered]@{
                 minVisualNodes = [int][Math]::Max(2, [int][Math]::Floor([double]$chart.svg.visualNodes * 0.5))
+                maxClippedTextNodes = [int]$chart.svg.clippedTextNodes
+                maxNearEdgeTextNodes = [int]$chart.svg.nearEdgeTextNodes
             }
             png = [ordered]@{
+                outputScale = [int]$chart.png.scale
                 minVisiblePixels = [long][Math]::Max(64, [long][Math]::Floor([double]$chart.png.visiblePixels * 0.5))
                 minDistinctColors = [int][Math]::Max(8, [int][Math]::Floor([double]$chart.png.distinctColors * 0.5))
+                maxEdgeInkPixels = [long]$chart.png.edgeInkPixels
             }
         }
     }
@@ -94,16 +98,28 @@ function Assert-VisualBaseline {
         }
 
         $actual = $generatedCharts[$expected.name]
-        if ($actual.svg.width -ne $expected.width -or $actual.svg.height -ne $expected.height -or $actual.png.width -ne $expected.width -or $actual.png.height -ne $expected.height) {
-            throw "SVG/PNG baseline dimensions changed for $($expected.name). Expected $($expected.width)x$($expected.height). See $ComparisonManifest."
+        $expectedScale = if ($expected.png.PSObject.Properties.Name -contains 'outputScale') { [int]$expected.png.outputScale } else { 1 }
+        if ($actual.svg.width -ne $expected.width -or $actual.svg.height -ne $expected.height -or $actual.png.width -ne ($expected.width * $expectedScale) -or $actual.png.height -ne ($expected.height * $expectedScale)) {
+            throw "SVG/PNG baseline dimensions changed for $($expected.name). Expected $($expected.width)x$($expected.height) at PNG scale $expectedScale. See $ComparisonManifest."
         }
 
         if ($actual.svg.visualNodes -lt $expected.svg.minVisualNodes) {
             throw "SVG visual-node baseline dropped for $($expected.name): $($actual.svg.visualNodes) < $($expected.svg.minVisualNodes). See $ComparisonManifest."
         }
 
+        $maxClippedTextNodes = if ($expected.svg.PSObject.Properties.Name -contains 'maxClippedTextNodes') { [int]$expected.svg.maxClippedTextNodes } else { 0 }
+        $maxNearEdgeTextNodes = if ($expected.svg.PSObject.Properties.Name -contains 'maxNearEdgeTextNodes') { [int]$expected.svg.maxNearEdgeTextNodes } else { [int]::MaxValue }
+        if ($actual.svg.clippedTextNodes -gt $maxClippedTextNodes -or $actual.svg.nearEdgeTextNodes -gt $maxNearEdgeTextNodes) {
+            throw "SVG text-edge baseline regressed for $($expected.name): clipped $($actual.svg.clippedTextNodes), near-edge $($actual.svg.nearEdgeTextNodes). See $ComparisonManifest."
+        }
+
         if ($actual.png.visiblePixels -lt $expected.png.minVisiblePixels -or $actual.png.distinctColors -lt $expected.png.minDistinctColors) {
             throw "PNG visibility baseline dropped for $($expected.name): $($actual.png.visiblePixels) visible pixel(s), $($actual.png.distinctColors) color(s). See $ComparisonManifest."
+        }
+
+        $maxEdgeInkPixels = if ($expected.png.PSObject.Properties.Name -contains 'maxEdgeInkPixels') { [long]$expected.png.maxEdgeInkPixels } else { 0 }
+        if ($actual.png.edgeInkPixels -gt $maxEdgeInkPixels) {
+            throw "PNG edge-pressure baseline regressed for $($expected.name): $($actual.png.edgeInkPixels) edge-ink pixel(s). See $ComparisonManifest."
         }
     }
 

@@ -19,10 +19,7 @@ public sealed partial class PngChartRenderer {
             max = Math.Max(max, item.End);
         }
 
-        if (Math.Abs(max - min) < 0.000001) max = min + 1;
-        var span = max - min;
-        min -= span * 0.04;
-        max += span * 0.04;
+        ApplyTimelineAxisBounds(chart, ref min, ref max);
         var tickFontSize = PngTickFontSize(chart);
         var dataFontSize = chart.Options.Theme.DataLabelFontSize;
         plot = ApplyPngTimelineReserve(chart, plot, items, tickFontSize);
@@ -34,7 +31,7 @@ public sealed partial class PngChartRenderer {
 
         foreach (var tick in ticks) {
             var x = ProjectTimelineX(tick, min, max, plot);
-            if (chart.Options.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ChartColor.FromRgba(chart.Options.Theme.Grid.R, chart.Options.Theme.Grid.G, chart.Options.Theme.Grid.B, (byte)(chart.Options.Theme.Grid.A / 2)), 1);
+            if (chart.Options.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.TimelineGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
                 var label = FormatTimelineTick(chart, tick);
                 label = TrimReadablePngLabelToWidth(label, tickFontSize, tickLabelWidth);
@@ -50,20 +47,20 @@ public sealed partial class PngChartRenderer {
             var x2 = ProjectTimelineX(item.End, min, max, plot);
             var left = Math.Min(x1, x2);
             var width = Math.Max(2, Math.Abs(x2 - x1));
-            if (chart.Options.ShowGrid) c.DrawLine(plot.Left, y + rowHeight / 2, plot.Right, y + rowHeight / 2, ChartColor.FromRgba(chart.Options.Theme.Grid.R, chart.Options.Theme.Grid.G, chart.Options.Theme.Grid.B, (byte)(chart.Options.Theme.Grid.A / 3)), 1);
+            if (chart.Options.ShowGrid) c.DrawLine(plot.Left, y + rowHeight / 2, plot.Right, y + rowHeight / 2, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.TimelineRowGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
                 var rowLabel = TrimReadablePngLabelToWidth(item.Name, tickFontSize, rowLabelWidth);
                 if (rowLabel.Length > 0) c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, tickFontSize) - 14, y + rowHeight / 2 - tickFontSize / 2, rowLabel, chart.Options.Theme.MutedText, tickFontSize);
             }
             DrawTimelineRangeBar(c, chart, item.Color, left, y, width, rowHeight);
-            if (chart.Options.ShowDataLabels && width >= Math.Max(72, EstimatePngEmphasizedTextWidth("100d", dataFontSize) + 14)) {
-                var label = FormatTimelineDuration(item.Start, item.End);
+            if (item.ShowDataLabels && width >= Math.Max(72, EstimatePngEmphasizedTextWidth("100d", dataFontSize) + 14)) {
+                var label = FormatTimelineDuration(chart, item.Start, item.End);
                 DrawReadablePngLabelCentered(c, new ChartRect(left, y, width, rowHeight), label, HeatmapTextColor(item.Color), item.Color, dataFontSize);
             }
         }
 
         if (chart.Options.ShowAxes) {
-            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, 1);
+            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
             DrawTimelineAxisTitles(c, chart, plot);
         }
     }
@@ -80,14 +77,14 @@ public sealed partial class PngChartRenderer {
     }
 
     private static void DrawTimelineRangeBar(RgbaCanvas c, Chart chart, ChartColor color, double left, double y, double width, double rowHeight) {
-        var radius = Math.Min(8, rowHeight / 2);
-        c.FillRoundedRectVerticalGradient(left, y, width, rowHeight, radius, Blend(ChartColor.White, color, 0.96), Blend(ChartColor.Black, color, 0.98));
-        c.StrokeRoundedRect(left, y, width, rowHeight, radius, ApplyOpacity(chart.Options.Theme.CardBackground, 0.58));
+        var radius = Math.Min(ChartVisualPrimitives.TimelineItemCornerRadiusMax, rowHeight / 2);
+        c.FillRoundedRectVerticalGradient(left, y, width, rowHeight, radius, TimelineItemGradientTop(color), TimelineItemGradientBottom(color));
+        c.StrokeRoundedRect(left, y, width, rowHeight, radius, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.TimelineItemBorderOpacity), ChartVisualPrimitives.TimelineItemBorderStrokeWidth);
 
         var inset = Math.Min(radius, width / 3);
         var x1 = left + inset;
         var x2 = left + width - inset;
-        if (x2 > x1) c.DrawLine(x1, y + 1.25, x2, y + 1.25, ChartColor.FromRgba(255, 255, 255, 48), 1);
+        if (x2 > x1) c.DrawLine(x1, y + ChartVisualPrimitives.TimelineItemHighlightOffsetY, x2, y + ChartVisualPrimitives.TimelineItemHighlightOffsetY, ApplyOpacity(ChartColor.White, ChartVisualPrimitives.TimelineItemHighlightOpacity), ChartVisualPrimitives.GridStrokeWidth);
     }
 
     private static bool IsTimelineChart(Chart chart) {
@@ -103,7 +100,7 @@ public sealed partial class PngChartRenderer {
             var point = series.Points[0];
             var start = Math.Min(point.X, point.Y);
             var end = Math.Max(point.X, point.Y);
-            items.Add(new TimelineItem(series.Name, start, end, series.Color ?? chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length]));
+            items.Add(new TimelineItem(series.Name, start, end, series.Color ?? chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length], ShouldDrawDataLabels(chart, series)));
         }
 
         return items;
@@ -113,10 +110,23 @@ public sealed partial class PngChartRenderer {
         return plot.Left + (value - min) / Math.Max(0.000001, max - min) * plot.Width;
     }
 
+    private static void ApplyTimelineAxisBounds(Chart chart, ref double min, ref double max) {
+        var hasMinimum = chart.Options.XAxisMinimum.HasValue;
+        var hasMaximum = chart.Options.XAxisMaximum.HasValue;
+        if (hasMinimum) min = chart.Options.XAxisMinimum!.Value;
+        if (hasMaximum) max = chart.Options.XAxisMaximum!.Value;
+        if (max <= min || Math.Abs(max - min) < 0.000001) max = min + 1;
+        var span = max - min;
+        if (!hasMinimum) min -= span * 0.04;
+        if (!hasMaximum) max += span * 0.04;
+    }
+
     private static string FormatTimelineTick(Chart chart, double value) {
         foreach (var label in chart.Options.XAxisLabels) {
             if (Math.Abs(label.Value - value) < 0.000001) return label.Text;
         }
+
+        if (chart.Options.XAxisValueFormatter != null) return chart.Options.XAxisValueFormatter(value) ?? string.Empty;
 
         try {
             return DateTime.FromOADate(value).ToString("MMM d", CultureInfo.InvariantCulture);
@@ -125,10 +135,19 @@ public sealed partial class PngChartRenderer {
         }
     }
 
-    private static string FormatTimelineDuration(double start, double end) {
-        var days = Math.Max(1, (int)Math.Round(Math.Abs(end - start)));
-        return days.ToString(CultureInfo.InvariantCulture) + "d";
+    private static string FormatTimelineDuration(Chart chart, double start, double end) {
+        var duration = Math.Max(1, Math.Abs(end - start));
+        if (chart.Options.ValueFormatter != null) return chart.Options.ValueFormatter(duration) ?? string.Empty;
+        return ((int)Math.Round(duration)).ToString(CultureInfo.InvariantCulture) + "d";
     }
+
+    private static ChartColor TimelineItemGradientTop(ChartColor color) => Blend(ChartColor.White, color, ChartVisualPrimitives.TimelineItemGradientTopBlend);
+
+    private static ChartColor TimelineItemGradientBottom(ChartColor color) => Blend(ChartColor.Black, color, ChartVisualPrimitives.TimelineItemGradientBottomBlend);
+
+    private static ChartColor GanttTaskGradientTop(ChartColor color) => Blend(ChartColor.White, color, ChartVisualPrimitives.GanttTaskGradientTopBlend);
+
+    private static ChartColor GanttTaskGradientBottom(ChartColor color) => Blend(ChartColor.Black, color, ChartVisualPrimitives.GanttTaskGradientBottomBlend);
 
     private static void DrawTimelineAxisTitles(RgbaCanvas c, Chart chart, ChartRect plot) {
         if (!string.IsNullOrWhiteSpace(chart.XAxisTitle)) {
@@ -139,11 +158,12 @@ public sealed partial class PngChartRenderer {
     }
 
     private readonly struct TimelineItem {
-        public TimelineItem(string name, double start, double end, ChartColor color) {
+        public TimelineItem(string name, double start, double end, ChartColor color, bool showDataLabels) {
             Name = name;
             Start = start;
             End = end;
             Color = color;
+            ShowDataLabels = showDataLabels;
         }
 
         public string Name { get; }
@@ -153,5 +173,7 @@ public sealed partial class PngChartRenderer {
         public double End { get; }
 
         public ChartColor Color { get; }
+
+        public bool ShowDataLabels { get; }
     }
 }

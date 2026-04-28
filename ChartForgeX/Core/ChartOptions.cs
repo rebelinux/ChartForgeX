@@ -21,6 +21,7 @@ public sealed class ChartOptions {
     private string? _pngFontFaceName;
     private int? _pngFontCollectionIndex;
     private int _pngSupersamplingScale = 2;
+    private int _pngOutputScale = 1;
     private double? _xAxisMinimum;
     private double? _xAxisMaximum;
     private double? _yAxisMinimum;
@@ -110,6 +111,20 @@ public sealed class ChartOptions {
         set {
             if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG supersampling scale must be between one and four.");
             _pngSupersamplingScale = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the output pixel multiplier used by the PNG renderer.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="PngSupersamplingScale"/>, this changes the emitted PNG dimensions while preserving the chart's logical layout.
+    /// </remarks>
+    public int PngOutputScale {
+        get => _pngOutputScale;
+        set {
+            if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG output scale must be between one and four.");
+            _pngOutputScale = value;
         }
     }
 

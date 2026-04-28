@@ -5,11 +5,20 @@ using ChartForgeX.Themes;
 
 var output = Path.Combine(AppContext.BaseDirectory, "output");
 Directory.CreateDirectory(output);
+const ChartPngOutputScale DemoPngOutputScale = ChartPngOutputScale.Retina;
 
 void SaveChart(Chart chart, string name) {
+    chart.WithPngOutputScale(DemoPngOutputScale);
     chart.SaveSvg(Path.Combine(output, name + ".svg"));
     chart.SaveHtml(Path.Combine(output, name + ".html"));
     chart.SavePng(Path.Combine(output, name + ".png"));
+}
+
+void SaveGrid(ChartGrid grid, string name) {
+    grid.WithPngOutputScale(DemoPngOutputScale);
+    grid.SaveSvg(Path.Combine(output, name + ".svg"));
+    grid.SavePng(Path.Combine(output, name + ".png"));
+    grid.SaveHtml(Path.Combine(output, name + ".html"));
 }
 
 var dnssec = Chart.Create()
@@ -192,9 +201,7 @@ var controlScorecardGrid = ChartGrid.Create()
     .Add(radar)
     .Add(polarArea);
 
-controlScorecardGrid.SaveSvg(Path.Combine(output, "control-scorecards-grid.svg"));
-controlScorecardGrid.SavePng(Path.Combine(output, "control-scorecards-grid.png"));
-controlScorecardGrid.SaveHtml(Path.Combine(output, "control-scorecards-grid.html"));
+SaveGrid(controlScorecardGrid, "control-scorecards-grid");
 
 var sharedCoverageNorth = Chart.Create()
     .WithTitle("Primary Domains")
@@ -225,9 +232,7 @@ var sharedAxisGrid = ChartGrid.Create()
     .Add(sharedCoverageAcquired)
     .WithSharedAxes();
 
-sharedAxisGrid.SaveSvg(Path.Combine(output, "shared-axis-coverage-grid.svg"));
-sharedAxisGrid.SavePng(Path.Combine(output, "shared-axis-coverage-grid.png"));
-sharedAxisGrid.SaveHtml(Path.Combine(output, "shared-axis-coverage-grid.html"));
+SaveGrid(sharedAxisGrid, "shared-axis-coverage-grid");
 
 var funnel = Chart.Create()
     .WithTitle("Domain Remediation Funnel")
@@ -379,9 +384,7 @@ var sparkline = Chart.Create()
     .WithSparkline()
     .AddSmoothArea("Warnings", Points(120, 138, 132, 110, 98, 86, 72, 68), ChartColor.FromRgb(251, 191, 36));
 
-sparkline.SaveSvg(Path.Combine(output, "warnings-sparkline.svg"));
-sparkline.SaveHtml(Path.Combine(output, "warnings-sparkline.html"));
-sparkline.SavePng(Path.Combine(output, "warnings-sparkline.png"));
+SaveChart(sparkline, "warnings-sparkline");
 
 var donut = Chart.Create()
     .WithTitle("Domain Check Result Mix")
@@ -391,9 +394,7 @@ var donut = Chart.Create()
     .WithXLabels("Passed", "Warnings", "Failed")
     .AddDonut("Checks", Points(1260, 68, 10));
 
-donut.SaveSvg(Path.Combine(output, "result-mix-donut.svg"));
-donut.SaveHtml(Path.Combine(output, "result-mix-donut.html"));
-donut.SavePng(Path.Combine(output, "result-mix-donut.png"));
+SaveChart(donut, "result-mix-donut");
 
 var monthly = Chart.Create()
     .WithTitle("Monthly Security Posture")
@@ -410,9 +411,7 @@ var monthly = Chart.Create()
     .AddSmoothLine("Dnssec policy posture", Points(69, 71, 73, 74, 76, 78, 79, 81, 83, 84, 86, 88), ChartColor.FromRgb(167, 139, 250))
     .AddHorizontalLine(90, "target", ChartColor.FromRgb(251, 191, 36));
 
-monthly.SaveSvg(Path.Combine(output, "monthly-posture-dark.svg"));
-monthly.SaveHtml(Path.Combine(output, "monthly-posture-dark.html"));
-monthly.SavePng(Path.Combine(output, "monthly-posture-dark.png"));
+SaveChart(monthly, "monthly-posture-dark");
 
 var annotationEdge = Chart.Create()
     .WithTitle("Annotation Edge Handling")
@@ -426,9 +425,7 @@ var annotationEdge = Chart.Create()
     .AddVerticalLine(6, "right edge marker", ChartColor.FromRgb(251, 191, 36))
     .AddHorizontalLine(100, "target", ChartColor.FromRgb(52, 211, 153));
 
-annotationEdge.SaveSvg(Path.Combine(output, "annotation-edge-dark.svg"));
-annotationEdge.SaveHtml(Path.Combine(output, "annotation-edge-dark.html"));
-annotationEdge.SavePng(Path.Combine(output, "annotation-edge-dark.png"));
+SaveChart(annotationEdge, "annotation-edge-dark");
 
 var labels = Chart.Create()
     .WithTitle("Data Label Readability")
@@ -442,9 +439,7 @@ var labels = Chart.Create()
     .AddSmoothLine("Detected", Points(980, 760, 880, 920, 1020, 990), ChartColor.FromRgb(96, 165, 250))
     .AddBar("Escalated", Points(240, 320, 280, 410, 390, 450), ChartColor.FromRgb(251, 191, 36));
 
-labels.SaveSvg(Path.Combine(output, "data-label-readability-dark.svg"));
-labels.SaveHtml(Path.Combine(output, "data-label-readability-dark.html"));
-labels.SavePng(Path.Combine(output, "data-label-readability-dark.png"));
+SaveChart(labels, "data-label-readability-dark");
 
 var latency = Chart.Create()
     .WithTitle("Endpoint Latency")
@@ -515,9 +510,7 @@ var regional = Chart.Create()
     .AddBar("Logged certificates", Points(1200000, 2350000, 1840000, 3120000, 980000, 760000))
     .AddHorizontalLine(2000000, "2M benchmark", ChartColor.FromRgb(245, 158, 11));
 
-regional.SaveSvg(Path.Combine(output, "ct-regional-light.svg"));
-regional.SaveHtml(Path.Combine(output, "ct-regional-light.html"));
-regional.SavePng(Path.Combine(output, "ct-regional-light.png"));
+SaveChart(regional, "ct-regional-light");
 
 var latencyDistribution = Chart.Create()
     .WithTitle("Endpoint Latency Distribution")
@@ -529,9 +522,7 @@ var latencyDistribution = Chart.Create()
     .WithDataLabels()
     .AddHistogram("P95 samples", new[] { 28d, 31d, 36d, 42d, 47d, 58d, 64d, 72d, 86d, 91d, 118d, 146d, 182d }, 5, ChartColor.FromRgb(37, 99, 235));
 
-latencyDistribution.SaveSvg(Path.Combine(output, "endpoint-latency-histogram-light.svg"));
-latencyDistribution.SaveHtml(Path.Combine(output, "endpoint-latency-histogram-light.html"));
-latencyDistribution.SavePng(Path.Combine(output, "endpoint-latency-histogram-light.png"));
+SaveChart(latencyDistribution, "endpoint-latency-histogram-light");
 
 var readinessLollipop = Chart.Create()
     .WithTitle("Control Readiness")
@@ -546,9 +537,7 @@ var readinessLollipop = Chart.Create()
     .AddLollipop("Coverage", Points(96, 88, 74, 63, 58), ChartColor.FromRgb(96, 165, 250))
     .AddHorizontalLine(80, "target", ChartColor.FromRgb(251, 191, 36));
 
-readinessLollipop.SaveSvg(Path.Combine(output, "control-readiness-lollipop-dark.svg"));
-readinessLollipop.SaveHtml(Path.Combine(output, "control-readiness-lollipop-dark.html"));
-readinessLollipop.SavePng(Path.Combine(output, "control-readiness-lollipop-dark.png"));
+SaveChart(readinessLollipop, "control-readiness-lollipop-dark");
 
 var latencyRanges = Chart.Create()
     .WithTitle("Endpoint Latency Ranges")
@@ -568,9 +557,7 @@ var latencyRanges = Chart.Create()
         new ChartInterval(5, 144, 232)
     }, ChartColor.FromRgb(14, 165, 233));
 
-latencyRanges.SaveSvg(Path.Combine(output, "endpoint-latency-range-light.svg"));
-latencyRanges.SaveHtml(Path.Combine(output, "endpoint-latency-range-light.html"));
-latencyRanges.SavePng(Path.Combine(output, "endpoint-latency-range-light.png"));
+SaveChart(latencyRanges, "endpoint-latency-range-light");
 
 var latencySpread = Chart.Create()
     .WithTitle("Endpoint Latency Spread")
@@ -589,9 +576,7 @@ var latencySpread = Chart.Create()
         new ChartBoxPlot(4, 112, 128, 146, 184, 228)
     }, ChartColor.FromRgb(96, 165, 250));
 
-latencySpread.SaveSvg(Path.Combine(output, "endpoint-latency-boxplot-dark.svg"));
-latencySpread.SaveHtml(Path.Combine(output, "endpoint-latency-boxplot-dark.html"));
-latencySpread.SavePng(Path.Combine(output, "endpoint-latency-boxplot-dark.png"));
+SaveChart(latencySpread, "endpoint-latency-boxplot-dark");
 
 var exposureClusters = Chart.Create()
     .WithTitle("Exposure Clusters")
@@ -609,9 +594,7 @@ var exposureClusters = Chart.Create()
         new ChartBubble(3.8, 54, 36)
     }, ChartColor.FromRgb(37, 99, 235));
 
-exposureClusters.SaveSvg(Path.Combine(output, "exposure-clusters-bubble-light.svg"));
-exposureClusters.SaveHtml(Path.Combine(output, "exposure-clusters-bubble-light.html"));
-exposureClusters.SavePng(Path.Combine(output, "exposure-clusters-bubble-light.png"));
+SaveChart(exposureClusters, "exposure-clusters-bubble-light");
 
 var remediationTrendPoints = new[] {
     new ChartPoint(1, 118),
@@ -634,9 +617,7 @@ var remediationTrend = Chart.Create()
     .AddMeanLine("mean", remediationTrendPoints, ChartColor.FromRgb(14, 165, 233))
     .AddStandardDeviationBand("1 sigma", remediationTrendPoints, 1, ChartColor.FromRgb(96, 165, 250), 0.12);
 
-remediationTrend.SaveSvg(Path.Combine(output, "observed-remediation-trend-light.svg"));
-remediationTrend.SaveHtml(Path.Combine(output, "observed-remediation-trend-light.html"));
-remediationTrend.SavePng(Path.Combine(output, "observed-remediation-trend-light.png"));
+SaveChart(remediationTrend, "observed-remediation-trend-light");
 
 var confidenceIntervals = Chart.Create()
     .WithTitle("Detection Confidence")
@@ -656,9 +637,7 @@ var confidenceIntervals = Chart.Create()
         new ChartErrorBar(5, 81, 74, 88)
     }, ChartColor.FromRgb(96, 165, 250));
 
-confidenceIntervals.SaveSvg(Path.Combine(output, "detection-confidence-errorbar-dark.svg"));
-confidenceIntervals.SaveHtml(Path.Combine(output, "detection-confidence-errorbar-dark.html"));
-confidenceIntervals.SavePng(Path.Combine(output, "detection-confidence-errorbar-dark.png"));
+SaveChart(confidenceIntervals, "detection-confidence-errorbar-dark");
 
 var signalWindows = Chart.Create()
     .WithTitle("Signal Windows")
@@ -678,9 +657,7 @@ var signalWindows = Chart.Create()
         new ChartCandlestick(6, 71, 88, 69, 83)
     });
 
-signalWindows.SaveSvg(Path.Combine(output, "signal-windows-candlestick-light.svg"));
-signalWindows.SaveHtml(Path.Combine(output, "signal-windows-candlestick-light.html"));
-signalWindows.SavePng(Path.Combine(output, "signal-windows-candlestick-light.png"));
+SaveChart(signalWindows, "signal-windows-candlestick-light");
 
 var signalOhlc = Chart.Create()
     .WithTitle("Signal Windows OHLC")
@@ -700,9 +677,7 @@ var signalOhlc = Chart.Create()
         new ChartCandlestick(6, 71, 88, 69, 83)
     });
 
-signalOhlc.SaveSvg(Path.Combine(output, "signal-windows-ohlc-dark.svg"));
-signalOhlc.SaveHtml(Path.Combine(output, "signal-windows-ohlc-dark.html"));
-signalOhlc.SavePng(Path.Combine(output, "signal-windows-ohlc-dark.png"));
+SaveChart(signalOhlc, "signal-windows-ohlc-dark");
 
 var forecastEnvelope = Chart.Create()
     .WithTitle("Forecast Envelope")
@@ -722,9 +697,7 @@ var forecastEnvelope = Chart.Create()
         new ChartRangeBand(6, 74, 96)
     }, ChartColor.FromRgb(96, 165, 250));
 
-forecastEnvelope.SaveSvg(Path.Combine(output, "forecast-envelope-rangeband-dark.svg"));
-forecastEnvelope.SaveHtml(Path.Combine(output, "forecast-envelope-rangeband-dark.html"));
-forecastEnvelope.SavePng(Path.Combine(output, "forecast-envelope-rangeband-dark.png"));
+SaveChart(forecastEnvelope, "forecast-envelope-rangeband-dark");
 
 var forecastInterval = Chart.Create()
     .WithTitle("Forecast Interval")
@@ -745,9 +718,7 @@ var forecastInterval = Chart.Create()
     }, ChartColor.FromRgb(14, 165, 233))
     .AddSmoothLine("Observed", Points(36, 49, 61, 70, 80, 86, 91), ChartColor.FromRgb(37, 99, 235));
 
-forecastInterval.SaveSvg(Path.Combine(output, "forecast-interval-rangearea-light.svg"));
-forecastInterval.SaveHtml(Path.Combine(output, "forecast-interval-rangearea-light.html"));
-forecastInterval.SavePng(Path.Combine(output, "forecast-interval-rangearea-light.png"));
+SaveChart(forecastInterval, "forecast-interval-rangearea-light");
 
 var remediationLift = Chart.Create()
     .WithTitle("Remediation Lift")
@@ -767,9 +738,7 @@ var remediationLift = Chart.Create()
         new ChartDumbbell(5, 58, 81)
     }, ChartColor.FromRgb(37, 99, 235));
 
-remediationLift.SaveSvg(Path.Combine(output, "remediation-lift-dumbbell-light.svg"));
-remediationLift.SaveHtml(Path.Combine(output, "remediation-lift-dumbbell-light.html"));
-remediationLift.SavePng(Path.Combine(output, "remediation-lift-dumbbell-light.png"));
+SaveChart(remediationLift, "remediation-lift-dumbbell-light");
 
 var findingsPareto = Chart.Create()
     .WithTitle("Findings Pareto")
@@ -787,9 +756,7 @@ var findingsPareto = Chart.Create()
         new ChartParetoItem("Low", 8)
     }, ChartColor.FromRgb(96, 165, 250), ChartColor.FromRgb(251, 191, 36));
 
-findingsPareto.SaveSvg(Path.Combine(output, "findings-pareto-dark.svg"));
-findingsPareto.SaveHtml(Path.Combine(output, "findings-pareto-dark.html"));
-findingsPareto.SavePng(Path.Combine(output, "findings-pareto-dark.png"));
+SaveChart(findingsPareto, "findings-pareto-dark");
 
 GalleryWriter.Write(output);
 Console.WriteLine("Generated files in: " + output);

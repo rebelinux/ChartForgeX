@@ -36,11 +36,10 @@ public sealed partial class PngChartRenderer {
             var radius = outerRadius - i * (stroke + gap) - stroke / 2;
             if (radius <= stroke / 2) continue;
             var color = series.Color ?? theme.Palette[i % theme.Palette.Length];
-            c.DrawArc(cx, cy, radius, start, start + Math.PI * 2, ApplyOpacity(theme.Grid, 0.44), Math.Max(1, (int)Math.Round(stroke)));
+            c.DrawArc(cx, cy, radius, start, start + Math.PI * 2, ApplyOpacity(theme.Grid, ChartVisualPrimitives.RadialTrackOpacity), Math.Max(1, stroke));
             if (ratio <= 0) continue;
             var end = start + Math.PI * 2 * ratio;
-            c.DrawArc(cx, cy, radius, start, end, color, Math.Max(1, (int)Math.Round(stroke)));
-            DrawRadialBarEndpoint(c, cx, cy, radius, end, color, stroke);
+            c.DrawArc(cx, cy, radius, start, end, color, Math.Max(1, stroke));
         }
 
         var centerLabel = FormatValue(chart, average);
@@ -48,17 +47,13 @@ public sealed partial class PngChartRenderer {
         var centerDiskRadius = Math.Max(26, outerRadius - count * (stroke + gap) - 2);
         var valueFontSize = Math.Max(26, theme.TitleFontSize * 1.32);
         var nameFontSize = Math.Max(9, theme.LegendFontSize - 1);
-        c.DrawCircle(cx, cy, centerDiskRadius, ApplyOpacity(theme.CardBackground, 0.86));
-        c.DrawCircleOutline(cx, cy, centerDiskRadius, ApplyOpacity(theme.Grid, 0.20), 1);
-        DrawPngTextEmphasizedCenteredX(c, cx, cy - theme.TitleFontSize * 0.42 - valueFontSize / 2.0, centerLabel, theme.Text, valueFontSize, labelWidth);
-        DrawPngTextEmphasizedCenteredX(c, cx, cy + theme.LegendFontSize + 14 - nameFontSize + 1, series.Name, theme.MutedText, nameFontSize, labelWidth);
+        c.DrawCircle(cx, cy, centerDiskRadius, ApplyOpacity(theme.CardBackground, ChartVisualPrimitives.RadialCenterFillOpacity));
+        c.DrawCircleOutline(cx, cy, centerDiskRadius, ApplyOpacity(theme.Grid, ChartVisualPrimitives.RadialCenterStrokeOpacity), 1);
+        if (series.ShowDataLabels != false) {
+            DrawPngTextEmphasizedCenteredX(c, cx, cy - theme.TitleFontSize * 0.42 - valueFontSize / 2.0, centerLabel, theme.Text, valueFontSize, labelWidth);
+            DrawPngTextEmphasizedCenteredX(c, cx, cy + theme.LegendFontSize + 14 - nameFontSize + 1, series.Name, theme.MutedText, nameFontSize, labelWidth);
+        }
         if (chart.Options.ShowLegend) DrawRadialBarLegend(c, chart, plot, series);
-    }
-
-    private static void DrawRadialBarEndpoint(RgbaCanvas c, double cx, double cy, double radius, double angle, ChartColor color, double stroke) {
-        var x = cx + Math.Cos(angle) * radius;
-        var y = cy + Math.Sin(angle) * radius;
-        c.DrawCircle(x, y, Math.Max(2, stroke / 2.0), color);
     }
 
     private static void DrawRadialBarLegend(RgbaCanvas c, Chart chart, ChartRect plot, ChartSeries series) {
@@ -73,7 +68,7 @@ public sealed partial class PngChartRenderer {
             var value = FormatValue(chart, point.Y);
             var maxLabelWidth = Math.Max(24, valueX - x - 34 - EstimatePngEmphasizedTextWidth(value, fontSize));
             label = TrimReadablePngLabelToWidth(label, fontSize, maxLabelWidth);
-            c.DrawCircle(x, y - 4, 4.8, color);
+            c.DrawCircle(x, y - 4, ChartVisualPrimitives.RadialLegendMarkerRadius, color);
             if (label.Length > 0) c.DrawTextEmphasized(x + 13, y - fontSize + 2, label, chart.Options.Theme.Text, fontSize);
             c.DrawTextEmphasized(valueX - EstimatePngEmphasizedTextWidth(value, fontSize), y - fontSize + 2, value, chart.Options.Theme.MutedText, fontSize);
             y += fontSize + 10;

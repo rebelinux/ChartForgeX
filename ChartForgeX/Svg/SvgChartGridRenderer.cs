@@ -24,7 +24,7 @@ public sealed class SvgChartGridRenderer {
         var background = theme.Background.A == 0 ? theme.CardBackground.ToCss() : theme.Background.ToCss();
         var id = "cfx-grid-" + StableHash(grid.Title + "|" + grid.Charts.Count.ToString(CultureInfo.InvariantCulture));
         var sb = new StringBuilder();
-        sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" + layout.Width.ToString(CultureInfo.InvariantCulture) + "\" height=\"" + layout.Height.ToString(CultureInfo.InvariantCulture) + "\" viewBox=\"0 0 " + layout.Width.ToString(CultureInfo.InvariantCulture) + " " + layout.Height.ToString(CultureInfo.InvariantCulture) + "\" role=\"img\" aria-labelledby=\"" + id + "-title " + id + "-desc\" preserveAspectRatio=\"xMidYMid meet\">");
+        sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" + layout.Width.ToString(CultureInfo.InvariantCulture) + "\" height=\"" + layout.Height.ToString(CultureInfo.InvariantCulture) + "\" viewBox=\"0 0 " + layout.Width.ToString(CultureInfo.InvariantCulture) + " " + layout.Height.ToString(CultureInfo.InvariantCulture) + "\" role=\"img\" aria-labelledby=\"" + id + "-title " + id + "-desc\" preserveAspectRatio=\"xMidYMid meet\" shape-rendering=\"geometricPrecision\" text-rendering=\"geometricPrecision\" style=\"max-width:100%;height:auto;display:block\">");
         sb.AppendLine("<title id=\"" + id + "-title\">" + Escape(grid.Title.Length == 0 ? "ChartForgeX chart grid" : grid.Title) + "</title>");
         sb.AppendLine("<desc id=\"" + id + "-desc\">" + Escape("Static chart grid containing " + grid.Charts.Count.ToString(CultureInfo.InvariantCulture) + " charts.") + "</desc>");
         sb.AppendLine("<rect width=\"100%\" height=\"100%\" fill=\"" + background + "\"/>");

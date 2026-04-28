@@ -33,6 +33,9 @@ internal static partial class SmokeTests {
         Assert(script.Contains("Visual baseline updates require examples to run", StringComparison.Ordinal), "Build script should reject visual-baseline updates when examples are skipped.");
         Assert(script.Contains("ConvertTo-Json -Depth 8", StringComparison.Ordinal), "Build script should write refreshed visual baselines as JSON.");
         Assert(script.Contains("minDistinctColors = [int][Math]::Max", StringComparison.Ordinal), "Build script should keep refreshed PNG color-diversity baselines meaningful.");
+        Assert(script.Contains("maxClippedTextNodes", StringComparison.Ordinal), "Build script should baseline SVG text-edge quality.");
+        Assert(script.Contains("maxEdgeInkPixels", StringComparison.Ordinal), "Build script should baseline PNG edge-pressure quality.");
+        Assert(script.Contains("outputScale = [int]$chart.png.scale", StringComparison.Ordinal), "Build script should record high-DPI PNG output scale in the visual baseline.");
         Assert(script.Contains("$generatedCharts.ContainsKey($expected.name)", StringComparison.Ordinal), "Build script should fail when a baseline chart is missing.");
         Assert(script.Contains("$baselineCharts.ContainsKey($actual.name)", StringComparison.Ordinal), "Build script should fail when a generated chart lacks baseline coverage.");
         Assert(script.Contains("$actual.svg.visualNodes -lt $expected.svg.minVisualNodes", StringComparison.Ordinal), "Build script should fail when SVG visual complexity drops below baseline.");
@@ -60,15 +63,22 @@ internal static partial class SmokeTests {
             var width = chart.GetProperty("width").GetInt32();
             var height = chart.GetProperty("height").GetInt32();
             var minVisualNodes = chart.GetProperty("svg").GetProperty("minVisualNodes").GetInt32();
+            var maxClippedTextNodes = chart.GetProperty("svg").GetProperty("maxClippedTextNodes").GetInt32();
             var minVisiblePixels = chart.GetProperty("png").GetProperty("minVisiblePixels").GetInt64();
             var minDistinctColors = chart.GetProperty("png").GetProperty("minDistinctColors").GetInt32();
+            var outputScale = chart.GetProperty("png").GetProperty("outputScale").GetInt32();
+            var maxEdgeInkPixels = chart.GetProperty("png").GetProperty("maxEdgeInkPixels").GetInt64();
             Assert(width >= 320 && height >= 90, "Visual baseline dimensions should describe real chart output: " + name + ".");
             Assert(minVisualNodes >= 2, "Visual baseline SVG visual-node minimum should be meaningful: " + name + ".");
+            Assert(maxClippedTextNodes == 0, "Visual baseline should reject clipped SVG text: " + name + ".");
+            Assert(outputScale >= 1 && outputScale <= 4, "Visual baseline PNG scale should be explicit: " + name + ".");
             Assert(minVisiblePixels >= 64, "Visual baseline PNG visible-pixel minimum should be meaningful: " + name + ".");
             Assert(minDistinctColors >= 8, "Visual baseline PNG color-diversity minimum should be meaningful: " + name + ".");
+            Assert(maxEdgeInkPixels == 0, "Visual baseline should reject PNG edge pressure: " + name + ".");
         }
 
         var releaseGuide = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "RELEASING.md"));
         Assert(releaseGuide.Contains("-UpdateVisualBaseline", StringComparison.Ordinal), "Release guidance should explain intentional visual-baseline refreshes.");
+        Assert(releaseGuide.Contains("clipped SVG text", StringComparison.Ordinal) && releaseGuide.Contains("PNG edge pressure", StringComparison.Ordinal), "Release guidance should explain the visual-baseline quality gates.");
     }
 }

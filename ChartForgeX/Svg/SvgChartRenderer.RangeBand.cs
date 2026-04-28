@@ -22,16 +22,19 @@ public sealed partial class SvgChartRenderer {
 
         if (lower.Count == 0) return;
         var path = BuildRangeBandPath(lower, upper);
-        sb.AppendLine($"<path data-cfx-role=\"range-band\" data-cfx-series=\"{index}\" d=\"{path}\" fill=\"{color.ToCss()}\" opacity=\"0.20\"/>");
-        sb.AppendLine($"<path data-cfx-role=\"range-band-upper\" data-cfx-series=\"{index}\" d=\"{BuildLinePath(upper, false)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.74\"/>");
-        sb.AppendLine($"<path data-cfx-role=\"range-band-lower\" data-cfx-series=\"{index}\" d=\"{BuildLinePath(lower, false)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.74\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"range-band\" data-cfx-series=\"{index}\" data-cfx-interval-count=\"{lower.Count}\" d=\"{path}\" fill=\"{color.ToCss()}\" opacity=\"{F(ChartVisualPrimitives.RangeBandFillOpacity)}\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"range-band-upper\" data-cfx-series=\"{index}\" data-cfx-interval-count=\"{upper.Count}\" d=\"{BuildLinePath(upper, false)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RangeBandBoundaryStrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{F(ChartVisualPrimitives.RangeBandBoundaryOpacity)}\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"range-band-lower\" data-cfx-series=\"{index}\" data-cfx-interval-count=\"{lower.Count}\" d=\"{BuildLinePath(lower, false)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RangeBandBoundaryStrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{F(ChartVisualPrimitives.RangeBandBoundaryOpacity)}\"/>");
         if (ShouldDrawDataLabels(chart, series)) {
+            var reservedLabels = new List<ChartLabelBounds>();
             for (var pointIndex = 0; pointIndex + 1 < series.Points.Count; pointIndex += 2) {
                 var low = series.Points[pointIndex];
                 var high = series.Points[pointIndex + 1];
                 var x = map.X(low.X);
                 var y = Math.Min(map.Y(low.Y), map.Y(high.Y)) - 10;
-                DrawDataLabel(sb, chart, FormatValue(chart, low.Y) + "-" + FormatValue(chart, high.Y), x, y, plot);
+                var label = FormatValue(chart, low.Y) + "-" + FormatValue(chart, high.Y);
+                if (!ReserveSvgLabel(label, x, y, chart, plot, reservedLabels)) continue;
+                DrawDataLabel(sb, chart, label, x, y, plot);
             }
         }
     }

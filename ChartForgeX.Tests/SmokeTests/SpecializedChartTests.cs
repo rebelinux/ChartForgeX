@@ -64,6 +64,8 @@ internal static partial class SmokeTests {
         Assert(CountOccurrences(svg, "data-cfx-role=\"box-plot\"") == 2, "Box plots should render one group per summary.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"box-body\"") == 2, "Box plots should render quartile boxes.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"box-median\"") == 2, "Box plots should render median lines.");
+        Assert(svg.Contains("data-cfx-q1=\"24\"", StringComparison.Ordinal), "Box plots should expose quartile metadata for HTML inspection.");
+        Assert(svg.Contains("<title>18-48, median 31</title>", StringComparison.Ordinal), "Box plots should expose browser tooltip metadata.");
         Assert(svg.Contains(">31</text>", StringComparison.Ordinal), "Box plot data labels should render medians when enabled.");
         var raw = Chart.Create().WithSize(640, 360).WithDataLabels().AddBoxPlot("Raw samples", 1, new[] { 18d, 24d, 31d, 38d, 48d }, ChartColor.FromRgb(37, 99, 235)).ToSvg();
         Assert(raw.Contains(">31</text>", StringComparison.Ordinal), "Raw-value box plot overload should compute the median.");
@@ -138,6 +140,9 @@ internal static partial class SmokeTests {
         Assert(CountOccurrences(svg, "data-cfx-role=\"candlestick\"") == 3, "Candlestick charts should render one group per OHLC value.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"candlestick-wick\"") == 3, "Candlestick charts should render one wick per OHLC value.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"candlestick-body\"") == 3, "Candlestick charts should render one body per OHLC value.");
+        Assert(svg.Contains("data-cfx-open=\"42\"", StringComparison.Ordinal), "Candlestick charts should expose OHLC metadata for HTML inspection.");
+        Assert(svg.Contains("data-cfx-status=\"rising\"", StringComparison.Ordinal), "Candlestick charts should expose rising/falling status metadata.");
+        Assert(svg.Contains("<title>open 42, high 51, low 35, close 48</title>", StringComparison.Ordinal), "Candlestick charts should expose browser tooltip metadata.");
         Assert(svg.Contains(">72</text>", StringComparison.Ordinal), "Candlestick data labels should render close values when enabled.");
         Assert(File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.Candlestick.cs")).Contains("PngStrokeHalo", StringComparison.Ordinal), "Candlestick PNG strokes should keep readable raster halos.");
         Assert(chart.ToPng().Length > 64, "Candlestick charts should render PNG output.");
@@ -158,6 +163,8 @@ internal static partial class SmokeTests {
         Assert(CountOccurrences(svg, "data-cfx-role=\"ohlc-open\"") == 3, "OHLC charts should render one open tick per value.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"ohlc-close\"") == 3, "OHLC charts should render one close tick per value.");
         Assert(!svg.Contains("data-cfx-role=\"candlestick-body\"", StringComparison.Ordinal), "OHLC charts should not render candlestick bodies.");
+        Assert(svg.Contains("data-cfx-close=\"48\"", StringComparison.Ordinal), "OHLC charts should expose open-high-low-close metadata for HTML inspection.");
+        Assert(svg.Contains("<title>open 42, high 51, low 35, close 48</title>", StringComparison.Ordinal), "OHLC charts should expose browser tooltip metadata.");
         Assert(svg.Contains(">72</text>", StringComparison.Ordinal), "OHLC data labels should render close values when enabled.");
         Assert(File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.Ohlc.cs")).Contains("PngStrokeHalo", StringComparison.Ordinal), "OHLC PNG strokes should keep readable raster halos.");
         Assert(chart.ToPng().Length > 64, "OHLC charts should render PNG output.");
@@ -489,7 +496,7 @@ internal static partial class SmokeTests {
         Assert(CountOccurrences(svg, "data-cfx-role=\"tree-node\"") == 6, "Tree charts should render deduplicated named nodes.");
         Assert(svg.Contains("data-cfx-depth=\"2\"", StringComparison.Ordinal), "Tree nodes should expose depth metadata.");
         Assert(svg.Contains("role=\"img\" aria-label=\"Security posture: level 0\"", StringComparison.Ordinal), "Tree nodes should expose accessible summaries.");
-        Assert(svg.Contains(">Mail authentication</text>", StringComparison.Ordinal), "Tree charts should render node labels.");
+        Assert(svg.Contains(">Mail authentication</text>", StringComparison.Ordinal) || (svg.Contains(">Mail</text>", StringComparison.Ordinal) && svg.Contains(">authentication</text>", StringComparison.Ordinal)), "Tree charts should render readable node labels.");
         Assert(chart.ToPng().Length > 64, "Tree charts should render PNG output.");
     }
 
@@ -744,6 +751,21 @@ internal static partial class SmokeTests {
         Assert(GetAttribute(svg, "data-cfx-role=\"timeline-tick-label\"", "x") >= GetAttribute(svg, "data-cfx-role=\"timeline-row-label\"", "x") + 14, "Timeline tick labels should stay inside the plotted timeline area.");
         Assert(svg.Contains(">Certificate renewal</text>", StringComparison.Ordinal), "Timelines should render row labels.");
         Assert(svg.Contains(">31d</text>", StringComparison.Ordinal), "Timelines should render optional duration labels.");
+
+        var numericTimeline = Chart.Create()
+            .WithSize(640, 360)
+            .WithDataLabels()
+            .WithXAxisValueFormatter(value => "W" + value.ToString("0", CultureInfo.InvariantCulture))
+            .WithValueFormatter(value => value.ToString("0", CultureInfo.InvariantCulture) + "w")
+            .AddTimelineRange("Numeric rollout", 1, 4)
+            .ToSvg();
+        var numericGantt = Chart.Create()
+            .WithSize(640, 360)
+            .WithXAxisValueFormatter(value => "W" + value.ToString("0", CultureInfo.InvariantCulture))
+            .AddGanttTask("Numeric task", 1, 4, 0.5)
+            .ToSvg();
+        Assert(numericTimeline.Contains("Numeric rollout: W1 to W4, duration 3w", StringComparison.Ordinal), "Numeric timelines should use custom x-axis and duration formatters in summaries.");
+        Assert(numericGantt.Contains("Numeric task: W1 to W4, 50% complete", StringComparison.Ordinal), "Numeric Gantt tasks should use custom x-axis formatters in summaries.");
     }
 
     private static void MultipleBarSeriesCanRenderAsStackedBars() {

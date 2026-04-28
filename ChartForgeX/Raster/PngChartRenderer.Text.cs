@@ -1,34 +1,42 @@
 using System;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
 
 namespace ChartForgeX.Raster;
 
 public sealed partial class PngChartRenderer {
     private static void DrawReadablePngLabel(RgbaCanvas c, double x, double y, string label, ChartColor text, ChartColor halo, double fontSize) {
-        var strongHalo = ApplyOpacity(halo, 0.72);
-        var softHalo = ApplyOpacity(halo, 0.45);
-        c.DrawText(x - 1, y, label, strongHalo, fontSize);
-        c.DrawText(x + 1, y, label, strongHalo, fontSize);
-        c.DrawText(x, y - 1, label, strongHalo, fontSize);
-        c.DrawText(x, y + 1, label, strongHalo, fontSize);
-        c.DrawText(x - 1, y - 1, label, softHalo, fontSize);
-        c.DrawText(x + 1, y - 1, label, softHalo, fontSize);
-        c.DrawText(x - 1, y + 1, label, softHalo, fontSize);
-        c.DrawText(x + 1, y + 1, label, softHalo, fontSize);
+        var strongHalo = ApplyOpacity(halo, ChartVisualPrimitives.PngTextHaloStrongOpacity);
+        var softHalo = ApplyOpacity(halo, ChartVisualPrimitives.PngTextHaloSoftOpacity);
+        var outerHalo = ApplyOpacity(halo, ChartVisualPrimitives.PngTextHaloOuterOpacity);
+        var inner = ChartVisualPrimitives.PngTextHaloInnerOffset;
+        var outer = ChartVisualPrimitives.PngTextHaloOuterOffset;
+        c.DrawText(x - outer, y, label, outerHalo, fontSize);
+        c.DrawText(x + outer, y, label, outerHalo, fontSize);
+        c.DrawText(x, y - outer, label, outerHalo, fontSize);
+        c.DrawText(x, y + outer, label, outerHalo, fontSize);
+        c.DrawText(x - inner, y, label, strongHalo, fontSize);
+        c.DrawText(x + inner, y, label, strongHalo, fontSize);
+        c.DrawText(x, y - inner, label, strongHalo, fontSize);
+        c.DrawText(x, y + inner, label, strongHalo, fontSize);
+        c.DrawText(x - inner, y - inner, label, softHalo, fontSize);
+        c.DrawText(x + inner, y - inner, label, softHalo, fontSize);
+        c.DrawText(x - inner, y + inner, label, softHalo, fontSize);
+        c.DrawText(x + inner, y + inner, label, softHalo, fontSize);
         c.DrawTextEmphasized(x, y, label, text, fontSize);
     }
 
     private static void DrawReadablePngLabel(RgbaCanvas c, ChartRect plot, double x, double y, string label, ChartColor text, ChartColor halo, double fontSize) {
-        FitReadablePngLabel(label, fontSize, Math.Max(8, plot.Width - 4), Math.Max(8, plot.Height - 4), out var fittedLabel, out var fittedFontSize);
+        FitReadablePngLabel(label, fontSize, Math.Max(8, plot.Width - 8), Math.Max(8, plot.Height - 6), out var fittedLabel, out var fittedFontSize);
         if (fittedLabel.Length == 0) return;
         var width = EstimatePngEmphasizedTextWidth(fittedLabel, fittedFontSize);
         var height = EstimatePngTextHeight(fittedFontSize);
-        DrawReadablePngLabel(c, Clamp(x, plot.Left + 2, plot.Right - width - 2), Clamp(y, plot.Top + 2, plot.Bottom - height - 2), fittedLabel, text, halo, fittedFontSize);
+        DrawReadablePngLabel(c, Clamp(x, plot.Left + 4, plot.Right - width - 4), Clamp(y, plot.Top + 3, plot.Bottom - height - 3), fittedLabel, text, halo, fittedFontSize);
     }
 
     private static void DrawReadablePngLabelCentered(RgbaCanvas c, ChartRect bounds, string label, ChartColor text, ChartColor halo, double fontSize) {
-        FitReadablePngLabel(label, fontSize, Math.Max(8, bounds.Width - 4), Math.Max(8, bounds.Height - 4), out var fittedLabel, out var fittedFontSize);
+        FitReadablePngLabel(label, fontSize, Math.Max(8, bounds.Width - 8), Math.Max(8, bounds.Height - 6), out var fittedLabel, out var fittedFontSize);
         if (fittedLabel.Length == 0) return;
         var width = EstimatePngEmphasizedTextWidth(fittedLabel, fittedFontSize);
         var height = EstimatePngTextHeight(fittedFontSize);

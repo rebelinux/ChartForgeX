@@ -1,5 +1,6 @@
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
 
 namespace ChartForgeX.Raster;
 
@@ -37,17 +38,17 @@ public sealed partial class PngChartRenderer {
 
     private static void DrawLegendSymbol(RgbaCanvas c, ChartSeriesKind kind, double x, double y, ChartColor color, ChartColor background) {
         if (IsLineLikeLegend(kind)) {
-            c.DrawLine(x, y, x + 18, y, color, 2);
-            c.DrawCircle(x + 9, y, 4.2, background);
-            c.DrawCircle(x + 9, y, 3.1, color);
+            c.DrawLine(x, y, x + 18, y, color, ChartVisualPrimitives.LegendLineStrokeWidth);
+            c.DrawCircle(x + 9, y, ChartVisualPrimitives.PngLegendMarkerOutlineRadius, background);
+            c.DrawCircle(x + 9, y, ChartVisualPrimitives.PngLegendLineMarkerRadius, color);
         } else if (kind == ChartSeriesKind.Scatter || kind == ChartSeriesKind.Bubble) {
-            c.DrawCircle(x + 9, y, 4.2, background);
-            c.DrawCircle(x + 9, y, 3.4, color);
+            c.DrawCircle(x + 9, y, ChartVisualPrimitives.PngLegendMarkerOutlineRadius, background);
+            c.DrawCircle(x + 9, y, ChartVisualPrimitives.LegendMarkerRadius, color);
         } else if (kind == ChartSeriesKind.Candlestick || kind == ChartSeriesKind.Ohlc) {
-            c.DrawLine(x + 9, y - 6, x + 9, y + 6, color, 2);
-            c.FillRoundedRect(x + 4, y - 3, 10, 6, 1.5, color);
+            c.DrawLine(x + 9, y - 6, x + 9, y + 6, color, ChartVisualPrimitives.LegendFinanceStrokeWidth);
+            c.FillRoundedRect(x + 4, y - ChartVisualPrimitives.LegendFinanceBodyHeight / 2, ChartVisualPrimitives.LegendFinanceBodyWidth, ChartVisualPrimitives.LegendFinanceBodyHeight, 1.5, color);
         } else {
-            c.FillRoundedRect(x, y - 5, 10, 10, 2, color);
+            c.FillRoundedRect(x, y - ChartVisualPrimitives.LegendSwatchSize / 2, ChartVisualPrimitives.LegendSwatchSize, ChartVisualPrimitives.LegendSwatchSize, ChartVisualPrimitives.LegendSwatchRadius, color);
         }
     }
 }

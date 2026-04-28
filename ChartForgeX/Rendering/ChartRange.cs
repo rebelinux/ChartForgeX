@@ -93,7 +93,7 @@ internal sealed class ChartRange {
                     range.IncludeY(p.X);
                     range.IncludeX(0);
                     AddStackValue(p.Y >= 0 ? positiveHorizontalBarStacks : negativeHorizontalBarStacks, p.X, p.Y);
-                } else if (series.Kind == ChartSeriesKind.Bar || series.Kind == ChartSeriesKind.Lollipop || series.Kind == ChartSeriesKind.RangeBar || series.Kind == ChartSeriesKind.BoxPlot) {
+                } else if (series.Kind == ChartSeriesKind.Bar || series.Kind == ChartSeriesKind.Lollipop || series.Kind == ChartSeriesKind.RangeBar || series.Kind == ChartSeriesKind.BoxPlot || series.Kind == ChartSeriesKind.Slope) {
                     barXValues.Add(p.X);
                     range.IncludeX(p.X);
                     range.IncludeY(p.Y);

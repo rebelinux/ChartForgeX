@@ -31,6 +31,7 @@ public sealed partial class PngChartRenderer {
         var positive = chart.Options.Theme.Positive;
         var negative = chart.Options.Theme.Negative;
         var total = chart.Options.Theme.Warning;
+        var reservedLabels = new List<ChartLabelBounds>();
 
         DrawWaterfallGrid(c, chart, plot, bounds, ticks, tickFontSize);
         for (var i = 0; i < steps.Count; i++) {
@@ -43,18 +44,22 @@ public sealed partial class PngChartRenderer {
             var color = step.IsTotal ? total : step.Delta >= 0 ? positive : negative;
             if (i > 0) {
                 var connectorY = WaterfallY(plot, bounds, step.Start);
-                c.DrawDashedLine(centerX - slot + barWidth / 2, connectorY, centerX - barWidth / 2, connectorY, ApplyOpacity(chart.Options.Theme.Axis, 0.72), 1, 4, 4);
+                c.DrawDashedLine(centerX - slot + barWidth / 2, connectorY, centerX - barWidth / 2, connectorY, ApplyOpacity(chart.Options.Theme.Axis, ChartVisualPrimitives.WaterfallConnectorOpacity), ChartVisualPrimitives.WaterfallConnectorStrokeWidth, ChartVisualPrimitives.WaterfallConnectorDash, ChartVisualPrimitives.WaterfallConnectorGap);
             }
 
             DrawGradientBar(c, centerX - barWidth / 2, top, barWidth, height, Math.Min(6, barWidth / 4), color);
             if (ShouldDrawDataLabels(chart, series)) {
                 var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
+                var labelX = centerX - EstimatePngEmphasizedTextWidth(label, dataFontSize) / 2.0;
                 var labelY = step.Delta >= 0 || step.IsTotal ? top - 11 - dataFontSize : top + height + 13 - dataFontSize;
-                DrawReadablePngLabel(c, plot, centerX - EstimatePngEmphasizedTextWidth(label, dataFontSize) / 2.0, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), dataFontSize);
+                if (!ReservePngLabel(label, labelX, labelY, chart, plot, dataFontSize, reservedLabels)) continue;
+                DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), dataFontSize);
             }
 
-            var categoryLabel = step.IsTotal ? "Total" : FormatX(chart, step.XValue);
-            c.DrawText(EdgeAwarePngLabelX(categoryLabel, centerX, plot, tickFontSize), plot.Bottom + PngXAxisLabelOffset(chart) - tickFontSize + 1, categoryLabel, chart.Options.Theme.MutedText, tickFontSize);
+            if (chart.Options.ShowAxes) {
+                var categoryLabel = step.IsTotal ? "Total" : FormatX(chart, step.XValue);
+                c.DrawText(EdgeAwarePngLabelX(categoryLabel, centerX, plot, tickFontSize), plot.Bottom + PngXAxisLabelOffset(chart) - tickFontSize + 1, categoryLabel, chart.Options.Theme.MutedText, tickFontSize);
+            }
         }
 
         if (chart.Options.ShowAxes) DrawDetailAxisTitles(c, chart, plot, DetailTextScale(chart));
@@ -64,7 +69,7 @@ public sealed partial class PngChartRenderer {
     private static void DrawWaterfallGrid(RgbaCanvas c, Chart chart, ChartRect plot, ChartRange bounds, IReadOnlyList<double> ticks, double fontSize) {
         foreach (var tick in ticks) {
             var y = WaterfallY(plot, bounds, tick);
-            if (chart.Options.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, chart.Options.Theme.Grid, 1);
+            if (chart.Options.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, chart.Options.Theme.Grid, ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
                 var label = FormatValue(chart, tick);
                 c.DrawText(Math.Max(2, plot.Left - EstimatePngTextWidth(label, fontSize) - 8), y - fontSize / 2.0, label, chart.Options.Theme.MutedText, fontSize);
@@ -72,10 +77,10 @@ public sealed partial class PngChartRenderer {
         }
 
         var zeroY = WaterfallY(plot, bounds, 0);
-        if (zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, chart.Options.Theme.Axis, 1);
+        if (chart.Options.ShowAxes && zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, chart.Options.Theme.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
         if (!chart.Options.ShowAxes) return;
-        c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, 1);
-        c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, chart.Options.Theme.Axis, 1);
+        c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+        c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
     }
 
     private static bool IsWaterfallChart(Chart chart) {

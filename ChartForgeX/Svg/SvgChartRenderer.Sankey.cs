@@ -13,8 +13,10 @@ public sealed partial class SvgChartRenderer {
     private static void DrawSankey(StringBuilder sb, Chart chart, ChartRect plot, string id) {
         var model = BuildSankeyModel(chart, plot);
         if (model.Nodes.Count == 0 || model.Links.Count == 0) return;
+        var showDataLabels = chart.Series.First(series => series.Kind == ChartSeriesKind.Sankey).ShowDataLabels ?? chart.Options.ShowDataLabels;
         var t = chart.Options.Theme;
         sb.AppendLine("<g data-cfx-role=\"sankey-chart\">");
+        DrawSankeyNodeGradients(sb, chart, id);
         foreach (var link in model.Links) DrawSankeyLink(sb, chart, model, link);
         foreach (var node in model.Nodes) {
             var labelMaxWidth = Math.Max(64, plot.Width / Math.Max(2, model.MaxLayer + 1) * 0.62);
@@ -22,14 +24,26 @@ public sealed partial class SvgChartRenderer {
             var labelX = node.Layer == model.MaxLayer ? node.X - 10 : node.X + model.NodeWidth + 10;
             var label = TrimSvgLabelToWidth(node.Label, t.TickLabelFontSize, labelMaxWidth);
             var summary = node.Label + ": " + FormatValue(chart, node.Value);
-            sb.AppendLine($"<rect data-cfx-role=\"sankey-node\" data-cfx-node=\"{node.Index}\" data-cfx-layer=\"{node.Layer}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(node.X)}\" y=\"{F(node.Y)}\" width=\"{F(model.NodeWidth)}\" height=\"{F(node.Height)}\" rx=\"{F(Math.Min(7, model.NodeWidth / 2))}\" fill=\"url(#{id}-sliceFill{node.Index % t.Palette.Length})\"/>");
-            sb.AppendLine($"<rect data-cfx-role=\"sankey-node-border\" x=\"{F(node.X + 0.5)}\" y=\"{F(node.Y + 0.5)}\" width=\"{F(Math.Max(0, model.NodeWidth - 1))}\" height=\"{F(Math.Max(0, node.Height - 1))}\" rx=\"{F(Math.Min(6.5, model.NodeWidth / 2))}\" fill=\"none\" stroke=\"{t.CardBackground.ToCss()}\" stroke-opacity=\"0.62\"/>");
-            if (chart.Options.ShowDataLabels) {
-                sb.AppendLine($"<text data-cfx-role=\"sankey-node-label\" x=\"{F(labelX)}\" y=\"{F(node.Y + node.Height / 2)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"2.4\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+            var borderStroke = ChartVisualPrimitives.SankeyNodeBorderStrokeWidth;
+            var borderInset = borderStroke / 2.0;
+            var radius = Math.Min(ChartVisualPrimitives.SankeyNodeCornerRadiusMax, model.NodeWidth / 2);
+            sb.AppendLine($"<rect data-cfx-role=\"sankey-node\" data-cfx-node=\"{node.Index}\" data-cfx-layer=\"{node.Layer}\" data-cfx-label=\"{Escape(node.Label)}\" data-cfx-value=\"{F(node.Value)}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(node.X)}\" y=\"{F(node.Y)}\" width=\"{F(model.NodeWidth)}\" height=\"{F(node.Height)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-sankeyFill{node.Index % t.Palette.Length})\"/>");
+            sb.AppendLine($"<rect data-cfx-role=\"sankey-node-border\" x=\"{F(node.X + borderInset)}\" y=\"{F(node.Y + borderInset)}\" width=\"{F(Math.Max(0, model.NodeWidth - borderStroke))}\" height=\"{F(Math.Max(0, node.Height - borderStroke))}\" rx=\"{F(Math.Max(0, radius - borderInset))}\" fill=\"none\" stroke=\"{t.CardBackground.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.SankeyNodeBorderOpacity)}\" stroke-width=\"{F(borderStroke)}\"/>");
+            if (showDataLabels) {
+                sb.AppendLine($"<text data-cfx-role=\"sankey-node-label\" x=\"{F(labelX)}\" y=\"{F(node.Y + node.Height / 2)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.SankeyLabelStrokeWidth)}\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
             }
         }
 
         sb.AppendLine("</g>");
+    }
+
+    private static void DrawSankeyNodeGradients(StringBuilder sb, Chart chart, string id) {
+        sb.AppendLine("<defs>");
+        for (var i = 0; i < chart.Options.Theme.Palette.Length; i++) {
+            var color = chart.Options.Theme.Palette[i];
+            sb.AppendLine($"<linearGradient id=\"{id}-sankeyFill{i}\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"{SankeyNodeGradientTop(color).ToHex()}\"/><stop offset=\"100%\" stop-color=\"{SankeyNodeGradientBottom(color).ToHex()}\"/></linearGradient>");
+        }
+        sb.AppendLine("</defs>");
     }
 
     private static void DrawSankeyLink(StringBuilder sb, Chart chart, SankeyModel model, SankeyLink link) {
@@ -45,7 +59,7 @@ public sealed partial class SvgChartRenderer {
             " L " + F(x1) + " " + F(link.TargetY + half) +
             " C " + F(midX) + " " + F(link.TargetY + half) + " " + F(midX) + " " + F(link.SourceY + half) + " " + F(x0) + " " + F(link.SourceY + half) + " Z";
         var summary = source.Label + " to " + target.Label + ": " + FormatValue(chart, link.Value);
-        sb.AppendLine($"<path data-cfx-role=\"sankey-link\" data-cfx-source=\"{link.Source}\" data-cfx-target=\"{link.Target}\" data-cfx-value=\"{F(link.Value)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{path}\" fill=\"{color.ToCss()}\" fill-opacity=\"0.34\" stroke=\"{color.ToCss()}\" stroke-opacity=\"0.38\" stroke-width=\"0.6\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"sankey-link\" data-cfx-source=\"{link.Source}\" data-cfx-target=\"{link.Target}\" data-cfx-value=\"{F(link.Value)}\" data-cfx-source-label=\"{Escape(source.Label)}\" data-cfx-target-label=\"{Escape(target.Label)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{path}\" fill=\"{color.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.SankeyLinkFillOpacity)}\" stroke=\"{color.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.SankeyLinkStrokeOpacity)}\" stroke-width=\"{F(ChartVisualPrimitives.SankeyLinkStrokeWidth)}\"/>");
     }
 
     private static SankeyModel BuildSankeyModel(Chart chart, ChartRect plot) {
@@ -89,26 +103,26 @@ public sealed partial class SvgChartRenderer {
 
     private static void LayoutSankeyNodes(List<SankeyNode> nodes, List<SankeyLink> links, ChartRect plot, out double nodeWidth, out double scale, out int maxLayer) {
         maxLayer = Math.Max(1, nodes.Max(node => node.Layer));
-        nodeWidth = Math.Max(14, Math.Min(24, plot.Width / (maxLayer + 1) * 0.08));
+        nodeWidth = Math.Max(ChartVisualPrimitives.SankeyNodeMinWidth, Math.Min(ChartVisualPrimitives.SankeyNodeMaxWidth, plot.Width / (maxLayer + 1) * ChartVisualPrimitives.SankeyNodeWidthFactor));
         scale = double.PositiveInfinity;
         for (var layer = 0; layer <= maxLayer; layer++) {
             var layerNodes = nodes.Where(node => node.Layer == layer).ToArray();
             if (layerNodes.Length == 0) continue;
             var sum = layerNodes.Sum(node => node.Value);
-            scale = Math.Min(scale, (plot.Height - Math.Max(0, layerNodes.Length - 1) * 18) / Math.Max(0.000001, sum));
+            scale = Math.Min(scale, (plot.Height - Math.Max(0, layerNodes.Length - 1) * ChartVisualPrimitives.SankeyNodeGap) / Math.Max(0.000001, sum));
         }
 
         if (double.IsInfinity(scale) || scale <= 0) scale = 1;
         var effectiveScale = scale;
         for (var layer = 0; layer <= maxLayer; layer++) {
             var layerNodes = nodes.Where(node => node.Layer == layer).OrderBy(node => node.Index).ToArray();
-            var totalHeight = layerNodes.Sum(node => Math.Max(8, node.Value * effectiveScale)) + Math.Max(0, layerNodes.Length - 1) * 18;
+            var totalHeight = layerNodes.Sum(node => Math.Max(ChartVisualPrimitives.SankeyNodeMinHeight, node.Value * effectiveScale)) + Math.Max(0, layerNodes.Length - 1) * ChartVisualPrimitives.SankeyNodeGap;
             var y = plot.Top + Math.Max(0, (plot.Height - totalHeight) / 2);
             foreach (var node in layerNodes) {
                 node.X = maxLayer == 0 ? plot.Left + plot.Width / 2 - nodeWidth / 2 : plot.Left + node.Layer / (double)maxLayer * (plot.Width - nodeWidth);
-                node.Height = Math.Max(8, node.Value * effectiveScale);
+                node.Height = Math.Max(ChartVisualPrimitives.SankeyNodeMinHeight, node.Value * effectiveScale);
                 node.Y = y;
-                y += node.Height + 18;
+                y += node.Height + ChartVisualPrimitives.SankeyNodeGap;
             }
         }
     }
@@ -127,6 +141,10 @@ public sealed partial class SvgChartRenderer {
 
     private static string SankeyNodeLabel(Chart chart, int index) =>
         index >= 0 && index < chart.Options.SankeyNodeLabels.Count ? chart.Options.SankeyNodeLabels[index] : "Node " + (index + 1).ToString(CultureInfo.InvariantCulture);
+
+    private static ChartColor SankeyNodeGradientTop(ChartColor color) => Blend(ChartColor.White, color, ChartVisualPrimitives.SankeyNodeGradientTopBlend);
+
+    private static ChartColor SankeyNodeGradientBottom(ChartColor color) => Blend(ChartColor.Black, color, ChartVisualPrimitives.SankeyNodeGradientBottomBlend);
 
     private sealed class SankeyNode {
         public SankeyNode(int index, string label) { Index = index; Label = label; }

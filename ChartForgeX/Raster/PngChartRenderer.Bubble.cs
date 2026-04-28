@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 using ChartForgeX.Rendering;
@@ -10,6 +11,7 @@ public sealed partial class PngChartRenderer {
         var series = chart.Series[index];
         var color = series.Color ?? chart.Options.Theme.Palette[index % chart.Options.Theme.Palette.Length];
         var range = BubbleSizeRange(series);
+        var reserved = new List<ChartLabelBounds>();
         for (var pointIndex = 0; pointIndex + 1 < series.Points.Count; pointIndex += 2) {
             var center = series.Points[pointIndex];
             var size = series.Points[pointIndex + 1].Y;
@@ -18,7 +20,7 @@ public sealed partial class PngChartRenderer {
             var radius = BubbleRadius(size, range.min, range.max, plot);
 
             c.DrawCircle(x, y, radius, ChartColor.FromRgba(color.R, color.G, color.B, 78));
-            c.DrawCircleOutline(x, y, radius, color, 2);
+            c.DrawCircleOutline(x, y, radius, color, ChartVisualPrimitives.BubbleStrokeWidth);
             c.DrawCircle(x - radius * 0.28, y - radius * 0.28, Math.Max(1.4, radius * 0.18), ChartColor.FromRgba(chart.Options.Theme.CardBackground.R, chart.Options.Theme.CardBackground.G, chart.Options.Theme.CardBackground.B, 66));
             if (ShouldDrawDataLabels(chart, series)) {
                 var label = FormatValue(chart, size);
@@ -27,6 +29,7 @@ public sealed partial class PngChartRenderer {
                 var aboveY = y - radius - fontSize - 4;
                 var belowY = y + radius + 4;
                 var labelY = aboveY < plot.Top + 2 ? belowY : aboveY;
+                if (!ReservePngLabel(label, labelX, labelY, chart, plot, fontSize, reserved)) continue;
                 DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
             }
         }

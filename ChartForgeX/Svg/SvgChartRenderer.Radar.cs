@@ -34,10 +34,10 @@ public sealed partial class SvgChartRenderer {
             var color = item.series.Color ?? chart.Options.Theme.Palette[item.index % chart.Options.Theme.Palette.Length];
             var points = RadarPoints(item.series, categories, max, cx, cy, radius);
             var summary = BuildRadarSummary(chart, item.series, categories);
-            sb.AppendLine($"<path data-cfx-role=\"radar-area\" data-cfx-series=\"{item.index}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{RadarPath(points)}\" fill=\"{color.ToCss()}\" opacity=\"0.20\"/>");
-            sb.AppendLine($"<path data-cfx-role=\"radar-outline\" data-cfx-series=\"{item.index}\" d=\"{RadarPath(points)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"2.4\" stroke-linejoin=\"round\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"radar-area\" data-cfx-series=\"{item.index}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{RadarPath(points)}\" fill=\"{color.ToCss()}\" opacity=\"{F(ChartVisualPrimitives.RadarAreaOpacity)}\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"radar-outline\" data-cfx-series=\"{item.index}\" d=\"{RadarPath(points)}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RadarOutlineStrokeWidth)}\" stroke-linejoin=\"round\"/>");
             for (var i = 0; i < points.Count; i++) {
-                sb.AppendLine($"<circle data-cfx-role=\"radar-point\" data-cfx-series=\"{item.index}\" data-cfx-point=\"{i}\" cx=\"{F(points[i].X)}\" cy=\"{F(points[i].Y)}\" r=\"3.8\" fill=\"{color.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"1.4\"/>");
+                sb.AppendLine($"<circle data-cfx-role=\"radar-point\" data-cfx-series=\"{item.index}\" data-cfx-point=\"{i}\" cx=\"{F(points[i].X)}\" cy=\"{F(points[i].Y)}\" r=\"{F(ChartVisualPrimitives.RadarPointRadius)}\" fill=\"{color.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RadarPointStrokeWidth)}\"/>");
                 if (ShouldDrawDataLabels(chart, item.series)) {
                     var labelPoint = RadarDataLabelPoint(points[i], i, categories.Length, seriesOrder, seriesItems.Length);
                     DrawDataLabel(sb, chart, FormatValue(chart, RadarValue(item.series, categories[i])), labelPoint.X, labelPoint.Y, plot);
@@ -54,7 +54,7 @@ public sealed partial class SvgChartRenderer {
         foreach (var tick in ticks) {
             if (tick <= 0) continue;
             var ring = RadarRing(categories.Count, cx, cy, radius * tick / max);
-            sb.AppendLine($"<path data-cfx-role=\"radar-ring\" d=\"{RadarPath(ring)}\" fill=\"none\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.76\"/>");
+            if (chart.Options.ShowGrid) sb.AppendLine($"<path data-cfx-role=\"radar-ring\" d=\"{RadarPath(ring)}\" fill=\"none\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.RadarRingOpacity)}\"/>");
             var isOuterTick = Math.Abs(tick - max) <= Math.Max(0.000001, max * 0.000001);
             if (chart.Options.ShowAxes && !isOuterTick) sb.AppendLine($"<text data-cfx-role=\"radar-ring-label\" x=\"{F(cx + 7)}\" y=\"{F(cy - radius * tick / max + 14)}\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, tick))}</text>");
         }
@@ -63,8 +63,8 @@ public sealed partial class SvgChartRenderer {
             var angle = RadarAngle(i, categories.Count);
             var endX = cx + Math.Cos(angle) * radius;
             var endY = cy + Math.Sin(angle) * radius;
-            sb.AppendLine($"<line data-cfx-role=\"radar-spoke\" x1=\"{F(cx)}\" y1=\"{F(cy)}\" x2=\"{F(endX)}\" y2=\"{F(endY)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.72\"/>");
-            DrawRadarAxisLabel(sb, chart, plot, categories[i], cx + Math.Cos(angle) * (radius + 24), cy + Math.Sin(angle) * (radius + 24), angle);
+            if (chart.Options.ShowGrid) sb.AppendLine($"<line data-cfx-role=\"radar-spoke\" x1=\"{F(cx)}\" y1=\"{F(cy)}\" x2=\"{F(endX)}\" y2=\"{F(endY)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.RadarSpokeOpacity)}\"/>");
+            if (chart.Options.ShowAxes) DrawRadarAxisLabel(sb, chart, plot, categories[i], cx + Math.Cos(angle) * (radius + 24), cy + Math.Sin(angle) * (radius + 24), angle);
         }
     }
 

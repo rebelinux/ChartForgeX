@@ -9,8 +9,13 @@ public static partial class GalleryWriter {
     private const string ComparisonManifestFileName = "svg-png-comparison.json";
     private const string VisualBaselineFileName = "visual-baseline.json";
     private const int MinimumHealthySvgVisualNodes = 2;
+    private const double MinimumReadableSvgTextFontSize = 8;
+    private const double MinimumReadableSvgStrokeWidth = 0.75;
+    private const double MinimumReadableSvgMarkerRadius = 3;
     private const long MinimumHealthyPngVisiblePixels = 64;
     private const int MinimumHealthyPngDistinctColors = 8;
+    private const long MaximumHealthyPngEdgeInkPixels = 0;
+    private const double SvgTextCanvasMargin = 1;
 
     /// <summary>
     /// Generates an index page for all chart HTML files in the output directory.
@@ -118,7 +123,7 @@ public static partial class GalleryWriter {
         sb.AppendLine("<body>");
         sb.AppendLine("<header>");
         sb.AppendLine("<h1>ChartForgeX SVG/PNG visual comparison</h1>");
-        sb.AppendLine("<p>Generated from current example exports. SVG is left, PNG is right.</p>");
+        sb.AppendLine("<p>Generated from current example exports. SVG is left, PNG is right; high-density PNGs are shown at their logical SVG size.</p>");
         sb.AppendLine("<div class=\"summary\"><span class=\"pill\">" + pairs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " chart pairs</span><span class=\"pill " + (matchingPairs == pairs.Length ? "ok" : "warn") + "\">" + matchingPairs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " dimension matches</span><span class=\"pill " + (healthySvgs == pairs.Length ? "ok" : "warn") + "\">" + healthySvgs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " healthy SVGs</span><span class=\"pill " + (healthyPngs == pairs.Length ? "ok" : "warn") + "\">" + healthyPngs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " healthy PNGs</span><span class=\"pill " + (warningCount == 0 ? "ok" : "warn") + "\">" + warningCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " warnings</span>" + FormatBaselinePill(baseline) + "<a class=\"pill\" href=\"" + CatalogFileName + "\">grouped catalog</a><a class=\"pill\" href=\"" + QualityDashboardFileName + "\">quality dashboard</a><a class=\"pill\" href=\"" + ComparisonManifestFileName + "\">manifest JSON</a></div>");
         sb.AppendLine("</header>");
         sb.AppendLine("<main>");
@@ -163,8 +168,12 @@ public static partial class GalleryWriter {
             },
             healthThresholds = new {
                 svgVisualNodes = MinimumHealthySvgVisualNodes,
+                svgMinimumTextFontSize = MinimumReadableSvgTextFontSize,
+                svgMinimumStrokeWidth = MinimumReadableSvgStrokeWidth,
+                svgMinimumMarkerRadius = MinimumReadableSvgMarkerRadius,
                 pngVisiblePixels = MinimumHealthyPngVisiblePixels,
-                pngDistinctColors = MinimumHealthyPngDistinctColors
+                pngDistinctColors = MinimumHealthyPngDistinctColors,
+                pngEdgeInkPixels = MaximumHealthyPngEdgeInkPixels
             },
             comparisonModes = new[] { "side-by-side", "center-wipe" },
             charts = pairs.Select(pair => new {
@@ -177,14 +186,36 @@ public static partial class GalleryWriter {
                     bytes = pair.SvgBytes,
                     visualNodes = pair.SvgHealth.VisualNodes,
                     textNodes = pair.SvgHealth.TextNodes,
+                    minimumTextFontSize = pair.SvgHealth.MinimumTextFontSize,
+                    tinyTextNodes = pair.SvgHealth.TinyTextNodes,
+                    strokedNodes = pair.SvgHealth.StrokedNodes,
+                    minimumStrokeWidth = pair.SvgHealth.MinimumStrokeWidth,
+                    tinyStrokeNodes = pair.SvgHealth.TinyStrokeNodes,
+                    markerNodes = pair.SvgHealth.MarkerNodes,
+                    minimumMarkerRadius = pair.SvgHealth.MinimumMarkerRadius,
+                    tinyMarkerNodes = pair.SvgHealth.TinyMarkerNodes,
+                    clippedTextNodes = pair.SvgHealth.ClippedTextNodes,
+                    nearEdgeTextNodes = pair.SvgHealth.NearEdgeTextNodes,
                     healthy = pair.SvgHealth.IsHealthy
                 },
                 png = new {
                     width = pair.PngDimensions.Width,
                     height = pair.PngDimensions.Height,
+                    scale = pair.PngScale,
                     bytes = pair.PngBytes,
                     visiblePixels = pair.PngHealth.VisiblePixels,
+                    foregroundPixels = pair.PngHealth.ForegroundPixels,
+                    contentBounds = new {
+                        left = pair.PngHealth.ContentBounds.Left,
+                        top = pair.PngHealth.ContentBounds.Top,
+                        right = pair.PngHealth.ContentBounds.Right,
+                        bottom = pair.PngHealth.ContentBounds.Bottom,
+                        width = pair.PngHealth.ContentBounds.Width,
+                        height = pair.PngHealth.ContentBounds.Height
+                    },
                     distinctColors = pair.PngHealth.DistinctColors,
+                    edgeInkPixels = pair.PngHealth.EdgeInkPixels,
+                    edgeBandPixels = pair.PngHealth.EdgeBandPixels,
                     healthy = pair.PngHealth.IsHealthy
                 }
             }).ToArray()
@@ -212,16 +243,26 @@ public static partial class GalleryWriter {
 
                 var width = baselineChart.GetProperty("width").GetInt32();
                 var height = baselineChart.GetProperty("height").GetInt32();
-                var minVisualNodes = baselineChart.GetProperty("svg").GetProperty("minVisualNodes").GetInt32();
-                var minVisiblePixels = baselineChart.GetProperty("png").GetProperty("minVisiblePixels").GetInt64();
-                var minDistinctColors = baselineChart.GetProperty("png").GetProperty("minDistinctColors").GetInt32();
+                var svgBaseline = baselineChart.GetProperty("svg");
+                var pngBaseline = baselineChart.GetProperty("png");
+                var minVisualNodes = svgBaseline.GetProperty("minVisualNodes").GetInt32();
+                var maxClippedTextNodes = ReadBaselineInt32(svgBaseline, "maxClippedTextNodes", int.MaxValue);
+                var maxNearEdgeTextNodes = ReadBaselineInt32(svgBaseline, "maxNearEdgeTextNodes", int.MaxValue);
+                var minVisiblePixels = pngBaseline.GetProperty("minVisiblePixels").GetInt64();
+                var minDistinctColors = pngBaseline.GetProperty("minDistinctColors").GetInt32();
+                var outputScale = ReadBaselineInt32(pngBaseline, "outputScale", actual.PngScale);
+                var maxEdgeInkPixels = ReadBaselineInt64(pngBaseline, "maxEdgeInkPixels", long.MaxValue);
                 if (actual.SvgDimensions.Width == width &&
                     actual.SvgDimensions.Height == height &&
-                    actual.PngDimensions.Width == width &&
-                    actual.PngDimensions.Height == height &&
+                    actual.PngScale == outputScale &&
+                    actual.PngDimensions.Width == width * outputScale &&
+                    actual.PngDimensions.Height == height * outputScale &&
                     actual.SvgHealth.VisualNodes >= minVisualNodes &&
+                    actual.SvgHealth.ClippedTextNodes <= maxClippedTextNodes &&
+                    actual.SvgHealth.NearEdgeTextNodes <= maxNearEdgeTextNodes &&
                     actual.PngHealth.VisiblePixels >= minVisiblePixels &&
-                    actual.PngHealth.DistinctColors >= minDistinctColors) {
+                    actual.PngHealth.DistinctColors >= minDistinctColors &&
+                    actual.PngHealth.EdgeInkPixels <= maxEdgeInkPixels) {
                     matches++;
                 } else {
                     warnings++;
@@ -241,6 +282,22 @@ public static partial class GalleryWriter {
         }
 
         return new BaselineSummary(true, 0, pairs.Length);
+    }
+
+    private static int ReadBaselineInt32(System.Text.Json.JsonElement element, string name, int fallback) {
+        return element.TryGetProperty(name, out var value) &&
+            value.ValueKind == System.Text.Json.JsonValueKind.Number &&
+            value.TryGetInt32(out var number)
+                ? number
+                : fallback;
+    }
+
+    private static long ReadBaselineInt64(System.Text.Json.JsonElement element, string name, long fallback) {
+        return element.TryGetProperty(name, out var value) &&
+            value.ValueKind == System.Text.Json.JsonValueKind.Number &&
+            value.TryGetInt64(out var number)
+                ? number
+                : fallback;
     }
 
     private static string FindVisualBaselineFile(string output) {
@@ -274,8 +331,9 @@ public static partial class GalleryWriter {
         var warnings = pair.Warnings;
         var statusClass = warnings.Length == 0 ? "ok" : "warn";
         var statusText = warnings.Length == 0 ? "Review clean" : string.Join(" / ", warnings);
-        var svgInfo = FormatDimensions(svg) + " / " + FormatBytes(pair.SvgBytes) + " / " + pair.SvgHealth.VisualNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visual nodes";
-        var pngInfo = FormatDimensions(png) + " / " + FormatBytes(pair.PngBytes) + " / " + pair.PngHealth.VisiblePixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visible px";
+        var svgInfo = FormatDimensions(svg) + " / " + FormatBytes(pair.SvgBytes) + " / " + pair.SvgHealth.VisualNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visual nodes / min text " + FormatSvgTextSize(pair.SvgHealth.MinimumTextFontSize) + " / min stroke " + FormatSvgStrokeWidth(pair.SvgHealth.MinimumStrokeWidth) + " / min marker " + FormatSvgMarkerRadius(pair.SvgHealth.MinimumMarkerRadius);
+        var scaleLabel = pair.PngScale > 1 ? " @" + pair.PngScale.ToString(System.Globalization.CultureInfo.InvariantCulture) + "x" : string.Empty;
+        var pngInfo = FormatDimensions(png) + scaleLabel + " / " + FormatBytes(pair.PngBytes) + " / " + pair.PngHealth.VisiblePixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visible px / " + pair.PngHealth.ForegroundPixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " foreground px";
         sb.AppendLine("<section id=\"" + EscapeHtml(name) + "\" class=\"" + (pair.HasMatchingDimensions ? "match" : "mismatch") + "\">");
         sb.AppendLine("<h2><span>" + EscapeHtml(name) + "</span><span class=\"status " + statusClass + "\">" + statusText + "</span></h2>");
         sb.AppendLine("<div class=\"pair\">");
@@ -341,6 +399,15 @@ public static partial class GalleryWriter {
         return bytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " B";
     }
 
+    private static string FormatSvgTextSize(double fontSize) =>
+        fontSize > 0 ? fontSize.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "px" : "n/a";
+
+    private static string FormatSvgStrokeWidth(double strokeWidth) =>
+        strokeWidth > 0 ? strokeWidth.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "px" : "n/a";
+
+    private static string FormatSvgMarkerRadius(double radius) =>
+        radius > 0 ? radius.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "px" : "n/a";
+
     private static int ReadSvgNumericAttribute(string svg, string name) {
         var value = ReadSvgAttribute(svg, name);
         if (string.IsNullOrWhiteSpace(value)) return 0;
@@ -384,7 +451,9 @@ public static partial class GalleryWriter {
                 CountOccurrences(svg, "<polygon") +
                 CountOccurrences(svg, "<polyline") +
                 CountOccurrences(svg, "<text");
-            return new SvgHealth(visualNodes, CountOccurrences(svg, "<text"));
+            var textNodes = CountOccurrences(svg, "<text");
+            var textQuality = ReadSvgTextQuality(svg, ReadSvgDimensions(fileName));
+            return new SvgHealth(visualNodes, textNodes, textQuality.MinimumFontSize, textQuality.TinyTextNodes, textQuality.StrokedNodes, textQuality.MinimumStrokeWidth, textQuality.TinyStrokeNodes, textQuality.MarkerNodes, textQuality.MinimumMarkerRadius, textQuality.TinyMarkerNodes, textQuality.ClippedTextNodes, textQuality.NearEdgeTextNodes);
         } catch (IOException) {
         } catch (UnauthorizedAccessException) {
         }
@@ -422,6 +491,10 @@ public static partial class GalleryWriter {
             var current = new byte[stride];
             var visiblePixels = 0L;
             var colors = new HashSet<int>();
+            var edgeColors = new List<int>();
+            var cornerColors = new Dictionary<int, int>();
+            var edgeBand = PngEdgeBandSize(dimensions);
+            var pixelColors = new int[dimensions.Width * dimensions.Height];
             var rawOffset = 0;
             for (var y = 0; y < dimensions.Height; y++) {
                 var filter = raw[rawOffset++];
@@ -433,7 +506,10 @@ public static partial class GalleryWriter {
                     var b = current[x + 2];
                     var a = current[x + 3];
                     if (a > 0) visiblePixels++;
-                    if (colors.Count < 4096) colors.Add((r << 24) | (g << 16) | (b << 8) | a);
+                    var key = PngColorKey(r, g, b, a);
+                    pixelColors[y * dimensions.Width + x / 4] = key;
+                    if (colors.Count < 4096) colors.Add(key);
+                    TrackPngEdgeSamples(dimensions, x / 4, y, edgeBand, key, cornerColors, edgeColors);
                 }
 
                 var swap = previous;
@@ -441,7 +517,11 @@ public static partial class GalleryWriter {
                 current = swap;
             }
 
-            return new PngHealth(visiblePixels, colors.Count);
+            var edgeBackground = DominantPngCornerColor(cornerColors);
+            var visualBackground = DominantPngVisibleColor(pixelColors, edgeBackground);
+            var foreground = CountPngForeground(pixelColors, dimensions, visualBackground, out var contentBounds);
+            var edgeInkPixels = CountPngEdgeInk(edgeColors, edgeBackground);
+            return new PngHealth(visiblePixels, foreground, contentBounds, colors.Count, edgeInkPixels, edgeColors.Count);
         } catch (IOException) {
         } catch (UnauthorizedAccessException) {
         } catch (InvalidDataException) {
@@ -548,47 +628,126 @@ public static partial class GalleryWriter {
 
         public PngHealth PngHealth { get; }
 
+        public int PngScale {
+            get {
+                if (SvgDimensions.Width <= 0 || SvgDimensions.Height <= 0 || PngDimensions.Width <= 0 || PngDimensions.Height <= 0) return 0;
+                if (PngDimensions.Width % SvgDimensions.Width != 0 || PngDimensions.Height % SvgDimensions.Height != 0) return 0;
+                var widthScale = PngDimensions.Width / SvgDimensions.Width;
+                var heightScale = PngDimensions.Height / SvgDimensions.Height;
+                return widthScale == heightScale ? widthScale : 0;
+            }
+        }
+
         public bool HasMatchingDimensions =>
             SvgDimensions.Width > 0 &&
             SvgDimensions.Height > 0 &&
-            SvgDimensions.Width == PngDimensions.Width &&
-            SvgDimensions.Height == PngDimensions.Height;
+            PngScale >= 1;
 
         public string[] Warnings {
             get {
                 var warnings = new List<string>();
                 if (!HasMatchingDimensions) warnings.Add("dimension mismatch");
                 if (!SvgHealth.IsHealthy) warnings.Add("SVG health warning");
+                if (SvgHealth.TinyTextNodes > 0) warnings.Add("SVG tiny text warning");
+                if (SvgHealth.TinyStrokeNodes > 0) warnings.Add("SVG tiny stroke warning");
+                if (SvgHealth.TinyMarkerNodes > 0) warnings.Add("SVG tiny marker warning");
+                if (SvgHealth.ClippedTextNodes > 0) warnings.Add("SVG text bounds warning");
                 if (!PngHealth.IsHealthy) warnings.Add("PNG health warning");
+                if (PngHealth.EdgeInkPixels > MaximumHealthyPngEdgeInkPixels) warnings.Add("PNG edge pressure warning");
                 return warnings.ToArray();
             }
         }
     }
 
     private readonly struct SvgHealth {
-        public SvgHealth(int visualNodes, int textNodes) {
+        public SvgHealth(int visualNodes, int textNodes, double minimumTextFontSize, int tinyTextNodes, int strokedNodes, double minimumStrokeWidth, int tinyStrokeNodes, int markerNodes, double minimumMarkerRadius, int tinyMarkerNodes, int clippedTextNodes, int nearEdgeTextNodes) {
             VisualNodes = visualNodes;
             TextNodes = textNodes;
+            MinimumTextFontSize = minimumTextFontSize;
+            TinyTextNodes = tinyTextNodes;
+            StrokedNodes = strokedNodes;
+            MinimumStrokeWidth = minimumStrokeWidth;
+            TinyStrokeNodes = tinyStrokeNodes;
+            MarkerNodes = markerNodes;
+            MinimumMarkerRadius = minimumMarkerRadius;
+            TinyMarkerNodes = tinyMarkerNodes;
+            ClippedTextNodes = clippedTextNodes;
+            NearEdgeTextNodes = nearEdgeTextNodes;
         }
 
         public int VisualNodes { get; }
 
         public int TextNodes { get; }
 
-        public bool IsHealthy => VisualNodes >= MinimumHealthySvgVisualNodes;
+        public double MinimumTextFontSize { get; }
+
+        public int TinyTextNodes { get; }
+
+        public int StrokedNodes { get; }
+
+        public double MinimumStrokeWidth { get; }
+
+        public int TinyStrokeNodes { get; }
+
+        public int MarkerNodes { get; }
+
+        public double MinimumMarkerRadius { get; }
+
+        public int TinyMarkerNodes { get; }
+
+        public int ClippedTextNodes { get; }
+
+        public int NearEdgeTextNodes { get; }
+
+        public bool IsHealthy => VisualNodes >= MinimumHealthySvgVisualNodes && TinyTextNodes == 0 && TinyStrokeNodes == 0 && TinyMarkerNodes == 0;
     }
 
     private readonly struct PngHealth {
-        public PngHealth(long visiblePixels, int distinctColors) {
+        public PngHealth(long visiblePixels, long foregroundPixels, PngContentBounds contentBounds, int distinctColors, long edgeInkPixels, long edgeBandPixels) {
             VisiblePixels = visiblePixels;
+            ForegroundPixels = foregroundPixels;
+            ContentBounds = contentBounds;
             DistinctColors = distinctColors;
+            EdgeInkPixels = edgeInkPixels;
+            EdgeBandPixels = edgeBandPixels;
         }
 
         public long VisiblePixels { get; }
 
+        public long ForegroundPixels { get; }
+
+        public PngContentBounds ContentBounds { get; }
+
         public int DistinctColors { get; }
 
-        public bool IsHealthy => VisiblePixels >= MinimumHealthyPngVisiblePixels && DistinctColors >= MinimumHealthyPngDistinctColors;
+        public long EdgeInkPixels { get; }
+
+        public long EdgeBandPixels { get; }
+
+        public bool IsHealthy => VisiblePixels >= MinimumHealthyPngVisiblePixels && ForegroundPixels >= MinimumHealthyPngVisiblePixels && DistinctColors >= MinimumHealthyPngDistinctColors && EdgeInkPixels <= MaximumHealthyPngEdgeInkPixels;
+    }
+
+    private readonly struct PngContentBounds {
+        public PngContentBounds(int left, int top, int right, int bottom) {
+            Left = left;
+            Top = top;
+            Right = right;
+            Bottom = bottom;
+        }
+
+        public int Left { get; }
+
+        public int Top { get; }
+
+        public int Right { get; }
+
+        public int Bottom { get; }
+
+        public int Width => IsEmpty ? 0 : Right - Left + 1;
+
+        public int Height => IsEmpty ? 0 : Bottom - Top + 1;
+
+        public bool IsEmpty => Right < Left || Bottom < Top;
     }
 
     private readonly struct BaselineSummary {

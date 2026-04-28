@@ -30,12 +30,12 @@ public sealed partial class PngChartRenderer {
             var item = series[seriesOrder];
             var color = item.Series.Color ?? chart.Options.Theme.Palette[item.Index % chart.Options.Theme.Palette.Length];
             var points = RadarPoints(item.Series, categories, max, cx, cy, radius);
-            c.FillPolygon(points, ChartColor.FromRgba(color.R, color.G, color.B, 48));
+            c.FillPolygon(points, ApplyOpacity(color, ChartVisualPrimitives.RadarAreaOpacity));
             for (var i = 0; i < points.Count; i++) {
                 var next = points[(i + 1) % points.Count];
-                c.DrawLine(points[i].X, points[i].Y, next.X, next.Y, color, 2);
-                c.DrawCircle(points[i].X, points[i].Y, 4.7, chart.Options.Theme.CardBackground);
-                c.DrawCircle(points[i].X, points[i].Y, 3.8, color);
+                c.DrawLine(points[i].X, points[i].Y, next.X, next.Y, color, ChartVisualPrimitives.RadarOutlineStrokeWidth);
+                c.DrawCircle(points[i].X, points[i].Y, ChartVisualPrimitives.RadarPointRadius + ChartVisualPrimitives.PngRadarPointOutlineRadiusExtra, chart.Options.Theme.CardBackground);
+                c.DrawCircle(points[i].X, points[i].Y, ChartVisualPrimitives.RadarPointRadius, color);
                 if (ShouldDrawDataLabels(chart, item.Series)) {
                     var label = FormatValue(chart, RadarValue(item.Series, categories[i]));
                     var labelPoint = RadarDataLabelPoint(points[i], i, categories.Count, seriesOrder, series.Count);
@@ -52,7 +52,7 @@ public sealed partial class PngChartRenderer {
         foreach (var tick in ticks) {
             if (tick <= 0) continue;
             var ring = RadarRing(categories.Count, cx, cy, radius * tick / max);
-            DrawRadarPolyline(c, ring, chart.Options.Theme.Grid, 1);
+            if (chart.Options.ShowGrid) DrawRadarPolyline(c, ring, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.RadarRingOpacity), ChartVisualPrimitives.GridStrokeWidth);
             var isOuterTick = Math.Abs(tick - max) <= Math.Max(0.000001, max * 0.000001);
             if (chart.Options.ShowAxes && !isOuterTick) c.DrawText(cx + 7, cy - radius * tick / max + 14 - tickFontSize + 1, FormatValue(chart, tick), chart.Options.Theme.MutedText, tickFontSize);
         }
@@ -61,7 +61,8 @@ public sealed partial class PngChartRenderer {
             var angle = RadarAngle(i, categories.Count);
             var endX = cx + Math.Cos(angle) * radius;
             var endY = cy + Math.Sin(angle) * radius;
-            c.DrawLine(cx, cy, endX, endY, chart.Options.Theme.Grid, 1);
+            if (chart.Options.ShowGrid) c.DrawLine(cx, cy, endX, endY, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.RadarSpokeOpacity), ChartVisualPrimitives.GridStrokeWidth);
+            if (!chart.Options.ShowAxes) continue;
             var label = FormatX(chart, categories[i]);
             var fontSize = TextFontSizeForEmphasizedWidth(label, Math.Max(44, RadarLabelWidth(chart, angle)), tickFontSize);
             var labelWidth = EstimatePngEmphasizedTextWidth(label, fontSize);
@@ -76,7 +77,7 @@ public sealed partial class PngChartRenderer {
         return Math.Abs(Math.Cos(angle)) < 0.32 ? chart.Options.Size.Width * 0.26 : sideRoom;
     }
 
-    private static void DrawRadarPolyline(RgbaCanvas c, IReadOnlyList<ChartPoint> points, ChartColor color, int thickness) {
+    private static void DrawRadarPolyline(RgbaCanvas c, IReadOnlyList<ChartPoint> points, ChartColor color, double thickness) {
         for (var i = 0; i < points.Count; i++) {
             var next = points[(i + 1) % points.Count];
             c.DrawLine(points[i].X, points[i].Y, next.X, next.Y, color, thickness);

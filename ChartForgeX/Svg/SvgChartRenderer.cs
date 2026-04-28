@@ -62,7 +62,7 @@ public sealed partial class SvgChartRenderer {
         sb.AppendLine($"<title id=\"{id}-title\">{Escape(string.IsNullOrWhiteSpace(chart.Title) ? "ChartForgeX chart" : chart.Title)}</title>");
         sb.AppendLine($"<desc id=\"{id}-desc\">{Escape(BuildDescription(chart))}</desc>");
         sb.AppendLine("<defs>");
-        sb.AppendLine($"<style>#{id} text{{font-synthesis:none}}</style>");
+        sb.AppendLine($"<style>#{id} text{{font-synthesis:none}} #{id} .cfx-crisp-stroke{{vector-effect:non-scaling-stroke;shape-rendering:geometricPrecision}}</style>");
         sb.AppendLine($"<filter id=\"{id}-softShadow\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"14\" stdDeviation=\"18\" flood-opacity=\"{F(Clamp(t.ShadowOpacity, 0, 1))}\"/></filter>");
         sb.AppendLine($"<clipPath id=\"{id}-plotClip\"><rect x=\"{F(plot.X)}\" y=\"{F(plot.Y)}\" width=\"{F(plot.Width)}\" height=\"{F(plot.Height)}\" rx=\"{F(t.PlotCornerRadius)}\"/></clipPath>");
         for (var i = 0; i < chart.Series.Count; i++) {
@@ -79,11 +79,11 @@ public sealed partial class SvgChartRenderer {
         if (!o.TransparentBackground && t.Background.A > 0) sb.AppendLine($"<rect width=\"100%\" height=\"100%\" fill=\"{t.Background.ToCss()}\"/>");
         if (o.ShowCard && t.UseCard) {
             sb.AppendLine($"<rect x=\"14\" y=\"14\" width=\"{w-28}\" height=\"{h-28}\" rx=\"{F(t.CornerRadius)}\" fill=\"{t.CardBackground.ToCss()}\" filter=\"url(#{id}-softShadow)\"/>");
-            sb.AppendLine($"<rect x=\"14.5\" y=\"14.5\" width=\"{w-29}\" height=\"{h-29}\" rx=\"{F(Math.Max(0, t.CornerRadius - 0.5))}\" fill=\"none\" stroke=\"{t.CardBorder.ToCss()}\"/>");
+            sb.AppendLine($"<rect class=\"cfx-crisp-stroke\" x=\"14.5\" y=\"14.5\" width=\"{w-29}\" height=\"{h-29}\" rx=\"{F(Math.Max(0, t.CornerRadius - 0.5))}\" fill=\"none\" stroke=\"{t.CardBorder.ToCss()}\"/>");
         }
         if (o.ShowPlotBackground) {
             sb.AppendLine($"<rect x=\"{F(plot.X)}\" y=\"{F(plot.Y)}\" width=\"{F(plot.Width)}\" height=\"{F(plot.Height)}\" rx=\"{F(t.PlotCornerRadius)}\" fill=\"{t.PlotBackground.ToCss()}\"/>");
-            sb.AppendLine($"<rect x=\"{F(plot.X + 0.5)}\" y=\"{F(plot.Y + 0.5)}\" width=\"{F(Math.Max(0, plot.Width - 1))}\" height=\"{F(Math.Max(0, plot.Height - 1))}\" rx=\"{F(Math.Max(0, t.PlotCornerRadius - 0.5))}\" fill=\"none\" stroke=\"{t.PlotBorder.ToCss()}\"/>");
+            sb.AppendLine($"<rect class=\"cfx-crisp-stroke\" x=\"{F(plot.X + 0.5)}\" y=\"{F(plot.Y + 0.5)}\" width=\"{F(Math.Max(0, plot.Width - 1))}\" height=\"{F(Math.Max(0, plot.Height - 1))}\" rx=\"{F(Math.Max(0, t.PlotCornerRadius - 0.5))}\" fill=\"none\" stroke=\"{t.PlotBorder.ToCss()}\"/>");
         }
         if (o.ShowHeader) DrawHeader(sb, chart);
         if (IsPieLike(chart)) {
@@ -210,51 +210,22 @@ public sealed partial class SvgChartRenderer {
         var xLabelY = plot.Bottom + XAxisLabelOffset(chart, xLabels);
         foreach (var yv in yTicks) {
             var y = map.Y(yv);
-            if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\"/>");
+            if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\"/>");
             if (o.ShowAxes) sb.AppendLine($"<text x=\"{F(plot.Left-12)}\" y=\"{F(y+4)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, yv))}</text>");
         }
         for (var i = 0; i < xTicks.Count; i++) {
             var xv = xTicks[i];
             var x = map.X(xv);
-            if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.42\"/>");
+            if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.GridVerticalOpacity)}\"/>");
             if (o.ShowAxes) DrawXAxisLabel(sb, chart, plot, xLabels[i], x, xLabelY, xLabelAngle);
         }
         var zeroY = map.Y(0);
         if (o.ShowAxes && zeroY > plot.Top && zeroY < plot.Bottom) {
-            sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(zeroY)}\" x2=\"{F(plot.Right)}\" y2=\"{F(zeroY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.4\"/>");
+            sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(zeroY)}\" x2=\"{F(plot.Right)}\" y2=\"{F(zeroY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.ZeroAxisStrokeWidth)}\"/>");
         }
         if (!o.ShowAxes) return;
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
-        DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart, xLabels));
-        DrawSvgYAxisTitle(sb, chart, plot, 26);
-    }
-
-    private static void DrawHorizontalBarGrid(StringBuilder sb, Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, IReadOnlyList<double> categoryTicks, ChartMapper map) {
-        var o = chart.Options;
-        var t = o.Theme;
-        var xLabels = XAxisTickLabels(chart, xTicks, true);
-        for (var i = 0; i < xTicks.Count; i++) {
-            var xv = xTicks[i];
-            var x = map.X(xv);
-            if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.72\"/>");
-            if (o.ShowAxes) sb.AppendLine($"<text x=\"{F(x)}\" y=\"{F(plot.Bottom + 21)}\" text-anchor=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(xLabels[i])}</text>");
-        }
-
-        foreach (var category in categoryTicks) {
-            var y = map.Y(category);
-            if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"1\" opacity=\"0.28\"/>");
-            if (o.ShowAxes) sb.AppendLine($"<text x=\"{F(plot.Left - 12)}\" y=\"{F(y + 4)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"600\">{Escape(FormatX(chart, category))}</text>");
-        }
-
-        var zeroX = map.X(0);
-        if (o.ShowAxes && zeroX > plot.Left && zeroX < plot.Right) {
-            sb.AppendLine($"<line x1=\"{F(zeroX)}\" y1=\"{F(plot.Top)}\" x2=\"{F(zeroX)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.4\"/>");
-        }
-
-        if (!o.ShowAxes) return;
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"1.2\"/>");
+        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
+        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
         DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart, xLabels));
         DrawSvgYAxisTitle(sb, chart, plot, 26);
     }
@@ -280,14 +251,14 @@ public sealed partial class SvgChartRenderer {
                 var y2 = Clamp(map.Y(annotation.EndValue.Value), plot.Top, plot.Bottom);
                 var top = Math.Min(y1, y2);
                 var height = Math.Abs(y2 - y1);
-                sb.AppendLine($"<rect x=\"{F(plot.Left)}\" y=\"{F(top)}\" width=\"{F(plot.Width)}\" height=\"{F(height)}\" fill=\"{annotation.Color.ToHex()}\" opacity=\"{F(annotation.Opacity)}\"/>");
+                sb.AppendLine($"<rect data-cfx-role=\"annotation-band\" data-cfx-kind=\"{AnnotationKindName(annotation.Kind)}\" data-cfx-value=\"{F(annotation.Value)}\" data-cfx-end=\"{F(annotation.EndValue.Value)}\" data-cfx-label=\"{Escape(annotation.Label)}\" x=\"{F(plot.Left)}\" y=\"{F(top)}\" width=\"{F(plot.Width)}\" height=\"{F(height)}\" fill=\"{annotation.Color.ToHex()}\" opacity=\"{F(annotation.Opacity)}\"/>");
                 DrawBandLabel(sb, chart, annotation, plot, plot.Left + 10, top + 16);
             } else if (annotation.Kind == ChartAnnotationKind.VerticalBand) {
                 var x1 = Clamp(map.X(annotation.Value), plot.Left, plot.Right);
                 var x2 = Clamp(map.X(annotation.EndValue.Value), plot.Left, plot.Right);
                 var left = Math.Min(x1, x2);
                 var width = Math.Abs(x2 - x1);
-                sb.AppendLine($"<rect x=\"{F(left)}\" y=\"{F(plot.Top)}\" width=\"{F(width)}\" height=\"{F(plot.Height)}\" fill=\"{annotation.Color.ToHex()}\" opacity=\"{F(annotation.Opacity)}\"/>");
+                sb.AppendLine($"<rect data-cfx-role=\"annotation-band\" data-cfx-kind=\"{AnnotationKindName(annotation.Kind)}\" data-cfx-value=\"{F(annotation.Value)}\" data-cfx-end=\"{F(annotation.EndValue.Value)}\" data-cfx-label=\"{Escape(annotation.Label)}\" x=\"{F(left)}\" y=\"{F(plot.Top)}\" width=\"{F(width)}\" height=\"{F(plot.Height)}\" fill=\"{annotation.Color.ToHex()}\" opacity=\"{F(annotation.Opacity)}\"/>");
                 DrawBandLabel(sb, chart, annotation, plot, left + 8, plot.Top + 16);
             }
         }
@@ -297,14 +268,21 @@ public sealed partial class SvgChartRenderer {
         foreach (var annotation in chart.Annotations) {
             if (annotation.Kind == ChartAnnotationKind.HorizontalLine) {
                 var y = Clamp(map.Y(annotation.Value), plot.Top, plot.Bottom);
-                sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{annotation.Color.ToCss()}\" stroke-width=\"1.6\" stroke-dasharray=\"6 5\"/>");
+                sb.AppendLine($"<line data-cfx-role=\"annotation-line\" data-cfx-kind=\"{AnnotationKindName(annotation.Kind)}\" data-cfx-value=\"{F(annotation.Value)}\" data-cfx-label=\"{Escape(annotation.Label)}\" x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{annotation.Color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AnnotationLineStrokeWidth)}\" stroke-dasharray=\"{F(ChartVisualPrimitives.AnnotationLineDash)} {F(ChartVisualPrimitives.AnnotationLineGap)}\"/>");
                 DrawLineLabel(sb, chart, annotation, plot, plot.Right - 8, y - 7, "end");
             } else if (annotation.Kind == ChartAnnotationKind.VerticalLine) {
                 var x = Clamp(map.X(annotation.Value), plot.Left, plot.Right);
-                sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{annotation.Color.ToCss()}\" stroke-width=\"1.6\" stroke-dasharray=\"6 5\"/>");
+                sb.AppendLine($"<line data-cfx-role=\"annotation-line\" data-cfx-kind=\"{AnnotationKindName(annotation.Kind)}\" data-cfx-value=\"{F(annotation.Value)}\" data-cfx-label=\"{Escape(annotation.Label)}\" x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{annotation.Color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AnnotationLineStrokeWidth)}\" stroke-dasharray=\"{F(ChartVisualPrimitives.AnnotationLineDash)} {F(ChartVisualPrimitives.AnnotationLineGap)}\"/>");
                 DrawLineLabel(sb, chart, annotation, plot, x + 8, plot.Top + 16, "start");
             }
         }
+    }
+
+    private static string AnnotationKindName(ChartAnnotationKind kind) {
+        if (kind == ChartAnnotationKind.HorizontalLine) return "horizontal-line";
+        if (kind == ChartAnnotationKind.VerticalLine) return "vertical-line";
+        if (kind == ChartAnnotationKind.HorizontalBand) return "horizontal-band";
+        return "vertical-band";
     }
 
     private static void DrawBandLabel(StringBuilder sb, Chart chart, ChartAnnotation annotation, ChartRect plot, double x, double y) {
@@ -315,61 +293,6 @@ public sealed partial class SvgChartRenderer {
     private static void DrawLineLabel(StringBuilder sb, Chart chart, ChartAnnotation annotation, ChartRect plot, double x, double y, string anchor) {
         if (string.IsNullOrWhiteSpace(annotation.Label)) return;
         DrawLabelPill(sb, chart, annotation.Label, x, y, annotation.Color, anchor, plot);
-    }
-
-    private static void DrawPieLike(StringBuilder sb, Chart chart, ChartRect plot, string id) {
-        var series = chart.Series[0];
-        var values = series.Points.Where(p => p.Y > 0).ToArray();
-        if (values.Length == 0) return;
-
-        var t = chart.Options.Theme;
-        var total = values.Sum(p => p.Y);
-        var radius = Math.Max(1, Math.Min(plot.Width, plot.Height) * 0.38);
-        var cx = plot.Left + plot.Width * 0.42;
-        var cy = plot.Top + plot.Height / 2;
-        var inner = series.Kind == ChartSeriesKind.Donut ? radius * 0.58 : 0;
-        var start = -Math.PI / 2;
-
-        for (var i = 0; i < values.Length; i++) {
-            var sweep = values[i].Y / total * Math.PI * 2;
-            var end = start + sweep;
-            sb.AppendLine($"<path d=\"{BuildSlicePath(cx, cy, radius, inner, start, end)}\" fill=\"url(#{id}-sliceFill{i % t.Palette.Length})\" fill-rule=\"evenodd\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
-
-            if (chart.Options.ShowDataLabels && sweep > 0.22) {
-                var mid = start + sweep / 2;
-                var labelRadius = inner > 0 ? (inner + radius) / 2 : radius * 0.66;
-                var x = cx + Math.Cos(mid) * labelRadius;
-                var y = cy + Math.Sin(mid) * labelRadius + 4;
-                sb.AppendLine($"<text x=\"{F(x)}\" y=\"{F(y)}\" text-anchor=\"middle\" fill=\"{t.CardBackground.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.DataLabelFontSize)}\" font-weight=\"750\">{FormatPercent(values[i].Y / total)}</text>");
-            }
-
-            start = end;
-        }
-
-        if (series.Kind == ChartSeriesKind.Donut) {
-            var centerLabelWidth = Math.Max(24, inner * 1.55);
-            DrawSvgTextCenteredX(sb, chart, string.Empty, FormatValue(chart, total), cx, cy - 2, t.Text, 24, centerLabelWidth, "800");
-            DrawSvgTextCenteredX(sb, chart, string.Empty, series.Name, cx, cy + 19, t.MutedText, t.TickLabelFontSize, centerLabelWidth, "400");
-        }
-
-        if (chart.Options.ShowLegend) DrawSliceLegend(sb, chart, values, plot, total);
-    }
-
-    private static void DrawSliceLegend(StringBuilder sb, Chart chart, IReadOnlyList<ChartPoint> values, ChartRect plot, double total) {
-        var t = chart.Options.Theme;
-        var x = plot.Left + plot.Width * 0.72;
-        var y = plot.Top + Math.Max(24, plot.Height * 0.18);
-        for (var i = 0; i < values.Count; i++) {
-            var color = chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length];
-            var label = SliceLabel(chart, values[i], i);
-            var percent = FormatPercent(values[i].Y / total);
-            var maxLabelWidth = Math.Max(12, plot.Right - 36 - (x + 16) - EstimateTextWidth(percent, t.LegendFontSize));
-            label = TrimSvgLabelToWidth(label, t.LegendFontSize, maxLabelWidth);
-            sb.AppendLine($"<rect x=\"{F(x)}\" y=\"{F(y - 9)}\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{color.ToCss()}\"/>");
-            sb.AppendLine($"<text x=\"{F(x + 16)}\" y=\"{F(y)}\" fill=\"{t.Text.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.LegendFontSize)}\" font-weight=\"650\">{Escape(label)}</text>");
-            sb.AppendLine($"<text x=\"{F(plot.Right - 12)}\" y=\"{F(y)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.LegendFontSize)}\">{percent}</text>");
-            y += 22;
-        }
     }
 
     private static string BuildSlicePath(double cx, double cy, double radius, double innerRadius, double start, double end) {
@@ -430,17 +353,27 @@ public sealed partial class SvgChartRenderer {
             var areaTop = s.Kind == ChartSeriesKind.StepArea ? BuildStepLinePath(mapped) : BuildLinePath(mapped, s.Smooth);
             var area = $"{areaTop} L {F(last.X)} {F(zeroY)} L {F(first.X)} {F(zeroY)} Z";
             var areaRole = s.Kind == ChartSeriesKind.StepArea ? "step-area" : "area";
-            sb.AppendLine($"<path data-cfx-role=\"{areaRole}\" data-cfx-series=\"{index}\" d=\"{area}\" fill=\"url(#{id}-area{index})\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"{areaRole}\" data-cfx-series=\"{index}\" data-cfx-point-count=\"{mapped.Length}\" d=\"{area}\" fill=\"url(#{id}-area{index})\"/>");
         }
         if (s.Kind == ChartSeriesKind.Scatter) {
-            foreach (var p in mapped) sb.AppendLine($"<circle data-cfx-role=\"scatter-point\" data-cfx-series=\"{index}\" cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(Math.Max(3, chart.Options.Theme.MarkerRadius + 0.75))}\" fill=\"{c.ToCss()}\" opacity=\"0.92\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+            for (var pointIndex = 0; pointIndex < mapped.Length; pointIndex++) {
+                var p = mapped[pointIndex];
+                var raw = s.Points[pointIndex];
+                sb.AppendLine($"<circle data-cfx-role=\"scatter-point\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" data-cfx-x=\"{F(raw.X)}\" data-cfx-y=\"{F(raw.Y)}\" cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(Math.Max(ChartVisualPrimitives.ScatterMarkerMinRadius, chart.Options.Theme.MarkerRadius + ChartVisualPrimitives.ScatterMarkerRadiusExtra))}\" fill=\"{c.ToCss()}\" opacity=\"0.92\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.MarkerStrokeWidth)}\"/>");
+            }
         } else {
             var line = s.Kind == ChartSeriesKind.StepLine ? BuildStepLinePath(mapped) : BuildLinePath(mapped, s.Smooth);
             if (s.Kind == ChartSeriesKind.StepArea) line = BuildStepLinePath(mapped);
             var lineRole = s.Kind == ChartSeriesKind.StepLine ? "step-line" : s.Kind == ChartSeriesKind.StepArea ? "step-area-line" : s.Kind == ChartSeriesKind.Area ? "area-line" : "line";
-            sb.AppendLine($"<path data-cfx-role=\"{lineRole}-halo\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth + 5)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.14\"/>");
-            sb.AppendLine($"<path data-cfx-role=\"{lineRole}\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
-            if (!chart.Options.IsSparkline) foreach (var p in mapped) sb.AppendLine($"<circle data-cfx-role=\"line-marker\" data-cfx-series=\"{index}\" cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(chart.Options.Theme.MarkerRadius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"{lineRole}-halo\" data-cfx-series=\"{index}\" data-cfx-point-count=\"{mapped.Length}\" d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth + ChartVisualPrimitives.LineHaloStrokeExtra)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{F(ChartVisualPrimitives.StrokeHaloOpacity)}\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"{lineRole}\" data-cfx-series=\"{index}\" data-cfx-point-count=\"{mapped.Length}\" d=\"{line}\" fill=\"none\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(s.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
+            if (!chart.Options.IsSparkline) {
+                for (var pointIndex = 0; pointIndex < mapped.Length; pointIndex++) {
+                    var p = mapped[pointIndex];
+                    var raw = s.Points[pointIndex];
+                    sb.AppendLine($"<circle data-cfx-role=\"line-marker\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" data-cfx-x=\"{F(raw.X)}\" data-cfx-y=\"{F(raw.Y)}\" cx=\"{F(p.X)}\" cy=\"{F(p.Y)}\" r=\"{F(chart.Options.Theme.MarkerRadius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.MarkerStrokeWidth)}\"/>");
+                }
+            }
         }
         if (ShouldDrawDataLabels(chart, s)) DrawPointLabels(sb, chart, s, mapped, plot);
     }
@@ -457,7 +390,7 @@ public sealed partial class SvgChartRenderer {
         var y2 = map.Y(end.Y);
         var slope = (end.Y - start.Y) / (end.X - start.X);
         var intercept = start.Y - slope * start.X;
-        sb.AppendLine($"<line data-cfx-role=\"trend-line\" data-cfx-series=\"{index}\" data-cfx-slope=\"{F(slope)}\" data-cfx-intercept=\"{F(intercept)}\" x1=\"{F(x1)}\" y1=\"{F(y1)}\" x2=\"{F(x2)}\" y2=\"{F(y2)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(Math.Max(1.4, series.StrokeWidth))}\" stroke-linecap=\"round\" stroke-dasharray=\"8 6\" opacity=\"0.92\"/>");
+        sb.AppendLine($"<line data-cfx-role=\"trend-line\" data-cfx-series=\"{index}\" data-cfx-slope=\"{F(slope)}\" data-cfx-intercept=\"{F(intercept)}\" x1=\"{F(x1)}\" y1=\"{F(y1)}\" x2=\"{F(x2)}\" y2=\"{F(y2)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(Math.Max(ChartVisualPrimitives.TrendLineMinStrokeWidth, series.StrokeWidth))}\" stroke-linecap=\"round\" stroke-dasharray=\"8 6\" opacity=\"0.92\"/>");
     }
 
     private static void DrawSlope(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
@@ -470,14 +403,14 @@ public sealed partial class SvgChartRenderer {
         var yStart = map.Y(start.Y);
         var xEnd = map.X(end.X);
         var yEnd = map.Y(end.Y);
-        var radius = Math.Max(4.2, chart.Options.Theme.MarkerRadius + 1.2);
+        var radius = Math.Max(ChartVisualPrimitives.SlopeMarkerMinRadius, chart.Options.Theme.MarkerRadius + ChartVisualPrimitives.SlopeMarkerRadiusExtra);
         var summary = series.Name + ": " + FormatValue(chart, start.Y) + " to " + FormatValue(chart, end.Y);
 
-        sb.AppendLine($"<g data-cfx-role=\"slope\" data-cfx-series=\"{index}\" role=\"img\" aria-label=\"{Escape(summary)}\">");
-        sb.AppendLine($"<line data-cfx-role=\"slope-line\" x1=\"{F(xStart)}\" y1=\"{F(yStart)}\" x2=\"{F(xEnd)}\" y2=\"{F(yEnd)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth + 5)}\" stroke-linecap=\"round\" opacity=\"0.14\"/>");
-        sb.AppendLine($"<line data-cfx-role=\"slope-line\" x1=\"{F(xStart)}\" y1=\"{F(yStart)}\" x2=\"{F(xEnd)}\" y2=\"{F(yEnd)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth)}\" stroke-linecap=\"round\"/>");
-        sb.AppendLine($"<circle data-cfx-role=\"slope-start\" cx=\"{F(xStart)}\" cy=\"{F(yStart)}\" r=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
-        sb.AppendLine($"<circle data-cfx-role=\"slope-end\" cx=\"{F(xEnd)}\" cy=\"{F(yEnd)}\" r=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2\"/>");
+        sb.AppendLine($"<g data-cfx-role=\"slope\" data-cfx-series=\"{index}\" data-cfx-start=\"{F(start.Y)}\" data-cfx-end=\"{F(end.Y)}\" data-cfx-delta=\"{F(end.Y - start.Y)}\" role=\"img\" aria-label=\"{Escape(summary)}\">");
+        sb.AppendLine($"<line data-cfx-role=\"slope-line\" data-cfx-series=\"{index}\" x1=\"{F(xStart)}\" y1=\"{F(yStart)}\" x2=\"{F(xEnd)}\" y2=\"{F(yEnd)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth + ChartVisualPrimitives.LineHaloStrokeExtra)}\" stroke-linecap=\"round\" opacity=\"{F(ChartVisualPrimitives.StrokeHaloOpacity)}\"/>");
+        sb.AppendLine($"<line data-cfx-role=\"slope-line\" data-cfx-series=\"{index}\" x1=\"{F(xStart)}\" y1=\"{F(yStart)}\" x2=\"{F(xEnd)}\" y2=\"{F(yEnd)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth)}\" stroke-linecap=\"round\"/>");
+        sb.AppendLine($"<circle data-cfx-role=\"slope-start\" data-cfx-series=\"{index}\" data-cfx-value=\"{F(start.Y)}\" cx=\"{F(xStart)}\" cy=\"{F(yStart)}\" r=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.MarkerStrokeWidth)}\"/>");
+        sb.AppendLine($"<circle data-cfx-role=\"slope-end\" data-cfx-series=\"{index}\" data-cfx-value=\"{F(end.Y)}\" cx=\"{F(xEnd)}\" cy=\"{F(yEnd)}\" r=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.MarkerStrokeWidth)}\"/>");
         sb.AppendLine("</g>");
         if (!ShouldDrawDataLabels(chart, series)) return;
         DrawHorizontalValueLabel(sb, chart, FormatValue(chart, start.Y), xStart - radius - 8, yStart, "end", plot);
@@ -497,10 +430,10 @@ public sealed partial class SvgChartRenderer {
 
         var upperPath = ChartPathBuilder.FromPoints(upper, ChartSeriesKind.Line, series.Smooth).Flatten(12);
         var lowerPath = ChartPathBuilder.FromPoints(lower, ChartSeriesKind.Line, series.Smooth).Flatten(12);
-        sb.AppendLine($"<path data-cfx-role=\"stacked-area\" data-cfx-series=\"{index}\" d=\"{BuildClosedPolygonPath(upperPath, lowerPath)}\" fill=\"{color.ToCss()}\" opacity=\"0.42\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"stacked-area\" data-cfx-series=\"{index}\" data-cfx-point-count=\"{series.Points.Count}\" d=\"{BuildClosedPolygonPath(upperPath, lowerPath)}\" fill=\"{color.ToCss()}\" opacity=\"0.42\"/>");
         var line = BuildLinePath(upperPath, false);
-        sb.AppendLine($"<path data-cfx-role=\"stacked-area-line\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth + 4)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.12\"/>");
-        sb.AppendLine($"<path data-cfx-role=\"stacked-area-line\" data-cfx-series=\"{index}\" d=\"{line}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"stacked-area-line\" data-cfx-series=\"{index}\" data-cfx-point-count=\"{series.Points.Count}\" d=\"{line}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth + 4)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.12\"/>");
+        sb.AppendLine($"<path data-cfx-role=\"stacked-area-line\" data-cfx-series=\"{index}\" data-cfx-point-count=\"{series.Points.Count}\" d=\"{line}\" fill=\"none\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(series.StrokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
         if (!ShouldDrawDataLabels(chart, series)) return;
         var labelPoints = series.Points.Select(point => new ChartPoint(map.X(point.X), map.Y(StackAreaBaseValue(chart, index, point) + point.Y))).ToArray();
         DrawPointLabels(sb, chart, series, labelPoints, plot);
@@ -525,8 +458,8 @@ public sealed partial class SvgChartRenderer {
             var p = s.Points[pointIndex];
             var x = map.X(p.X);
             var y = map.Y(p.Y);
-            sb.AppendLine($"<line data-cfx-role=\"lollipop-stem\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" x1=\"{F(x)}\" y1=\"{F(zeroY)}\" x2=\"{F(x)}\" y2=\"{F(y)}\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(Math.Max(1.4, s.StrokeWidth * 0.62))}\" stroke-linecap=\"round\" opacity=\"0.58\"/>");
-            sb.AppendLine($"<circle data-cfx-role=\"lollipop-marker\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(radius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"2.2\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"lollipop-stem\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" data-cfx-x=\"{F(p.X)}\" data-cfx-y=\"{F(p.Y)}\" x1=\"{F(x)}\" y1=\"{F(zeroY)}\" x2=\"{F(x)}\" y2=\"{F(y)}\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(Math.Max(ChartVisualPrimitives.LollipopStemMinStrokeWidth, s.StrokeWidth * 0.62))}\" stroke-linecap=\"round\" opacity=\"{F(ChartVisualPrimitives.LollipopStemOpacity)}\"/>");
+            sb.AppendLine($"<circle data-cfx-role=\"lollipop-marker\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" data-cfx-x=\"{F(p.X)}\" data-cfx-y=\"{F(p.Y)}\" cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(radius)}\" fill=\"{c.ToCss()}\" stroke=\"{chart.Options.Theme.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.LollipopMarkerStrokeWidth)}\"/>");
         }
 
         if (ShouldDrawDataLabels(chart, s)) DrawPointLabels(sb, chart, s, s.Points.Select(p => new ChartPoint(map.X(p.X), map.Y(p.Y))).ToArray(), plot);
@@ -537,6 +470,7 @@ public sealed partial class SvgChartRenderer {
         var c = Color(chart, index);
         var intervalCount = Math.Max(1, s.Points.Count / 2);
         var barWidth = Math.Max(8, Math.Min(28, plot.Width / Math.Max(1, intervalCount * 4.0)));
+        var reservedLabels = new List<ChartLabelBounds>();
         for (var pointIndex = 0; pointIndex + 1 < s.Points.Count; pointIndex += 2) {
             var start = s.Points[pointIndex];
             var end = s.Points[pointIndex + 1];
@@ -547,10 +481,10 @@ public sealed partial class SvgChartRenderer {
             var height = Math.Max(2, Math.Abs(y2 - y1));
             var intervalIndex = pointIndex / 2;
             var summary = FormatValue(chart, Math.Min(start.Y, end.Y)) + "-" + FormatValue(chart, Math.Max(start.Y, end.Y));
-            sb.AppendLine($"<rect data-cfx-role=\"range-bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(x - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"{F(Math.Min(7, barWidth / 2))}\" fill=\"{c.ToCss()}\" opacity=\"0.88\"/>");
-            sb.AppendLine($"<line data-cfx-role=\"range-bar-cap\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" x1=\"{F(x - barWidth * 0.75)}\" y1=\"{F(y1)}\" x2=\"{F(x + barWidth * 0.75)}\" y2=\"{F(y1)}\" stroke=\"{c.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
-            sb.AppendLine($"<line data-cfx-role=\"range-bar-cap\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" x1=\"{F(x - barWidth * 0.75)}\" y1=\"{F(y2)}\" x2=\"{F(x + barWidth * 0.75)}\" y2=\"{F(y2)}\" stroke=\"{c.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
-            if (ShouldDrawDataLabels(chart, s)) DrawDataLabel(sb, chart, summary, x, top - 10, plot);
+            sb.AppendLine($"<rect data-cfx-role=\"range-bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" data-cfx-x=\"{F(start.X)}\" data-cfx-start=\"{F(start.Y)}\" data-cfx-end=\"{F(end.Y)}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(x - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"{F(Math.Min(7, barWidth / 2))}\" fill=\"{c.ToCss()}\" opacity=\"0.88\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"range-bar-cap\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" data-cfx-bound=\"start\" data-cfx-value=\"{F(start.Y)}\" x1=\"{F(x - barWidth * 0.75)}\" y1=\"{F(y1)}\" x2=\"{F(x + barWidth * 0.75)}\" y2=\"{F(y1)}\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RangeBarCapStrokeWidth)}\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<line data-cfx-role=\"range-bar-cap\" data-cfx-series=\"{index}\" data-cfx-point=\"{intervalIndex}\" data-cfx-bound=\"end\" data-cfx-value=\"{F(end.Y)}\" x1=\"{F(x - barWidth * 0.75)}\" y1=\"{F(y2)}\" x2=\"{F(x + barWidth * 0.75)}\" y2=\"{F(y2)}\" stroke=\"{c.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RangeBarCapStrokeWidth)}\" stroke-linecap=\"round\"/>");
+            if (ShouldDrawDataLabels(chart, s) && ReserveSvgLabel(summary, x, top - 10, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, summary, x, top - 10, plot);
         }
     }
 
@@ -558,6 +492,7 @@ public sealed partial class SvgChartRenderer {
         var s = chart.Series[index];
         var layout = BarLayout(chart, plot, index);
         var zeroY = Math.Min(plot.Bottom, Math.Max(plot.Top, map.Y(0)));
+        var reservedLabels = new List<ChartLabelBounds>();
         for (var pointIndex = 0; pointIndex < s.Points.Count; pointIndex++) {
             var p = s.Points[pointIndex];
             var baseValue = chart.Options.BarMode == ChartBarMode.Stacked ? StackBaseValue(chart, index, p) : 0;
@@ -567,13 +502,22 @@ public sealed partial class SvgChartRenderer {
             var height = Math.Abs(baseY - y);
             var x = map.X(p.X) + layout.Offset - layout.BarWidth / 2;
             var radius = chart.Options.BarMode == ChartBarMode.Stacked ? Math.Min(3, layout.BarWidth / 2) : Math.Min(7, layout.BarWidth / 2);
-            sb.AppendLine($"<rect data-cfx-role=\"bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" x=\"{F(x)}\" y=\"{F(top)}\" width=\"{F(layout.BarWidth)}\" height=\"{F(height)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-seriesFill{index})\" opacity=\"0.94\"/>");
+            sb.AppendLine($"<rect data-cfx-role=\"bar\" data-cfx-series=\"{index}\" data-cfx-point=\"{pointIndex}\" data-cfx-x=\"{F(p.X)}\" data-cfx-y=\"{F(p.Y)}\" data-cfx-base=\"{F(baseValue)}\" x=\"{F(x)}\" y=\"{F(top)}\" width=\"{F(layout.BarWidth)}\" height=\"{F(height)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-seriesFill{index})\" opacity=\"{F(ChartVisualPrimitives.BarFillOpacity)}\"/>");
+            DrawSvgBarHighlight(sb, x, top, layout.BarWidth, height);
             if (ShouldDrawDataLabels(chart, s)) {
                 if (chart.Options.BarMode == ChartBarMode.Stacked && height < chart.Options.Theme.DataLabelFontSize + 8) continue;
                 var labelY = chart.Options.BarMode == ChartBarMode.Stacked ? top + height / 2 : p.Y >= 0 ? top - 10 : top + height + 10;
-                DrawDataLabel(sb, chart, FormatValue(chart, p.Y), x + layout.BarWidth / 2, labelY, plot);
+                var label = FormatValue(chart, p.Y);
+                if (!ReserveSvgLabel(label, x + layout.BarWidth / 2, labelY, chart, plot, reservedLabels)) continue;
+                DrawDataLabel(sb, chart, label, x + layout.BarWidth / 2, labelY, plot);
             }
         }
+    }
+
+    private static void DrawSvgBarHighlight(StringBuilder sb, double x, double y, double width, double height) {
+        if (width <= ChartVisualPrimitives.BarHighlightInset * 2 + 3 || height <= ChartVisualPrimitives.BarHighlightInset * 2 + 1) return;
+        var inset = ChartVisualPrimitives.BarHighlightInset;
+        sb.AppendLine($"<line data-cfx-role=\"bar-highlight\" x1=\"{F(x + inset)}\" y1=\"{F(y + inset)}\" x2=\"{F(x + width - inset)}\" y2=\"{F(y + inset)}\" stroke=\"#fff\" stroke-opacity=\"{F(ChartVisualPrimitives.BarHighlightOpacity)}\" stroke-width=\"{F(ChartVisualPrimitives.BarHighlightStrokeWidth)}\" stroke-linecap=\"round\"/>");
     }
 
     private static BarLayoutInfo BarLayout(Chart chart, ChartRect plot, int seriesIndex) {
@@ -636,14 +580,19 @@ public sealed partial class SvgChartRenderer {
             foreach (var point in series.Points) AddStackTotal(point.Y >= 0 ? positiveTotals : negativeTotals, point.X, point.Y);
         }
 
-        DrawStackTotalSet(sb, chart, positiveTotals, plot, map, -14);
-        DrawStackTotalSet(sb, chart, negativeTotals, plot, map, 14);
+        var reservedLabels = new List<ChartLabelBounds>();
+        DrawStackTotalSet(sb, chart, positiveTotals, plot, map, -14, reservedLabels);
+        DrawStackTotalSet(sb, chart, negativeTotals, plot, map, 14, reservedLabels);
     }
 
-    private static void DrawStackTotalSet(StringBuilder sb, Chart chart, Dictionary<double, double> totals, ChartRect plot, ChartMapper map, double offset) {
+    private static void DrawStackTotalSet(StringBuilder sb, Chart chart, Dictionary<double, double> totals, ChartRect plot, ChartMapper map, double offset, List<ChartLabelBounds> reservedLabels) {
         foreach (var item in totals.OrderBy(item => item.Key)) {
             if (Math.Abs(item.Value) < 0.000001) continue;
-            DrawDataLabel(sb, chart, FormatValue(chart, item.Value), map.X(item.Key), map.Y(item.Value) + offset, plot, "stack-total-label");
+            var label = FormatValue(chart, item.Value);
+            var x = map.X(item.Key);
+            var y = map.Y(item.Value) + offset;
+            if (!ReserveSvgLabel(label, x, y, chart, plot, reservedLabels)) continue;
+            DrawDataLabel(sb, chart, label, x, y, plot, "stack-total-label");
         }
     }
 
@@ -713,19 +662,6 @@ public sealed partial class SvgChartRenderer {
         return new ChartRect(plot.X + shift, plot.Y, Math.Max(1, plot.Width - shift), plot.Height);
     }
 
-    private static ChartRect ApplyHorizontalBarReserve(Chart chart, ChartRect plot, IReadOnlyList<double> categoryTicks) {
-        if (!chart.Options.ShowAxes || categoryTicks.Count == 0) return plot;
-        var t = chart.Options.Theme;
-        var widest = categoryTicks.Max(tick => EstimateTextWidth(FormatX(chart, tick), t.TickLabelFontSize));
-        var desiredLeft = Math.Max(plot.Left, widest + 58);
-        var maxLeft = Math.Max(plot.Left, chart.Options.Size.Width - chart.Options.Padding.Right - 180);
-        var adjustedLeft = Math.Min(desiredLeft, maxLeft);
-        var leftShift = Math.Max(0, adjustedLeft - plot.Left);
-        var rightReserve = HorizontalValueLabelReserve(chart);
-        if (leftShift <= 0 && rightReserve <= 0) return plot;
-        return new ChartRect(plot.X + leftShift, plot.Y, Math.Max(1, plot.Width - leftShift - rightReserve), plot.Height);
-    }
-
     private static ChartRect ApplyXAxisBottomReserve(Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, bool valueAxisOnly) {
         if (!chart.Options.ShowAxes || chart.Options.IsSparkline || IsPieLike(chart) || xTicks.Count == 0) return plot;
         var labels = XAxisTickLabels(chart, xTicks, valueAxisOnly);
@@ -739,7 +675,7 @@ public sealed partial class SvgChartRenderer {
     }
 
     private static double HorizontalValueLabelReserve(Chart chart) {
-        if (!chart.Options.ShowDataLabels && !(chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) return 0;
+        if (!HasHorizontalBarDataLabels(chart) && !(chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) return 0;
         string[] labels;
         if (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals) {
             var positiveTotals = new Dictionary<double, double>();
@@ -764,7 +700,7 @@ public sealed partial class SvgChartRenderer {
     private static void ApplyHorizontalValueBounds(Chart chart, ChartRange range, IReadOnlyList<double> xTicks) {
         var min = xTicks[0];
         var max = xTicks[xTicks.Count - 1];
-        if (chart.Options.ShowDataLabels || (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) {
+        if (HasHorizontalBarDataLabels(chart) || (chart.Options.BarMode == ChartBarMode.Stacked && chart.Options.ShowStackTotals)) {
             var span = Math.Max(1, max - min);
             var hasPositive = chart.Series.Any(series => series.Kind == ChartSeriesKind.HorizontalBar && series.Points.Any(point => point.Y > 0));
             var hasNegative = chart.Series.Any(series => series.Kind == ChartSeriesKind.HorizontalBar && series.Points.Any(point => point.Y < 0));

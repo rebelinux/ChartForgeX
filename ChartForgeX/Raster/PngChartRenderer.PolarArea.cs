@@ -20,13 +20,13 @@ public sealed partial class PngChartRenderer {
             total += value.Y;
         }
 
-        var radius = Math.Max(24, Math.Min(plot.Width, plot.Height) * 0.36);
-        var cx = plot.Left + plot.Width * 0.42;
+        var radius = Math.Max(ChartVisualPrimitives.PolarAreaMinRadius, Math.Min(plot.Width, plot.Height) * ChartVisualPrimitives.PolarAreaRadiusFactor);
+        var cx = plot.Left + plot.Width * ChartVisualPrimitives.PolarAreaCenterXFactor;
         var cy = plot.Top + plot.Height / 2;
         var sweep = Math.PI * 2 / values.Count;
         var separator = chart.Options.Theme.CardBackground;
 
-        DrawPolarAreaGrid(c, chart, cx, cy, radius);
+        if (chart.Options.ShowGrid) DrawPolarAreaGrid(c, chart, cx, cy, radius);
         for (var i = 0; i < values.Count; i++) {
             var start = -Math.PI / 2 + i * sweep;
             var end = start + sweep;
@@ -34,23 +34,23 @@ public sealed partial class PngChartRenderer {
             var color = chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length];
             c.FillRingSlice(cx, cy, segmentRadius, 0, start, end, color);
             DrawSliceSeparator(c, cx, cy, segmentRadius, 0, start, separator);
-            c.DrawArc(cx, cy, segmentRadius, start, end, separator, 1);
+            c.DrawArc(cx, cy, segmentRadius, start, end, separator, ChartVisualPrimitives.SliceSeparatorStrokeWidth);
 
-            if (chart.Options.ShowDataLabels && segmentRadius > 34) {
+            if (ShouldDrawDataLabels(chart, series) && segmentRadius > ChartVisualPrimitives.PolarAreaLabelMinRadius) {
                 var mid = start + sweep / 2;
                 var label = FormatValue(chart, values[i].Y);
                 var fontSize = chart.Options.Theme.DataLabelFontSize;
-                var labelRadius = segmentRadius * 0.64;
+                var labelRadius = segmentRadius * ChartVisualPrimitives.PolarAreaLabelRadiusFactor;
                 DrawReadablePngLabel(c, plot, cx + Math.Cos(mid) * labelRadius - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0, cy + Math.Sin(mid) * labelRadius - fontSize / 2.0, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
             }
         }
 
-        c.DrawCircleOutline(cx, cy, radius, ApplyOpacity(chart.Options.Theme.Grid, 0.72), 1);
+        if (chart.Options.ShowGrid) c.DrawCircleOutline(cx, cy, radius, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.PolarAreaGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
         if (chart.Options.ShowLegend) DrawSliceLegend(c, chart, values, plot, total);
     }
 
     private static void DrawPolarAreaGrid(RgbaCanvas c, Chart chart, double cx, double cy, double radius) {
-        var grid = ApplyOpacity(chart.Options.Theme.Grid, 0.72);
-        for (var i = 1; i <= 4; i++) c.DrawCircleOutline(cx, cy, radius * i / 4.0, grid, 1);
+        var grid = ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.PolarAreaGridOpacity);
+        for (var i = 1; i <= ChartVisualPrimitives.PolarAreaGridRings; i++) c.DrawCircleOutline(cx, cy, radius * i / ChartVisualPrimitives.PolarAreaGridRings, grid, ChartVisualPrimitives.GridStrokeWidth);
     }
 }

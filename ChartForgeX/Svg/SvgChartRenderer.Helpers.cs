@@ -21,8 +21,11 @@ public sealed partial class SvgChartRenderer {
             foreach (var item in row.Items) {
                 var c = Color(chart, item.Index);
                 var label = SvgLegendLabel(chart, item.Index, w);
+                var series = chart.Series[item.Index];
+                sb.AppendLine($"<g data-cfx-role=\"legend-item\" data-cfx-series=\"{item.Index}\" data-cfx-kind=\"{Escape(series.Kind.ToString())}\" data-cfx-label=\"{Escape(series.Name)}\">");
                 DrawLegendSymbol(sb, chart.Series[item.Index].Kind, item.X, -4, c, t.CardBackground);
-                sb.AppendLine($"<text x=\"{F(item.X + 26)}\" y=\"0\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.LegendFontSize)}\" font-weight=\"600\">{Escape(label)}</text>");
+                sb.AppendLine($"<text data-cfx-role=\"legend-label\" data-cfx-series=\"{item.Index}\" x=\"{F(item.X + 26)}\" y=\"0\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.LegendFontSize)}\" font-weight=\"600\">{Escape(label)}</text>");
+                sb.AppendLine("</g>");
             }
 
             sb.AppendLine("</g>");
@@ -62,13 +65,13 @@ public sealed partial class SvgChartRenderer {
 
     private static void DrawLegendSymbol(StringBuilder sb, ChartSeriesKind kind, double x, double y, ChartColor color, ChartColor background) {
         if (IsLineLikeLegend(kind)) {
-            sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(y)}\" x2=\"{F(x + 18)}\" y2=\"{F(y)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2.4\" stroke-linecap=\"round\"/>");
-            sb.AppendLine($"<circle cx=\"{F(x + 9)}\" cy=\"{F(y)}\" r=\"4\" fill=\"{color.ToCss()}\" stroke=\"{background.ToCss()}\" stroke-width=\"1.6\"/>");
+            sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(y)}\" x2=\"{F(x + 18)}\" y2=\"{F(y)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.LegendLineStrokeWidth)}\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<circle cx=\"{F(x + 9)}\" cy=\"{F(y)}\" r=\"{F(ChartVisualPrimitives.LegendMarkerRadius)}\" fill=\"{color.ToCss()}\" stroke=\"{background.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.LegendMarkerStrokeWidth)}\"/>");
         } else if (kind == ChartSeriesKind.Scatter || kind == ChartSeriesKind.Bubble) {
-            sb.AppendLine($"<circle cx=\"{F(x + 9)}\" cy=\"{F(y)}\" r=\"4\" fill=\"{color.ToCss()}\" stroke=\"{background.ToCss()}\" stroke-width=\"1.6\"/>");
+            sb.AppendLine($"<circle cx=\"{F(x + 9)}\" cy=\"{F(y)}\" r=\"{F(ChartVisualPrimitives.LegendMarkerRadius)}\" fill=\"{color.ToCss()}\" stroke=\"{background.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.LegendMarkerStrokeWidth)}\"/>");
         } else if (kind == ChartSeriesKind.Candlestick || kind == ChartSeriesKind.Ohlc) {
-            sb.AppendLine($"<line x1=\"{F(x + 9)}\" y1=\"{F(y - 6)}\" x2=\"{F(x + 9)}\" y2=\"{F(y + 6)}\" stroke=\"{color.ToCss()}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
-            sb.AppendLine($"<rect x=\"{F(x + 4)}\" y=\"{F(y - 3)}\" width=\"10\" height=\"6\" rx=\"1.5\" fill=\"{color.ToCss()}\"/>");
+            sb.AppendLine($"<line x1=\"{F(x + 9)}\" y1=\"{F(y - 6)}\" x2=\"{F(x + 9)}\" y2=\"{F(y + 6)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.LegendFinanceStrokeWidth)}\" stroke-linecap=\"round\"/>");
+            sb.AppendLine($"<rect x=\"{F(x + 4)}\" y=\"{F(y - ChartVisualPrimitives.LegendFinanceBodyHeight / 2)}\" width=\"{F(ChartVisualPrimitives.LegendFinanceBodyWidth)}\" height=\"{F(ChartVisualPrimitives.LegendFinanceBodyHeight)}\" rx=\"1.5\" fill=\"{color.ToCss()}\"/>");
         } else {
             sb.AppendLine($"<rect x=\"{F(x)}\" y=\"{F(y - 5)}\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{color.ToCss()}\"/>");
         }
@@ -82,8 +85,9 @@ public sealed partial class SvgChartRenderer {
         var width = Math.Max(34, EstimateTextWidth(label, t.TickLabelFontSize) + 16);
         var placement = PlaceLabelPill(x, width, anchor, plot);
         var textX = placement.Anchor == "end" ? placement.X - 8 : placement.X + 8;
-        sb.AppendLine($"<rect data-cfx-role=\"annotation-label\" x=\"{F(placement.RectX)}\" y=\"{F(y - 16)}\" width=\"{F(width)}\" height=\"22\" rx=\"6\" fill=\"{t.CardBackground.ToCss()}\" opacity=\"0.88\" stroke=\"{textColor.ToCss()}\" stroke-opacity=\"0.34\"/>");
-        sb.AppendLine($"<text x=\"{F(textX)}\" y=\"{F(y)}\" text-anchor=\"{placement.Anchor}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+        var rectY = Clamp(y - 16, plot.Top + 4, plot.Bottom - 26);
+        sb.AppendLine($"<rect data-cfx-role=\"annotation-label\" data-cfx-label=\"{Escape(label)}\" x=\"{F(placement.RectX)}\" y=\"{F(rectY)}\" width=\"{F(width)}\" height=\"22\" rx=\"6\" fill=\"{t.CardBackground.ToCss()}\" opacity=\"0.88\" stroke=\"{textColor.ToCss()}\" stroke-opacity=\"0.34\"/>");
+        sb.AppendLine($"<text data-cfx-role=\"annotation-label-text\" data-cfx-label=\"{Escape(label)}\" x=\"{F(textX)}\" y=\"{F(rectY + 16)}\" text-anchor=\"{placement.Anchor}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
     }
 
     private static void DrawDataLabel(StringBuilder sb, Chart chart, string label, double x, double y, ChartRect plot, string role = "data-label") {
@@ -99,6 +103,8 @@ public sealed partial class SvgChartRenderer {
     }
 
     private static bool ShouldDrawDataLabels(Chart chart, ChartSeries series) => series.ShowDataLabels ?? chart.Options.ShowDataLabels;
+
+    private static bool HasHorizontalBarDataLabels(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.HorizontalBar && ShouldDrawDataLabels(chart, series));
 
     private static void DrawHorizontalValueLabel(StringBuilder sb, Chart chart, string label, double x, double y, string anchor, ChartRect plot) {
         var t = chart.Options.Theme;
@@ -120,6 +126,32 @@ public sealed partial class SvgChartRenderer {
         }
 
         sb.AppendLine($"<text data-cfx-role=\"data-label\" x=\"{F(safeX)}\" y=\"{F(Clamp(y, plot.Top + 4, plot.Bottom - 4))}\" text-anchor=\"{effectiveAnchor}\" dominant-baseline=\"middle\" fill=\"{t.Text.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+    }
+
+    private static bool ReserveSvgHorizontalLabel(string label, double x, double y, string anchor, Chart chart, ChartRect plot, List<ChartLabelBounds> reserved) {
+        var fontSize = chart.Options.Theme.DataLabelFontSize;
+        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
+        if (label.Length == 0) return false;
+
+        var width = EstimateTextWidth(label, fontSize) + 8;
+        var height = fontSize + 6;
+        var effectiveAnchor = anchor == "end" ? "end" : "start";
+        var safeX = effectiveAnchor == "end"
+            ? Clamp(x, plot.Left + width + 4, plot.Right - 4)
+            : Clamp(x, plot.Left + 4, plot.Right - width - 4);
+        if (safeX < plot.Left + 4) {
+            effectiveAnchor = "start";
+            safeX = plot.Left + 4;
+        } else if (safeX > plot.Right - 4) {
+            effectiveAnchor = "end";
+            safeX = plot.Right - 4;
+        }
+
+        var left = effectiveAnchor == "end" ? safeX - width : safeX;
+        var bounds = new ChartLabelBounds(left, Clamp(y, plot.Top + 4, plot.Bottom - 4) - height / 2, width, height);
+        foreach (var item in reserved) if (bounds.Intersects(item)) return false;
+        reserved.Add(bounds);
+        return true;
     }
 
     private static LabelPillPlacement PlaceLabelPill(double x, double width, string anchor, ChartRect plot) {
@@ -266,24 +298,33 @@ public sealed partial class SvgChartRenderer {
     private static double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(max, value));
 
     private static IReadOnlyList<double> GetXTicks(Chart chart, ChartRange range, ChartRect plot) {
-        if (chart.Options.XAxisLabels.Count == 0) return ChartTicks.GenerateInside(range.MinX, range.MaxX, chart.Options.TickCount);
+        if (chart.Options.XAxisLabels.Count == 0) {
+            var ticks = ChartTicks.GenerateInside(range.MinX, range.MaxX, chart.Options.TickCount);
+            if (chart.Options.XAxisLabelDensity == ChartLabelDensity.All || ticks.Count < 3) return ticks;
+            var generatedLabels = ticks.Select(tick => new ChartAxisLabel(tick, FormatXAxisValue(chart, tick))).ToArray();
+            return SelectXAxisTickValues(chart, range, plot, generatedLabels);
+        }
+
         var labels = chart.Options.XAxisLabels
             .Where(label => label.Value >= range.MinX && label.Value <= range.MaxX)
             .OrderBy(label => label.Value)
             .ToArray();
-        if (chart.Options.XAxisLabelDensity == ChartLabelDensity.All || labels.Length < 3) return labels.Select(label => label.Value).ToArray();
+        return SelectXAxisTickValues(chart, range, plot, labels);
+    }
 
+    private static IReadOnlyList<double> SelectXAxisTickValues(Chart chart, ChartRange range, ChartRect plot, IReadOnlyList<ChartAxisLabel> labels) {
+        if (chart.Options.XAxisLabelDensity == ChartLabelDensity.All || labels.Count < 3) return labels.Select(label => label.Value).ToArray();
         var widest = labels.Max(label => EstimateTextWidth(label.Text, chart.Options.Theme.TickLabelFontSize));
         var densityFactor = chart.Options.XAxisLabelDensity == ChartLabelDensity.Dense ? 0.72 : chart.Options.XAxisLabelDensity == ChartLabelDensity.Relaxed ? 1.35 : 1.0;
         var minSpacing = Math.Max(28, (widest + 18) * densityFactor);
         var maxCount = Math.Max(2, (int)Math.Floor(plot.Width / minSpacing) + 1);
-        if (labels.Length <= maxCount && LabelsHaveMinimumLabelGap(labels, range, plot, chart.Options.Theme.TickLabelFontSize, 6)) return labels.Select(label => label.Value).ToArray();
+        if (labels.Count <= maxCount && LabelsHaveMinimumLabelGap(labels, range, plot, chart.Options.Theme.TickLabelFontSize, 6)) return labels.Select(label => label.Value).ToArray();
 
-        var lastLabel = labels[labels.Length - 1];
-        var step = Math.Max(1, (int)Math.Ceiling((labels.Length - 1) / (double)(maxCount - 1)));
+        var lastLabel = labels[labels.Count - 1];
+        var step = Math.Max(1, (int)Math.Ceiling((labels.Count - 1) / (double)(maxCount - 1)));
         var selected = new List<ChartAxisLabel>();
         selected.Add(labels[0]);
-        for (var i = step; i < labels.Length - 1; i += step) {
+        for (var i = step; i < labels.Count - 1; i += step) {
             if (LabelGap(selected[selected.Count - 1], labels[i], range, plot, chart.Options.Theme.TickLabelFontSize) >= 6 &&
                 LabelGap(labels[i], lastLabel, range, plot, chart.Options.Theme.TickLabelFontSize) >= 6) selected.Add(labels[i]);
         }
