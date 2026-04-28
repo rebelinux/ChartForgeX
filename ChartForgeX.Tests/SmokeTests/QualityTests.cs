@@ -765,7 +765,7 @@ internal static partial class SmokeTests {
             Assert(comparison.Contains("href=\"svg-png-comparison.json\"", StringComparison.Ordinal), "Comparison page should link its parity manifest.");
             Assert(comparison.Contains("<section id=\"alpha\"", StringComparison.Ordinal), "Comparison page should expose stable chart anchors.");
             Assert(CountOccurrences(comparison, "Review clean") == 2, "Comparison page should label warning-free chart pairs.");
-            Assert(comparison.Contains("aspect-ratio:320/180", StringComparison.Ordinal), "Comparison page should preserve chart aspect ratios for fair SVG/PNG review.");
+            Assert(comparison.Contains("aspect-ratio:320/180", StringComparison.Ordinal) && comparison.Contains("max-width:320px", StringComparison.Ordinal), "Comparison page should preserve chart aspect ratios without upscaling PNG previews beyond their exported dimensions.");
             Assert(comparison.Contains("320x180", StringComparison.Ordinal), "Comparison page should show asset dimensions for SVG/PNG parity review.");
             Assert(comparison.Contains("visual nodes", StringComparison.Ordinal), "Comparison page should expose simple SVG visibility statistics.");
             Assert(comparison.Contains("visible px", StringComparison.Ordinal), "Comparison page should expose simple PNG visibility statistics.");

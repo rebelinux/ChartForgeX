@@ -270,7 +270,7 @@ public static partial class GalleryWriter {
             aspectHeight = 9;
         }
 
-        var ratioStyle = " style=\"aspect-ratio:" + aspectWidth.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/" + aspectHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"";
+        var ratioStyle = " style=\"aspect-ratio:" + aspectWidth.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/" + aspectHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) + ";max-width:" + aspectWidth.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px;margin-inline:auto\"";
         var warnings = pair.Warnings;
         var statusClass = warnings.Length == 0 ? "ok" : "warn";
         var statusText = warnings.Length == 0 ? "Review clean" : string.Join(" / ", warnings);
