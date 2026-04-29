@@ -21,6 +21,7 @@ internal static partial class SmokeTests {
 
         var svg = chart.ToSvg();
         Assert(svg.Contains("data-cfx-role=\"word-cloud\"", StringComparison.Ordinal), "Word clouds should expose a chart role marker.");
+        Assert(svg.Contains("data-cfx-edge-padding=", StringComparison.Ordinal), "Word clouds should expose the inner placement padding used to keep terms away from plot borders.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"word-cloud-term\"") == 5, "Word clouds should place each weighted term when there is enough room.");
         Assert(svg.Contains("data-cfx-text=\"Security\" data-cfx-value=\"100\"", StringComparison.Ordinal), "Word cloud terms should expose data metadata.");
         Assert(svg.Contains("font-size=\"46\"", StringComparison.Ordinal), "Word cloud terms should scale important words up.");

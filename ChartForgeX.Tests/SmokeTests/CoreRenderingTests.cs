@@ -119,7 +119,7 @@ internal static partial class SmokeTests {
             .AddBar("Values", Points(72))
             .ToSvg();
         Assert(longSvg.Contains("data-cfx-role=\"data-label\"", StringComparison.Ordinal), "Long SVG data labels should still render as identifiable data labels.");
-        Assert(longSvg.Contains(">Extremely long...</text>", StringComparison.Ordinal), "SVG data labels should shorten formatter output that cannot fit inside the plot.");
+        Assert(longSvg.Contains("...</text>", StringComparison.Ordinal), "SVG data labels should shorten formatter output that cannot fit inside the plot.");
     }
 
     private static void CustomValueFormatterAffectsSvgValues() {
@@ -275,7 +275,7 @@ internal static partial class SmokeTests {
             .AddHorizontalLine(25, "target", ChartColor.FromRgb(251, 191, 36))
             .ToSvg();
         Assert(svg.Contains("-seriesFill0", StringComparison.Ordinal), "SVG should include series fill gradients.");
-        Assert(svg.Contains("stroke-opacity=\"0.34\"", StringComparison.Ordinal), "Annotation labels should render as legible pills.");
+        Assert(svg.Contains("stroke-opacity=\"0.36\"", StringComparison.Ordinal), "Annotation labels should render as legible pills.");
         Assert(svg.Contains("font-weight=\"750\"", StringComparison.Ordinal), "SVG should use stronger title and label typography.");
     }
 

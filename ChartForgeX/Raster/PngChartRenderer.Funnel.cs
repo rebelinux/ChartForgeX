@@ -18,7 +18,7 @@ public sealed partial class PngChartRenderer {
 
         if (series == null) return;
         var values = new List<ChartPoint>();
-        foreach (var point in series.Points) if (point.Y > 0) values.Add(point);
+        foreach (var point in series.Points) values.Add(point);
         if (values.Count == 0) return;
 
         var max = 0.0;
@@ -30,23 +30,30 @@ public sealed partial class PngChartRenderer {
         var plot = new ChartRect(innerLeft, basePlot.Top + 18, Math.Max(120, innerRight - innerLeft), Math.Max(90, basePlot.Height - 62));
         var metricsX = Math.Min(basePlot.Right - metricsReserve + 10, plot.Right + 18);
         var gap = Math.Min(10, Math.Max(4, plot.Height / values.Count * 0.08));
-        var segmentHeight = Math.Max(18, (plot.Height - gap * (values.Count - 1)) / values.Count);
+        var segmentHeights = FunnelSegmentHeights(values, plot.Height, gap);
+        var y = plot.Top;
 
         for (var i = 0; i < values.Count; i++) {
-            var y = plot.Top + i * (segmentHeight + gap);
+            var segmentHeight = segmentHeights[i];
+            var segmentY = y;
+            var segmentDrawHeight = segmentHeight;
+            if (values[i].Y <= 0) {
+                segmentDrawHeight = Math.Max(8, Math.Min(16, segmentHeight * 0.24));
+                segmentY = y + (segmentHeight - segmentDrawHeight) / 2;
+            }
             var topWidth = FunnelWidth(plot.Width, values[i].Y, max);
             var nextValue = i + 1 < values.Count ? values[i + 1].Y : values[i].Y * 0.82;
-            var bottomWidth = FunnelWidth(plot.Width, nextValue, max);
+            var bottomWidth = values[i].Y <= 0 ? topWidth : FunnelWidth(plot.Width, nextValue, max);
             var topLeft = plot.Left + (plot.Width - topWidth) / 2;
             var topRight = topLeft + topWidth;
             var bottomLeft = plot.Left + (plot.Width - bottomWidth) / 2;
             var bottomRight = bottomLeft + bottomWidth;
             var color = PngFunnelSegmentColor(chart, series, i);
             var segment = new[] {
-                new ChartPoint(topLeft, y),
-                new ChartPoint(topRight, y),
-                new ChartPoint(bottomRight, y + segmentHeight),
-                new ChartPoint(bottomLeft, y + segmentHeight)
+                new ChartPoint(topLeft, segmentY),
+                new ChartPoint(topRight, segmentY),
+                new ChartPoint(bottomRight, segmentY + segmentDrawHeight),
+                new ChartPoint(bottomLeft, segmentY + segmentDrawHeight)
             };
             c.FillPolygonVerticalGradient(segment, Blend(ChartColor.White, color, 0.86), Blend(ChartColor.Black, color, 0.92));
             DrawFunnelSegmentStroke(c, chart, segment);
@@ -54,7 +61,7 @@ public sealed partial class PngChartRenderer {
             var label = FormatX(chart, values[i].X);
             var value = FormatValue(chart, values[i].Y);
             var centerX = plot.Left + plot.Width / 2;
-            var centerY = y + segmentHeight / 2;
+            var centerY = segmentY + segmentDrawHeight / 2;
             var labelColor = FunnelTextColor(color);
             var labelFontSize = TextFontSizeForEmphasizedWidth(label, Math.Max(36, Math.Min(topWidth, bottomWidth) - 18), chart.Options.Theme.LegendFontSize);
             var valueFontSize = TextFontSizeForEmphasizedWidth(value, Math.Max(36, Math.Min(topWidth, bottomWidth) - 18), chart.Options.Theme.DataLabelFontSize);
@@ -62,22 +69,37 @@ public sealed partial class PngChartRenderer {
             var valueY = centerY + 4;
             var halo = FunnelTextHalo(labelColor, chart.Options.Theme.CardBackground);
             if (showLabels) {
-                DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(label, labelFontSize) / 2.0, labelY, label, labelColor, halo, labelFontSize);
-                DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(value, valueFontSize) / 2.0, valueY, value, labelColor, halo, valueFontSize);
+                if (values[i].Y <= 0) {
+                    var zeroLabelX = topRight + 12;
+                    var zeroBounds = new ChartRect(zeroLabelX, y + 4, Math.Max(44, Math.Min(metricsX - zeroLabelX - 12, plot.Right - zeroLabelX)), segmentHeight - 8);
+                    var zeroLabelFontSize = TextFontSizeForEmphasizedWidth(label, zeroBounds.Width, chart.Options.Theme.LegendFontSize);
+                    var zeroValueFontSize = TextFontSizeForEmphasizedWidth(value, zeroBounds.Width, chart.Options.Theme.DataLabelFontSize);
+                    DrawReadablePngLabel(c, zeroBounds, zeroBounds.Left, centerY - zeroLabelFontSize - 2, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), zeroLabelFontSize);
+                    DrawReadablePngLabel(c, zeroBounds, zeroBounds.Left, centerY + 4, value, chart.Options.Theme.MutedText, ReadableLabelHalo(chart), zeroValueFontSize);
+                } else {
+                    DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(label, labelFontSize) / 2.0, labelY, label, labelColor, halo, labelFontSize);
+                    DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(value, valueFontSize) / 2.0, valueY, value, labelColor, halo, valueFontSize);
+                }
             }
             if (showLabels && i > 0) {
-                var retention = values[i].Y / values[0].Y;
-                var dropOff = 1 - values[i].Y / values[i - 1].Y;
+                var retention = FunnelRatio(values[i].Y, values[0].Y);
+                var dropOff = FunnelDropOff(values[i].Y, values[i - 1].Y);
                 var guideX = Math.Min(metricsX - 10, bottomRight + 8);
                 var retentionLabel = FormatPercent(retention) + " retained";
-                var dropOffLabel = "-" + FormatPercent(dropOff) + " from prev";
+                var dropOffLabel = FormatFunnelDropOffLabel(dropOff, values[i - 1].Y);
+                var dropOffColor = values[i - 1].Y <= 0 ? chart.Options.Theme.MutedText : chart.Options.Theme.Negative;
+                var metricMaxWidth = Math.Max(32, basePlot.Right - metricsX - 6);
                 var metricFontSize = Math.Min(
-                    TextFontSizeForEmphasizedWidth(retentionLabel, Math.Max(32, basePlot.Right - metricsX - 6), PngTickFontSize(chart)),
-                    TextFontSizeForEmphasizedWidth(dropOffLabel, Math.Max(32, basePlot.Right - metricsX - 6), PngTickFontSize(chart)));
-                c.DrawDashedLine(guideX, y - gap * 0.35, guideX, y + segmentHeight * 0.45, ApplyOpacity(chart.Options.Theme.Axis, ChartVisualPrimitives.FunnelDropoffLineOpacity), ChartVisualPrimitives.FunnelDropoffLineStrokeWidth, 3, 4);
-                c.DrawTextEmphasized(metricsX, centerY - metricFontSize - 4, retentionLabel, chart.Options.Theme.MutedText, metricFontSize);
-                c.DrawTextEmphasized(metricsX, centerY + 4, dropOffLabel, chart.Options.Theme.Negative, metricFontSize);
+                    TextFontSizeForEmphasizedWidth(retentionLabel, metricMaxWidth, PngTickFontSize(chart)),
+                    TextFontSizeForEmphasizedWidth(dropOffLabel, metricMaxWidth, PngTickFontSize(chart)));
+                retentionLabel = TrimReadablePngLabelToWidth(retentionLabel, metricFontSize, metricMaxWidth);
+                dropOffLabel = TrimReadablePngLabelToWidth(dropOffLabel, metricFontSize, metricMaxWidth);
+                c.DrawDashedLine(guideX, segmentY - gap * 0.35, guideX, segmentY + segmentDrawHeight * 0.55, ApplyOpacity(chart.Options.Theme.Axis, ChartVisualPrimitives.FunnelDropoffLineOpacity), ChartVisualPrimitives.FunnelDropoffLineStrokeWidth, 3, 4);
+                if (retentionLabel.Length > 0) c.DrawTextEmphasized(metricsX, centerY - metricFontSize - 4, retentionLabel, chart.Options.Theme.MutedText, metricFontSize);
+                if (dropOffLabel.Length > 0) c.DrawTextEmphasized(metricsX, centerY + 4, dropOffLabel, dropOffColor, metricFontSize);
             }
+
+            y += segmentHeight + gap;
         }
     }
 
@@ -86,10 +108,50 @@ public sealed partial class PngChartRenderer {
         return false;
     }
 
+    private static double[] FunnelSegmentHeights(IReadOnlyList<ChartPoint> values, double plotHeight, double gap) {
+        var heights = new double[values.Count];
+        if (values.Count == 0) return heights;
+        var totalGap = gap * Math.Max(0, values.Count - 1);
+        var drawableHeight = Math.Max(18 * values.Count, plotHeight - totalGap);
+        var zeroCount = 0;
+        foreach (var point in values) {
+            if (point.Y <= 0) zeroCount++;
+        }
+
+        if (zeroCount == 0) {
+            var evenHeight = Math.Max(18, drawableHeight / values.Count);
+            for (var i = 0; i < heights.Length; i++) heights[i] = evenHeight;
+            return heights;
+        }
+
+        var nonZeroCount = values.Count - zeroCount;
+        var zeroSlot = Math.Min(52, Math.Max(30, drawableHeight * 0.11));
+        if (nonZeroCount == 0) {
+            var evenZeroHeight = Math.Max(18, drawableHeight / values.Count);
+            for (var i = 0; i < heights.Length; i++) heights[i] = evenZeroHeight;
+            return heights;
+        }
+
+        var nonZeroHeight = Math.Max(42, (drawableHeight - zeroSlot * zeroCount) / nonZeroCount);
+        for (var i = 0; i < values.Count; i++) heights[i] = values[i].Y <= 0 ? zeroSlot : nonZeroHeight;
+        return heights;
+    }
+
     private static double FunnelWidth(double plotWidth, double value, double max) {
+        if (value <= 0) return Math.Max(8, Math.Min(14, plotWidth * 0.025));
         var ratio = max <= 0 ? 1 : Clamp(value / max, 0.04, 1);
         return Math.Max(70, plotWidth * (0.22 + ratio * 0.74));
     }
+
+    private static double FunnelRatio(double value, double baseline) =>
+        baseline <= 0 ? 0 : value / baseline;
+
+    private static double FunnelDropOff(double value, double baseline) =>
+        baseline <= 0 ? 0 : Clamp(1 - value / baseline, 0, 1);
+
+    private static string FormatFunnelDropOffLabel(double dropOff, double baseline) =>
+        baseline <= 0 ? "prev stage was 0" :
+        dropOff <= 0 ? "0% from prev" : "-" + FormatPercent(dropOff) + " from prev";
 
     private static ChartColor PngFunnelSegmentColor(Chart chart, ChartSeries series, int pointIndex) =>
         pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue

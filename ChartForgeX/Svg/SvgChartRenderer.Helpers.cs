@@ -18,6 +18,7 @@ public sealed partial class SvgChartRenderer {
         var y = LegendStartY(chart, area, rows.Count);
         sb.AppendLine($"<g data-cfx-role=\"legend\" data-cfx-position=\"{chart.Options.LegendPosition}\">");
         foreach (var row in rows) {
+            if (y > area.Bottom - 4) break;
             var xShift = LegendRowX(chart.Options.LegendPosition, area, row.Width);
             sb.AppendLine($"<g data-cfx-role=\"legend-row\" transform=\"translate({F(area.X + xShift)} {F(y)})\">");
             foreach (var item in row.Items) {
@@ -26,7 +27,10 @@ public sealed partial class SvgChartRenderer {
                 sb.AppendLine($"<g data-cfx-role=\"legend-item\" data-cfx-series=\"{item.SeriesIndex}\"{pointAttribute} data-cfx-kind=\"{Escape(series.Kind.ToString())}\" data-cfx-label=\"{Escape(item.Label)}\">");
                 DrawLegendSymbol(sb, series.Kind, item.X, -4, item.Color, t.CardBackground);
                 var style = chart.Options.LegendStyle;
-                sb.AppendLine($"<text data-cfx-role=\"legend-label\" data-cfx-series=\"{item.SeriesIndex}\"{pointAttribute} x=\"{F(item.X + 26)}\" y=\"0\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, t.LegendFontSize))}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(item.Label)}</text>");
+                var labelMaxWidth = Math.Max(8, item.Width - 30);
+                var labelFontSize = TextFontSizeForSvgWidth(item.Label, labelMaxWidth, StyleFontSize(style, t.LegendFontSize));
+                var label = TrimSvgLabelToWidth(item.Label, labelFontSize, labelMaxWidth);
+                if (label.Length > 0) sb.AppendLine($"<text data-cfx-role=\"legend-label\" data-cfx-series=\"{item.SeriesIndex}\"{pointAttribute} x=\"{F(item.X + 26)}\" y=\"0\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(labelFontSize)}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
                 sb.AppendLine("</g>");
             }
 
@@ -106,7 +110,7 @@ public sealed partial class SvgChartRenderer {
             return new ChartRect(Math.Max(padding, w - width - padding), chart.Options.ShowHeader ? 100 : 48, width, Math.Max(1, h - (chart.Options.ShowHeader ? 130 : 78)));
         }
 
-        var y = IsTopLegend(position) ? (chart.Options.ShowHeader ? 98 : 44) : Math.Max(44, h - LegendBottomReserve(chart) + 12);
+        var y = IsTopLegend(position) ? (chart.Options.ShowHeader ? 98 : 44) : Math.Max(44, h - LegendBottomReserve(chart) - 4);
         return new ChartRect(40, y, Math.Max(1, w - 80), LegendBottomReserve(chart));
     }
 
@@ -121,7 +125,7 @@ public sealed partial class SvgChartRenderer {
         return 0;
     }
 
-    private static double LegendBottomReserve(Chart chart) => 18 + BuildLegendRows(chart, Math.Max(1, chart.Options.Size.Width - 80)).Count * LegendRowHeight;
+    private static double LegendBottomReserve(Chart chart) => 18 + BuildLegendRows(chart, Math.Max(1, chart.Options.Size.Width - 80)).Count * LegendRowHeight + ChartVisualPrimitives.LegendPlotGap;
 
     private static double LegendSideReserve(Chart chart) {
         if (chart.Series.Count == 0) return 0;
@@ -161,24 +165,28 @@ public sealed partial class SvgChartRenderer {
 
     private static void DrawLabelPill(StringBuilder sb, Chart chart, string label, double x, double y, ChartColor textColor, string anchor, ChartRect plot) {
         var t = chart.Options.Theme;
-        var width = Math.Max(34, EstimateTextWidth(label, t.TickLabelFontSize) + 16);
+        var maxWidth = Math.Max(42, PlotLabelMaxWidth(plot));
+        var fontSize = TextFontSizeForSvgWidth(label, Math.Max(24, maxWidth - 18), t.TickLabelFontSize);
+        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(24, maxWidth - 18));
+        if (label.Length == 0) return;
+        var width = Math.Min(maxWidth, Math.Max(36, EstimateTextWidth(label, fontSize) + 18));
         var placement = PlaceLabelPill(x, width, anchor, plot);
-        var textX = placement.Anchor == "end" ? placement.X - 8 : placement.X + 8;
-        var rectY = Clamp(y - 16, plot.Top + 4, plot.Bottom - 26);
-        sb.AppendLine($"<rect data-cfx-role=\"annotation-label\" data-cfx-label=\"{Escape(label)}\" x=\"{F(placement.RectX)}\" y=\"{F(rectY)}\" width=\"{F(width)}\" height=\"22\" rx=\"6\" fill=\"{t.CardBackground.ToCss()}\" opacity=\"0.88\" stroke=\"{textColor.ToCss()}\" stroke-opacity=\"0.34\"/>");
-        sb.AppendLine($"<text data-cfx-role=\"annotation-label-text\" data-cfx-label=\"{Escape(label)}\" x=\"{F(textX)}\" y=\"{F(rectY + 16)}\" text-anchor=\"{placement.Anchor}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+        var textX = placement.Anchor == "end" ? placement.X - 9 : placement.X + 9;
+        var rectY = Clamp(y - 16, plot.Top + 5, plot.Bottom - 27);
+        sb.AppendLine($"<rect data-cfx-role=\"annotation-label\" data-cfx-label=\"{Escape(label)}\" x=\"{F(placement.RectX)}\" y=\"{F(rectY)}\" width=\"{F(width)}\" height=\"23\" rx=\"5\" fill=\"{t.CardBackground.ToCss()}\" opacity=\"0.92\" stroke=\"{textColor.ToCss()}\" stroke-opacity=\"0.36\"/>");
+        sb.AppendLine($"<text data-cfx-role=\"annotation-label-text\" data-cfx-label=\"{Escape(label)}\" x=\"{F(textX)}\" y=\"{F(rectY + 16)}\" text-anchor=\"{placement.Anchor}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"750\">{Escape(label)}</text>");
     }
 
     private static void DrawDataLabel(StringBuilder sb, Chart chart, string label, double x, double y, ChartRect plot, string role = "data-label", ChartSeries? series = null, int pointIndex = -1) {
         var t = chart.Options.Theme;
         var style = DataLabelStyle(chart, series, pointIndex);
         var fontSize = StyleFontSize(style, t.DataLabelFontSize);
-        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
+        label = TrimSvgLabelToWidth(label, fontSize, PlotLabelMaxWidth(plot));
         if (label.Length == 0) return;
 
-        var safeY = Clamp(y, plot.Top + fontSize * 0.7, plot.Bottom - fontSize * 0.35);
+        var safeY = Clamp(y, plot.Top + ChartVisualPrimitives.DataLabelPlotInset + fontSize / 2.0, plot.Bottom - ChartVisualPrimitives.DataLabelPlotInset - fontSize / 2.0);
         var anchor = EdgeAwareAnchor(label, x, plot, fontSize);
-        var safeX = Clamp(x, plot.Left + 4, plot.Right - 4);
+        var safeX = EdgeAwareTextX(label, x, plot, fontSize);
         sb.AppendLine($"<text data-cfx-role=\"{role}\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{StyleColor(style, t.Text).ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, fontSize))}\" font-weight=\"{StyleWeight(style, "700")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
     }
 
@@ -205,46 +213,48 @@ public sealed partial class SvgChartRenderer {
         var t = chart.Options.Theme;
         var style = DataLabelStyle(chart, series, pointIndex);
         var fontSize = StyleFontSize(style, t.DataLabelFontSize);
-        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
+        label = TrimSvgLabelToWidth(label, fontSize, PlotLabelMaxWidth(plot));
         if (label.Length == 0) return;
 
         var width = EstimateTextWidth(label, fontSize);
         var effectiveAnchor = anchor == "end" ? "end" : "start";
         var safeX = effectiveAnchor == "end"
-            ? Clamp(x, plot.Left + width + 4, plot.Right - 4)
-            : Clamp(x, plot.Left + 4, plot.Right - width - 4);
-        if (safeX < plot.Left + 4) {
+            ? Clamp(x, plot.Left + width + ChartVisualPrimitives.DataLabelPlotInset, plot.Right - ChartVisualPrimitives.DataLabelPlotInset)
+            : Clamp(x, plot.Left + ChartVisualPrimitives.DataLabelPlotInset, plot.Right - width - ChartVisualPrimitives.DataLabelPlotInset);
+        if (safeX < plot.Left + ChartVisualPrimitives.DataLabelPlotInset) {
             effectiveAnchor = "start";
-            safeX = plot.Left + 4;
-        } else if (safeX > plot.Right - 4) {
+            safeX = plot.Left + ChartVisualPrimitives.DataLabelPlotInset;
+        } else if (safeX > plot.Right - ChartVisualPrimitives.DataLabelPlotInset) {
             effectiveAnchor = "end";
-            safeX = plot.Right - 4;
+            safeX = plot.Right - ChartVisualPrimitives.DataLabelPlotInset;
         }
 
-        sb.AppendLine($"<text data-cfx-role=\"data-label\" x=\"{F(safeX)}\" y=\"{F(Clamp(y, plot.Top + 4, plot.Bottom - 4))}\" text-anchor=\"{effectiveAnchor}\" dominant-baseline=\"middle\" fill=\"{StyleColor(style, t.Text).ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, fontSize))}\" font-weight=\"{StyleWeight(style, "700")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
+        var safeY = Clamp(y, plot.Top + ChartVisualPrimitives.DataLabelPlotInset + fontSize / 2.0, plot.Bottom - ChartVisualPrimitives.DataLabelPlotInset - fontSize / 2.0);
+        sb.AppendLine($"<text data-cfx-role=\"data-label\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{effectiveAnchor}\" dominant-baseline=\"middle\" fill=\"{StyleColor(style, t.Text).ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, fontSize))}\" font-weight=\"{StyleWeight(style, "700")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
     }
 
     private static bool ReserveSvgHorizontalLabel(string label, double x, double y, string anchor, Chart chart, ChartRect plot, List<ChartLabelBounds> reserved) {
         var fontSize = chart.Options.Theme.DataLabelFontSize;
-        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
+        label = TrimSvgLabelToWidth(label, fontSize, PlotLabelMaxWidth(plot));
         if (label.Length == 0) return false;
 
         var width = EstimateTextWidth(label, fontSize) + 8;
         var height = fontSize + 6;
         var effectiveAnchor = anchor == "end" ? "end" : "start";
         var safeX = effectiveAnchor == "end"
-            ? Clamp(x, plot.Left + width + 4, plot.Right - 4)
-            : Clamp(x, plot.Left + 4, plot.Right - width - 4);
-        if (safeX < plot.Left + 4) {
+            ? Clamp(x, plot.Left + width + ChartVisualPrimitives.DataLabelPlotInset, plot.Right - ChartVisualPrimitives.DataLabelPlotInset)
+            : Clamp(x, plot.Left + ChartVisualPrimitives.DataLabelPlotInset, plot.Right - width - ChartVisualPrimitives.DataLabelPlotInset);
+        if (safeX < plot.Left + ChartVisualPrimitives.DataLabelPlotInset) {
             effectiveAnchor = "start";
-            safeX = plot.Left + 4;
-        } else if (safeX > plot.Right - 4) {
+            safeX = plot.Left + ChartVisualPrimitives.DataLabelPlotInset;
+        } else if (safeX > plot.Right - ChartVisualPrimitives.DataLabelPlotInset) {
             effectiveAnchor = "end";
-            safeX = plot.Right - 4;
+            safeX = plot.Right - ChartVisualPrimitives.DataLabelPlotInset;
         }
 
         var left = effectiveAnchor == "end" ? safeX - width : safeX;
-        var bounds = new ChartLabelBounds(left, Clamp(y, plot.Top + 4, plot.Bottom - 4) - height / 2, width, height);
+        var safeY = Clamp(y, plot.Top + ChartVisualPrimitives.DataLabelPlotInset + height / 2.0, plot.Bottom - ChartVisualPrimitives.DataLabelPlotInset - height / 2.0);
+        var bounds = new ChartLabelBounds(left, safeY - height / 2, width, height);
         foreach (var item in reserved) if (bounds.Intersects(item)) return false;
         reserved.Add(bounds);
         return true;
@@ -275,24 +285,27 @@ public sealed partial class SvgChartRenderer {
 
     private static string EdgeAwareAnchor(string label, double x, ChartRect plot, double fontSize) {
         var halfWidth = EstimateTextWidth(label, fontSize) / 2;
-        if (x - halfWidth < plot.Left) return "start";
-        if (x + halfWidth > plot.Right) return "end";
+        if (x - halfWidth < plot.Left + ChartVisualPrimitives.DataLabelPlotInset) return "start";
+        if (x + halfWidth > plot.Right - ChartVisualPrimitives.DataLabelPlotInset) return "end";
         return "middle";
     }
 
     private static double EdgeAwareTextX(string label, double x, ChartRect plot, double fontSize) {
         var halfWidth = EstimateTextWidth(label, fontSize) / 2;
-        if (x - halfWidth < plot.Left) return plot.Left;
-        if (x + halfWidth > plot.Right) return plot.Right;
+        if (x - halfWidth < plot.Left + ChartVisualPrimitives.DataLabelPlotInset) return plot.Left + ChartVisualPrimitives.DataLabelPlotInset;
+        if (x + halfWidth > plot.Right - ChartVisualPrimitives.DataLabelPlotInset) return plot.Right - ChartVisualPrimitives.DataLabelPlotInset;
         return x;
     }
 
     private static string RotatedAnchor(string label, double x, ChartRect plot, double angle, double fontSize) {
         var projectedWidth = EstimateTextWidth(label, fontSize) * Math.Abs(Math.Cos(angle * Math.PI / 180));
-        if (x - projectedWidth < plot.Left) return "start";
-        if (x + projectedWidth > plot.Right) return "end";
+        if (x - projectedWidth < plot.Left + ChartVisualPrimitives.DataLabelPlotInset) return "start";
+        if (x + projectedWidth > plot.Right - ChartVisualPrimitives.DataLabelPlotInset) return "end";
         return angle < 0 ? "end" : "start";
     }
+
+    private static double PlotLabelMaxWidth(ChartRect plot) =>
+        Math.Max(8, plot.Width - ChartVisualPrimitives.DataLabelPlotInset * 2);
 
     private static double EstimateTextWidth(string text, double fontSize) {
         var width = 0.0;

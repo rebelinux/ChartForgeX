@@ -56,7 +56,13 @@ public sealed partial class PngChartRenderer {
             var ring = RadarRing(categories.Count, cx, cy, radius * tick / max);
             if (chart.Options.ShowGrid) DrawRadarPolyline(c, ring, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.RadarRingOpacity), ChartVisualPrimitives.GridStrokeWidth);
             var isOuterTick = Math.Abs(tick - max) <= Math.Max(0.000001, max * 0.000001);
-            if (chart.Options.ShowAxes && !isOuterTick) c.DrawText(cx + 7, cy - radius * tick / max + 14 - tickFontSize + 1, FormatValue(chart, tick), chart.Options.Theme.MutedText, tickFontSize);
+            if (chart.Options.ShowAxes && !isOuterTick) {
+                var ringLabelMaxWidth = Math.Max(28, chart.Options.Size.Width - chart.Options.Padding.Right - cx - 14);
+                var ringLabel = FormatValue(chart, tick);
+                var ringFontSize = TextFontSizeForWidth(ringLabel, ringLabelMaxWidth, tickFontSize);
+                ringLabel = TrimPngLabelToWidth(ringLabel, ringFontSize, ringLabelMaxWidth);
+                if (ringLabel.Length > 0) c.DrawText(cx + 7, cy - radius * tick / max + 14 - ringFontSize + 1, ringLabel, chart.Options.Theme.MutedText, ringFontSize);
+            }
         }
 
         for (var i = 0; i < categories.Count; i++) {
@@ -65,8 +71,11 @@ public sealed partial class PngChartRenderer {
             var endY = cy + Math.Sin(angle) * radius;
             if (chart.Options.ShowGrid) c.DrawLine(cx, cy, endX, endY, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.RadarSpokeOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (!chart.Options.ShowAxes) continue;
-            var label = FormatX(chart, categories[i]);
-            var fontSize = TextFontSizeForEmphasizedWidth(label, Math.Max(44, RadarLabelWidth(chart, angle)), tickFontSize);
+            var rawLabel = FormatX(chart, categories[i]);
+            var maxWidth = Math.Max(44, RadarLabelWidth(chart, angle));
+            var fontSize = TextFontSizeForEmphasizedWidth(rawLabel, maxWidth, tickFontSize);
+            var label = TrimReadablePngLabelToWidth(rawLabel, fontSize, maxWidth);
+            if (label.Length == 0) continue;
             var labelWidth = EstimatePngEmphasizedTextWidth(label, fontSize);
             var labelX = Clamp(endX + Math.Cos(angle) * (18 + fontSize * 0.35) - labelWidth / 2.0, chart.Options.Padding.Left + 2, chart.Options.Size.Width - chart.Options.Padding.Right - labelWidth - 2);
             var labelY = Clamp(endY + Math.Sin(angle) * (18 + fontSize * 0.35) - fontSize / 2, chart.Options.Padding.Top + 12, chart.Options.Size.Height - chart.Options.Padding.Bottom - 18);

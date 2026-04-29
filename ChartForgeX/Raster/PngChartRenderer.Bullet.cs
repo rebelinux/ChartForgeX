@@ -40,9 +40,11 @@ public sealed partial class PngChartRenderer {
             var targetX = BulletX(plot, min, max, target);
             var status = BulletStatus(actualValue, targetValue);
             var statusColor = BulletStatusColor(chart, status);
-            var rowLabel = TrimReadablePngLabelToWidth(row.Series.Name, labelFontSize, Math.Max(8, labelReserve - 16));
+            var rowLabelMaxWidth = Math.Max(8, labelReserve - 16);
+            var rowLabelFontSize = TextFontSizeForEmphasizedWidth(row.Series.Name, rowLabelMaxWidth, labelFontSize);
+            var rowLabel = TrimReadablePngLabelToWidth(row.Series.Name, rowLabelFontSize, rowLabelMaxWidth);
             var showLabels = row.Series.ShowDataLabels != false;
-            if (showLabels && rowLabel.Length > 0) c.DrawTextEmphasized(basePlot.Left, y - labelFontSize / 2.0, rowLabel, chart.Options.Theme.Text, labelFontSize);
+            if (showLabels && rowLabel.Length > 0) c.DrawTextEmphasized(basePlot.Left, y - rowLabelFontSize / 2.0, rowLabel, chart.Options.Theme.Text, rowLabelFontSize);
             DrawBulletRanges(c, row.Series, plot, y, barHeight, min, max, accent);
             DrawGradientBar(c, plot.Left, y - barHeight * 0.24, Math.Max(2, valueX - plot.Left), barHeight * 0.48, barHeight * 0.24, accent);
             c.DrawLine(targetX, y - barHeight * 0.65, targetX, y + barHeight * 0.65, chart.Options.Theme.Text, ChartVisualPrimitives.BulletTargetStrokeWidth);
@@ -50,8 +52,11 @@ public sealed partial class PngChartRenderer {
                 DrawBulletTargetLabel(c, chart, FormatValue(chart, targetValue), targetX, y - barHeight * 0.92, plot, tickFontSize);
                 c.DrawCircle(plot.Right + 8, y, ChartVisualPrimitives.PngStatusMarkerOutlineRadius, chart.Options.Theme.CardBackground);
                 c.DrawCircle(plot.Right + 8, y, ChartVisualPrimitives.StatusMarkerRadius, statusColor);
-                var valueLabel = TrimReadablePngLabelToWidth(FormatValue(chart, actualValue), valueFontSize, Math.Max(8, valueReserve - 24));
-                if (valueLabel.Length > 0) c.DrawTextEmphasized(plot.Right + 18, y - valueFontSize / 2.0, valueLabel, chart.Options.Theme.Text, valueFontSize);
+                var rawValueLabel = FormatValue(chart, actualValue);
+                var valueLabelMaxWidth = Math.Max(8, valueReserve - 24);
+                var valueLabelFontSize = TextFontSizeForEmphasizedWidth(rawValueLabel, valueLabelMaxWidth, valueFontSize);
+                var valueLabel = TrimReadablePngLabelToWidth(rawValueLabel, valueLabelFontSize, valueLabelMaxWidth);
+                if (valueLabel.Length > 0) c.DrawTextEmphasized(plot.Right + 18, y - valueLabelFontSize / 2.0, valueLabel, chart.Options.Theme.Text, valueLabelFontSize);
             }
         }
 
@@ -90,7 +95,9 @@ public sealed partial class PngChartRenderer {
 
     private static void DrawBulletTargetLabel(RgbaCanvas c, Chart chart, string label, double x, double y, ChartRect plot, double fontSize) {
         var text = "target " + label;
-        text = TrimReadablePngLabelToWidth(text, fontSize, Math.Max(8, plot.Width - 8));
+        var maxWidth = Math.Max(8, plot.Width - 8);
+        fontSize = TextFontSizeForEmphasizedWidth(text, maxWidth, fontSize);
+        text = TrimReadablePngLabelToWidth(text, fontSize, maxWidth);
         if (text.Length == 0) return;
 
         var width = EstimatePngEmphasizedTextWidth(text, fontSize);

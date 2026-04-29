@@ -20,18 +20,24 @@ public sealed partial class SvgChartRenderer {
         var t = o.Theme;
         var tickStyle = o.TickLabelStyle;
         var tickFontSize = StyleFontSize(tickStyle, t.TickLabelFontSize);
+        var tickLabelMaxWidth = Math.Max(24, chart.Options.Size.Width - plot.Right - 18);
         foreach (var yv in yTicks) {
             var y = map.Y(yv);
-            sb.AppendLine($"<text data-cfx-role=\"secondary-y-axis-tick\" data-cfx-value=\"{F(yv)}\" x=\"{F(plot.Right+12)}\" y=\"{F(y+4)}\" text-anchor=\"start\" fill=\"{StyleColor(tickStyle, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, tickStyle))}\" font-size=\"{F(tickFontSize)}\"{SvgTextStyleAttributes(tickStyle)}>{Escape(FormatSecondaryValue(chart, yv))}</text>");
+            var rawLabel = FormatSecondaryValue(chart, yv);
+            var labelFontSize = TextFontSizeForSvgWidth(rawLabel, tickLabelMaxWidth, tickFontSize);
+            var label = TrimSvgLabelToWidth(rawLabel, labelFontSize, tickLabelMaxWidth);
+            if (label.Length == 0) continue;
+            sb.AppendLine($"<text data-cfx-role=\"secondary-y-axis-tick\" data-cfx-value=\"{F(yv)}\" x=\"{F(plot.Right+12)}\" y=\"{F(y+4)}\" text-anchor=\"start\" fill=\"{StyleColor(tickStyle, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, tickStyle))}\" font-size=\"{F(labelFontSize)}\"{SvgTextStyleAttributes(tickStyle)}>{Escape(label)}</text>");
         }
 
         if (ShowAxisLines(chart)) sb.AppendLine($"<line data-cfx-role=\"secondary-y-axis\" x1=\"{F(plot.Right)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
         if (string.IsNullOrWhiteSpace(chart.SecondaryYAxisTitle)) return;
         var style = chart.Options.AxisTitleStyle;
-        var fontSize = StyleFontSize(style, t.AxisTitleFontSize);
-        var label = TrimSvgLabelToWidth(chart.SecondaryYAxisTitle, fontSize, Math.Max(40, plot.Height * 0.72));
-        if (label.Length == 0) return;
-        sb.AppendLine($"<text data-cfx-role=\"secondary-y-axis-title\" data-cfx-label=\"{Escape(chart.SecondaryYAxisTitle)}\" transform=\"translate({F(Math.Min(chart.Options.Size.Width - 18, plot.Right + 54))} {F(plot.Top + plot.Height / 2.0)}) rotate(90)\" text-anchor=\"middle\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\" font-weight=\"{StyleWeight(style, "700")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
+        var titleMaxWidth = Math.Max(40, plot.Height * 0.72);
+        var titleFontSize = TextFontSizeForSvgWidth(chart.SecondaryYAxisTitle, titleMaxWidth, StyleFontSize(style, t.AxisTitleFontSize));
+        var title = TrimSvgLabelToWidth(chart.SecondaryYAxisTitle, titleFontSize, titleMaxWidth);
+        if (title.Length == 0) return;
+        sb.AppendLine($"<text data-cfx-role=\"secondary-y-axis-title\" data-cfx-label=\"{Escape(chart.SecondaryYAxisTitle)}\" transform=\"translate({F(Math.Min(chart.Options.Size.Width - 18, plot.Right + 54))} {F(plot.Top + plot.Height / 2.0)}) rotate(90)\" text-anchor=\"middle\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(titleFontSize)}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(title)}</text>");
     }
 
     private static ChartRect ApplySecondaryYAxisLabelReserve(Chart chart, ChartRect plot, IReadOnlyList<double> yTicks) {

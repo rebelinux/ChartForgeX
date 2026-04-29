@@ -16,6 +16,36 @@
 - Added donut center-text and inner-radius customization so donut charts can act as polished infographic rings without creating one-off chart variants.
 - Added circle and radial-bar radius/stroke scale controls for polished KPI rings across compact and wide report panels.
 - Added configurable legend positions with reserved plot lanes so SVG and PNG charts can keep long legend labels away from plot borders.
+- Improved legend and data-label guard gaps so SVG and PNG labels stay away from plot borders, axis rules, and card edges.
+- Improved the generated example catalog to preview raw SVG charts directly so card thumbnails remain readable.
+- Improved generated catalog preview sizing so tall grids and compact artifacts use bounded per-chart thumbnail proportions.
+- Improved generated catalog card layout so shorter cards no longer stretch to match the tallest card in each row.
+- Improved generated catalog and all-examples preview cards so charts get larger readable thumbnails at review-pane widths.
+- Improved the generated all-examples gallery with the same direct SVG previews and bounded thumbnail sizing as the grouped catalog.
+- Improved report surface defaults with crisper chart corners, lighter shadows, cleaner thumbnail borders, and better bounded annotation label pills.
+- Improved SVG tick-label fitting and PNG annotation-pill fitting so dense labels and long annotations stay within their available lanes.
+- Improved PNG x-axis tick labels and horizontal category labels so raster output uses the same bounded fitting discipline as SVG output.
+- Improved secondary-axis and horizontal-bar category text fitting so long labels stay within chart padding in SVG and PNG output.
+- Improved regular, slice, and radial legends so labels shrink before truncating and stop at their reserved legend lanes.
+- Improved timeline, Gantt, and bullet label fitting so row labels, tick labels, targets, and values use their actual lanes before truncating.
+- Improved funnel metrics, radar labels, gauge axis endpoints, and heatmap scale labels so specialized charts keep compact text inside their local lanes.
+- Improved generated gallery and SVG/PNG comparison scans so duplicate conflict-copy artifacts do not pollute cards, manifests, or visual-baseline checks.
+- Improved zero-value pie, donut, and polar-area legends so zero categories remain visible as zero-percent items.
+- Improved zero-value polar-area charts so zero categories render subtle empty slots while positive segment geometry stays value-accurate.
+- Improved zero-value polar-area markers so empty categories render as thin outer rim cues instead of full-radius area wedges.
+- Improved zero-value polar-area markers further with thinner, lower-fill rim cues so empty categories no longer read as partial values.
+- Improved zero-value pie, donut, and polar-area legend keys so zero categories use muted outlined swatches instead of fully filled swatches.
+- Improved donut center labels so totals and subtitles use a balanced two-line stack in SVG and PNG output.
+- Improved circle center labels so KPI totals and titles no longer collide in compact report cards.
+- Improved zero-value funnel stages so zero stages render as slim explicit markers with adjacent labels instead of visually implying nonzero volume.
+- Improved zero-value funnel spacing so compact marker rows no longer waste full funnel-stage height.
+- Improved zero-value funnel drop-off annotations so stages after a zero baseline describe the zero previous stage instead of implying a real 0% drop-off.
+- Improved progress-bar, pictorial, and heatmap labels so compact infographic lanes fit text before truncating in SVG and PNG.
+- Improved treemap tile typography with shared inner label insets so labels and values breathe inside tile borders.
+- Improved Sankey node labels with fit-before-trim sizing and subtle backdrops so labels remain readable over ribbons.
+- Improved word-cloud placement with a shared inner edge padding so rotated terms avoid crowding plot borders.
+- Improved sunburst label fitting to use stricter arc space so narrow wedges omit labels instead of pushing text toward segment edges.
+- Improved radial-bar legend guard gaps so positioned legends use the same plot and card spacing as other legend types.
 - Improved radial-bar legends so ring labels and values honor configurable legend positions in SVG and PNG.
 - Improved PNG radar legends so radar charts reserve the shared configurable legend lanes instead of drawing legends over the plot.
 - Added independent axis-line visibility controls so infographic charts can keep labels while hiding axis rules and zero-lines.
@@ -39,10 +69,14 @@
 - Added chart-grid panel spans for mosaic reports with wide or tall feature panels across SVG, PNG, and static HTML exports.
 - Added hex color parsing and pasted hex palette helpers for chart, theme, and brand-kit customization.
 - Added generated example gallery coverage for theme/font, brand-kit, palette swatch, pictorial symbol, pictorial Isotype, people-infographic, word-cloud control, sunburst, pictorial, and word-cloud outputs.
+- Added generated example gallery coverage for zero-value donut, polar-area, and funnel point-index behavior.
 - Rejected cyclic Sankey data so flow layout fails clearly instead of rendering arbitrary backward paths.
 - Fixed duplicate SVG IDs when repeated or identical charts are embedded in HTML fragments and grids.
 - Fixed root accessibility ID collisions when repeated SVG grid exports are embedded inline.
 - Hardened SVG ID hashing against input-boundary collisions.
+- Fixed shared y-axis grids to share primary and secondary cartesian Y axes independently, including secondary-only charts.
+- Fixed zero-value pie, donut, and polar-area points to keep original point indexes for colors, labels, legends, and exported metadata.
+- Fixed zero-value funnel stages so they render explicitly and keep stage-order retention/drop-off calculations.
 - Fixed culture-sensitive CSS and shared SVG/PNG compact number formatting.
 - Fixed standalone HTML pages for untitled charts to emit a useful browser title.
 - Tightened chart grid option behavior for direct `PanelSize` assignment and nullable theme clearing.

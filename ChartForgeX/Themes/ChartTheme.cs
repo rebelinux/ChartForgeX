@@ -8,16 +8,16 @@ namespace ChartForgeX.Themes;
 /// </summary>
 public sealed class ChartTheme {
     private ChartColor[] _palette = ChartPalettes.Report;
-    private double _cornerRadius = 18;
-    private double _plotCornerRadius = 14;
+    private double _cornerRadius = 12;
+    private double _plotCornerRadius = 8;
     private double _strokeWidth = 3;
-    private double _shadowOpacity = 0.14;
-    private double _titleFontSize = 26;
-    private double _subtitleFontSize = 13;
-    private double _axisTitleFontSize = 12;
-    private double _tickLabelFontSize = 11;
-    private double _legendFontSize = 12;
-    private double _dataLabelFontSize = 11;
+    private double _shadowOpacity = 0.10;
+    private double _titleFontSize = 25;
+    private double _subtitleFontSize = 12.5;
+    private double _axisTitleFontSize = 11.5;
+    private double _tickLabelFontSize = 10.5;
+    private double _legendFontSize = 11.5;
+    private double _dataLabelFontSize = 10.5;
     private double _markerRadius = 3.25;
     private string _fontFamily = ChartFontStacks.SystemSans;
 
@@ -39,12 +39,12 @@ public sealed class ChartTheme {
     /// <summary>
     /// Gets or sets the outer card stroke color.
     /// </summary>
-    public ChartColor CardBorder { get; set; } = ChartColor.FromRgba(148,163,184,80);
+    public ChartColor CardBorder { get; set; } = ChartColor.FromRgba(148,163,184,92);
 
     /// <summary>
     /// Gets or sets the plot area stroke color.
     /// </summary>
-    public ChartColor PlotBorder { get; set; } = ChartColor.FromRgba(148,163,184,55);
+    public ChartColor PlotBorder { get; set; } = ChartColor.FromRgba(148,163,184,48);
 
     /// <summary>
     /// Gets or sets the primary text color.

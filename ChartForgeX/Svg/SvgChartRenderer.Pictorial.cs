@@ -39,8 +39,13 @@ public sealed partial class SvgChartRenderer {
             var rowsForItem = symbolRows[i];
             var itemTop = startY + symbolRow * rowHeight + i * itemGap;
             var labelY = itemTop + rowsForItem * rowHeight / 2;
-            var label = TrimSvgLabelToWidth(FormatX(chart, values[i].X), t.TickLabelFontSize, labelWidth - 8);
-            sb.AppendLine($"<text data-cfx-role=\"pictorial-label\" data-cfx-point=\"{i}\" x=\"{F(plot.Left + labelWidth - 8)}\" y=\"{F(labelY + t.TickLabelFontSize / 3.0)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+            var labelMaxWidth = Math.Max(8, labelWidth - 8);
+            var rawLabel = FormatX(chart, values[i].X);
+            var labelFontSize = TextFontSizeForSvgWidth(rawLabel, labelMaxWidth, t.TickLabelFontSize);
+            var label = TrimSvgLabelToWidth(rawLabel, labelFontSize, labelMaxWidth);
+            if (label.Length > 0) {
+                sb.AppendLine($"<text data-cfx-role=\"pictorial-label\" data-cfx-point=\"{i}\" x=\"{F(plot.Left + labelWidth - 8)}\" y=\"{F(labelY + labelFontSize / 3.0)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(labelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+            }
             var color = PictorialItemColor(series, t, i);
             var filled = valuePerSymbol.HasValue ? values[i].Y / valuePerSymbol.Value : values[i].Y / max * columns;
             for (var row = 0; row < rowsForItem; row++) {
@@ -55,8 +60,13 @@ public sealed partial class SvgChartRenderer {
             }
 
             if (showValues) {
-                var value = FormatValue(chart, values[i].Y);
-                sb.AppendLine($"<text data-cfx-role=\"pictorial-value\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(values[i].Y)}\" x=\"{F(startX + symbolArea + 12)}\" y=\"{F(labelY + t.DataLabelFontSize / 3.0)}\" fill=\"{t.Text.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.DataLabelFontSize)}\" font-weight=\"800\">{Escape(value)}</text>");
+                var valueMaxWidth = Math.Max(8, valueWidth - 4);
+                var rawValue = FormatValue(chart, values[i].Y);
+                var valueFontSize = TextFontSizeForSvgWidth(rawValue, valueMaxWidth, t.DataLabelFontSize);
+                var value = TrimSvgLabelToWidth(rawValue, valueFontSize, valueMaxWidth);
+                if (value.Length > 0) {
+                    sb.AppendLine($"<text data-cfx-role=\"pictorial-value\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(values[i].Y)}\" x=\"{F(startX + symbolArea + 12)}\" y=\"{F(labelY + valueFontSize / 3.0)}\" fill=\"{t.Text.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(valueFontSize)}\" font-weight=\"800\">{Escape(value)}</text>");
+                }
             }
 
             symbolRow += rowsForItem;

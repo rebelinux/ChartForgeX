@@ -30,7 +30,7 @@ public sealed partial class PngChartRenderer {
         var slotHeight = plot.Height / items.Count;
         var ticks = ChartTicks.Generate(min, max, Math.Min(7, Math.Max(3, chart.Options.TickCount)));
         var tickLabelWidth = Math.Max(18, plot.Width / Math.Max(1, ticks.Count - 1) - 6);
-        var rowLabelWidth = Math.Max(8, plot.Left - chart.Options.Padding.Left - 2);
+        var rowLabelWidth = Math.Max(8, plot.Left - 24);
         var rowCenters = new double[items.Count];
         var startXs = new double[items.Count];
         var endXs = new double[items.Count];
@@ -39,9 +39,11 @@ public sealed partial class PngChartRenderer {
             var x = ProjectTimelineX(tick, min, max, plot);
             if (chart.Options.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.TimelineGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
-                var label = TrimReadablePngLabelToWidth(FormatTimelineTick(chart, tick), tickFontSize, tickLabelWidth);
-                var width = EstimatePngTextWidth(label, tickFontSize);
-                c.DrawText(Clamp(x - width / 2.0, plot.Left + 2, plot.Right - width - 2), plot.Bottom + 22 - tickFontSize + 1, label, chart.Options.Theme.MutedText, tickFontSize);
+                var rawLabel = FormatTimelineTick(chart, tick);
+                var labelFontSize = TextFontSizeForWidth(rawLabel, tickLabelWidth, tickFontSize);
+                var label = TrimPngLabelToWidth(rawLabel, labelFontSize, tickLabelWidth);
+                var width = EstimatePngTextWidth(label, labelFontSize);
+                c.DrawText(Clamp(x - width / 2.0, plot.Left + 2, plot.Right - width - 2), plot.Bottom + 22 - labelFontSize + 1, label, chart.Options.Theme.MutedText, labelFontSize);
             }
         }
 
@@ -53,8 +55,9 @@ public sealed partial class PngChartRenderer {
             endXs[i] = ProjectTimelineX(item.End, min, max, plot);
             if (chart.Options.ShowGrid) c.DrawLine(plot.Left, centerY, plot.Right, centerY, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.TimelineRowGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
             if (chart.Options.ShowAxes) {
-                var rowLabel = TrimReadablePngLabelToWidth(item.Name, tickFontSize, rowLabelWidth);
-                if (rowLabel.Length > 0) c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, tickFontSize) - 14, centerY - tickFontSize / 2, rowLabel, chart.Options.Theme.MutedText, tickFontSize);
+                var rowLabelFontSize = TextFontSizeForEmphasizedWidth(item.Name, rowLabelWidth, tickFontSize);
+                var rowLabel = TrimReadablePngLabelToWidth(item.Name, rowLabelFontSize, rowLabelWidth);
+                if (rowLabel.Length > 0) c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, rowLabelFontSize) - 14, centerY - rowLabelFontSize / 2, rowLabel, chart.Options.Theme.MutedText, rowLabelFontSize);
             }
         }
 

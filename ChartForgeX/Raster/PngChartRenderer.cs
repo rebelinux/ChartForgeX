@@ -307,8 +307,11 @@ public sealed partial class PngChartRenderer {
     private static void DrawTinyAnnotationLabel(RgbaCanvas c, Chart chart, ChartAnnotation annotation, ChartRect plot, double x, double y) {
         if (string.IsNullOrWhiteSpace(annotation.Label)) return;
         var theme = chart.Options.Theme;
-        var fontSize = PngTickFontSize(chart);
-        var textWidth = EstimatePngTextWidth(annotation.Label, fontSize);
+        var maxTextWidth = Math.Max(24, plot.Width - 26);
+        var fontSize = TextFontSizeForWidth(annotation.Label, maxTextWidth, PngTickFontSize(chart));
+        var label = TrimPngLabelToWidth(annotation.Label, fontSize, maxTextWidth);
+        if (label.Length == 0) return;
+        var textWidth = EstimatePngTextWidth(label, fontSize);
         var width = Math.Max(34, textWidth + 16);
         var height = EstimatePngTextHeight(fontSize) + 10;
         var rectX = Clamp(x, plot.Left + 4, plot.Right - width - 4);
@@ -318,14 +321,17 @@ public sealed partial class PngChartRenderer {
         var border = ChartColor.FromRgba(annotation.Color.R, annotation.Color.G, annotation.Color.B, 120);
         c.FillRoundedRect(rectX, rectY, width, height, Math.Min(6, height / 2), fill);
         c.StrokeRoundedRect(rectX, rectY, width, height, Math.Min(6, height / 2), border);
-        c.DrawText(rectX + 8, rectY + (height - fontSize) / 2, annotation.Label, annotation.Color, fontSize);
+        c.DrawText(rectX + 8, rectY + (height - fontSize) / 2, label, annotation.Color, fontSize);
     }
 
     private static void DrawTinyAnnotationPill(RgbaCanvas c, Chart chart, ChartAnnotation annotation, ChartRect plot, double x, double y, string anchor) {
         if (string.IsNullOrWhiteSpace(annotation.Label)) return;
         var theme = chart.Options.Theme;
-        var fontSize = PngTickFontSize(chart);
-        var textWidth = EstimatePngTextWidth(annotation.Label, fontSize);
+        var maxTextWidth = Math.Max(24, plot.Width - 26);
+        var fontSize = TextFontSizeForWidth(annotation.Label, maxTextWidth, PngTickFontSize(chart));
+        var label = TrimPngLabelToWidth(annotation.Label, fontSize, maxTextWidth);
+        if (label.Length == 0) return;
+        var textWidth = EstimatePngTextWidth(label, fontSize);
         var width = Math.Max(34, textWidth + 16);
         var height = EstimatePngTextHeight(fontSize) + 10;
         var rectX = anchor == "end" ? x - width : x;
@@ -336,7 +342,7 @@ public sealed partial class PngChartRenderer {
 
         c.FillRoundedRect(rectX, rectY, width, height, Math.Min(6, height / 2), fill);
         c.StrokeRoundedRect(rectX, rectY, width, height, Math.Min(6, height / 2), border);
-        c.DrawText(rectX + 8, rectY + (height - fontSize) / 2, annotation.Label, annotation.Color, fontSize);
+        c.DrawText(rectX + 8, rectY + (height - fontSize) / 2, label, annotation.Color, fontSize);
     }
 
     private static void DrawHorizontalBarGrid(RgbaCanvas c, Chart chart, ChartRect plot, ChartMapper map, IReadOnlyList<double> xTicks, IReadOnlyList<double> categories) {

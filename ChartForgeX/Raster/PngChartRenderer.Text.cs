@@ -30,11 +30,11 @@ public sealed partial class PngChartRenderer {
     }
 
     private static void DrawReadablePngLabel(RgbaCanvas c, ChartRect plot, double x, double y, string label, ChartColor text, ChartColor halo, double fontSize, ChartTextStyle? style = null) {
-        FitReadablePngLabel(label, fontSize, Math.Max(8, plot.Width - 8), Math.Max(8, plot.Height - 6), out var fittedLabel, out var fittedFontSize);
+        FitReadablePngLabel(label, fontSize, Math.Max(8, plot.Width - ChartVisualPrimitives.DataLabelPlotInset * 2), Math.Max(8, plot.Height - ChartVisualPrimitives.DataLabelPlotInset * 2), out var fittedLabel, out var fittedFontSize);
         if (fittedLabel.Length == 0) return;
         var width = EstimatePngEmphasizedTextWidth(fittedLabel, fittedFontSize);
         var height = EstimatePngTextHeight(fittedFontSize);
-        DrawReadablePngLabel(c, Clamp(x, plot.Left + 4, plot.Right - width - 4), Clamp(y, plot.Top + 3, plot.Bottom - height - 3), fittedLabel, text, halo, fittedFontSize, style);
+        DrawReadablePngLabel(c, Clamp(x, plot.Left + ChartVisualPrimitives.DataLabelPlotInset, plot.Right - width - ChartVisualPrimitives.DataLabelPlotInset), Clamp(y, plot.Top + ChartVisualPrimitives.DataLabelPlotInset, plot.Bottom - height - ChartVisualPrimitives.DataLabelPlotInset), fittedLabel, text, halo, fittedFontSize, style);
     }
 
     private static void DrawReadablePngLabelCentered(RgbaCanvas c, ChartRect bounds, string label, ChartColor text, ChartColor halo, double fontSize, ChartTextStyle? style = null) {

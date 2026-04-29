@@ -284,21 +284,41 @@ public sealed class ChartGrid {
     public ChartGrid WithSharedYAxis() {
         if (_charts.Count == 0) throw new InvalidOperationException("Chart grids must contain at least one chart before sharing y-axis bounds.");
 
-        var minimum = double.PositiveInfinity;
-        var maximum = double.NegativeInfinity;
-        var compatible = new List<Chart>();
+        var primaryMinimum = double.PositiveInfinity;
+        var primaryMaximum = double.NegativeInfinity;
+        var secondaryMinimum = double.PositiveInfinity;
+        var secondaryMaximum = double.NegativeInfinity;
+        var primaryCompatible = new List<Chart>();
+        var secondaryCompatible = new List<Chart>();
         foreach (var chart in _charts) {
             ChartGuards.RenderCompatibility(chart);
-            if (!UsesCartesianYAxis(chart)) continue;
-            var range = ChartRange.FromChart(chart, false);
-            if (range.MinY < minimum) minimum = range.MinY;
-            if (range.MaxY > maximum) maximum = range.MaxY;
-            compatible.Add(chart);
+            if (UsesPrimaryCartesianYAxis(chart)) {
+                var range = ChartRange.FromChart(chart, false);
+                if (range.MinY < primaryMinimum) primaryMinimum = range.MinY;
+                if (range.MaxY > primaryMaximum) primaryMaximum = range.MaxY;
+                primaryCompatible.Add(chart);
+            }
+
+            if (UsesSecondaryCartesianYAxis(chart)) {
+                var primaryRange = ChartRange.FromChart(chart, false);
+                var secondaryRange = ChartRange.FromSecondaryYAxis(chart, primaryRange, false);
+                if (secondaryRange.MinY < secondaryMinimum) secondaryMinimum = secondaryRange.MinY;
+                if (secondaryRange.MaxY > secondaryMaximum) secondaryMaximum = secondaryRange.MaxY;
+                secondaryCompatible.Add(chart);
+            }
         }
 
-        if (compatible.Count == 0) throw new InvalidOperationException("Shared y-axis bounds require at least one cartesian chart.");
-        if (Math.Abs(maximum - minimum) < double.Epsilon) maximum = minimum + 1;
-        foreach (var chart in compatible) chart.WithYAxisBounds(minimum, maximum);
+        if (primaryCompatible.Count == 0 && secondaryCompatible.Count == 0) throw new InvalidOperationException("Shared y-axis bounds require at least one cartesian chart.");
+        if (primaryCompatible.Count > 0) {
+            if (Math.Abs(primaryMaximum - primaryMinimum) < double.Epsilon) primaryMaximum = primaryMinimum + 1;
+            foreach (var chart in primaryCompatible) chart.WithYAxisBounds(primaryMinimum, primaryMaximum);
+        }
+
+        if (secondaryCompatible.Count > 0) {
+            if (Math.Abs(secondaryMaximum - secondaryMinimum) < double.Epsilon) secondaryMaximum = secondaryMinimum + 1;
+            foreach (var chart in secondaryCompatible) chart.WithSecondaryYAxisBounds(secondaryMinimum, secondaryMaximum);
+        }
+
         return this;
     }
 
@@ -366,33 +386,42 @@ public sealed class ChartGrid {
         return true;
     }
 
-    private static bool UsesCartesianYAxis(Chart chart) {
-        if (chart.Series.Count == 0) return false;
+    private static bool UsesPrimaryCartesianYAxis(Chart chart) {
         foreach (var series in chart.Series) {
-            if (series.Kind == ChartSeriesKind.HorizontalBar ||
-                series.Kind == ChartSeriesKind.Heatmap ||
-                series.Kind == ChartSeriesKind.Gauge ||
-                series.Kind == ChartSeriesKind.Circle ||
-                series.Kind == ChartSeriesKind.RadialBar ||
-                series.Kind == ChartSeriesKind.Bullet ||
-                series.Kind == ChartSeriesKind.Waterfall ||
-                series.Kind == ChartSeriesKind.Radar ||
-                series.Kind == ChartSeriesKind.Funnel ||
-                series.Kind == ChartSeriesKind.Treemap ||
-                series.Kind == ChartSeriesKind.Timeline ||
-                series.Kind == ChartSeriesKind.Gantt ||
-                series.Kind == ChartSeriesKind.Sankey ||
-                series.Kind == ChartSeriesKind.Tree ||
-                series.Kind == ChartSeriesKind.Sunburst ||
-                series.Kind == ChartSeriesKind.Pictorial ||
-                series.Kind == ChartSeriesKind.WordCloud ||
-                series.Kind == ChartSeriesKind.Pie ||
-                series.Kind == ChartSeriesKind.Donut ||
-                series.Kind == ChartSeriesKind.PolarArea) {
-                return false;
-            }
+            if (series.YAxis == ChartAxisSide.Primary && IsCartesianYAxisSeries(series)) return true;
         }
 
-        return true;
+        return false;
+    }
+
+    private static bool UsesSecondaryCartesianYAxis(Chart chart) {
+        foreach (var series in chart.Series) {
+            if (series.YAxis == ChartAxisSide.Secondary && IsCartesianYAxisSeries(series)) return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsCartesianYAxisSeries(ChartSeries series) {
+        return series.Kind != ChartSeriesKind.HorizontalBar &&
+            series.Kind != ChartSeriesKind.Heatmap &&
+            series.Kind != ChartSeriesKind.Gauge &&
+            series.Kind != ChartSeriesKind.Circle &&
+            series.Kind != ChartSeriesKind.RadialBar &&
+            series.Kind != ChartSeriesKind.Bullet &&
+            series.Kind != ChartSeriesKind.Waterfall &&
+            series.Kind != ChartSeriesKind.Radar &&
+            series.Kind != ChartSeriesKind.Funnel &&
+            series.Kind != ChartSeriesKind.Treemap &&
+            series.Kind != ChartSeriesKind.Timeline &&
+            series.Kind != ChartSeriesKind.Gantt &&
+            series.Kind != ChartSeriesKind.Sankey &&
+            series.Kind != ChartSeriesKind.Tree &&
+            series.Kind != ChartSeriesKind.Sunburst &&
+            series.Kind != ChartSeriesKind.Pictorial &&
+            series.Kind != ChartSeriesKind.WordCloud &&
+            series.Kind != ChartSeriesKind.Pie &&
+            series.Kind != ChartSeriesKind.Donut &&
+            series.Kind != ChartSeriesKind.PolarArea;
     }
 }

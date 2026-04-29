@@ -24,8 +24,13 @@ public sealed partial class PngChartRenderer {
         for (var i = 0; i < series.Points.Count; i++) {
             var point = series.Points[i];
             var y = startY + i * rowHeight + rowHeight / 2;
-            var label = TrimReadablePngLabelToWidth(FormatX(chart, point.X), t.TickLabelFontSize, labelWidth - 8);
-            c.DrawTextEmphasized(plot.Left + labelWidth - 8 - EstimatePngEmphasizedTextWidth(label, t.TickLabelFontSize), y - t.TickLabelFontSize / 2.0, label, t.MutedText, t.TickLabelFontSize);
+            var labelMaxWidth = Math.Max(8, labelWidth - 8);
+            var rawLabel = FormatX(chart, point.X);
+            var labelFontSize = TextFontSizeForEmphasizedWidth(rawLabel, labelMaxWidth, t.TickLabelFontSize);
+            var label = TrimReadablePngLabelToWidth(rawLabel, labelFontSize, labelMaxWidth);
+            if (label.Length > 0) {
+                c.DrawTextEmphasized(plot.Left + labelWidth - 8 - EstimatePngEmphasizedTextWidth(label, labelFontSize), y - labelFontSize / 2.0, label, t.MutedText, labelFontSize);
+            }
             var color = PngProgressItemColor(series, t, i);
             var ratio = Clamp(point.Y / maximum, 0, 1);
             var filledWidth = barArea * ratio;
@@ -37,8 +42,13 @@ public sealed partial class PngChartRenderer {
                 c.DrawCircleOutline(startX + filledWidth, y, handleRadius, color, Math.Max(2, barHeight * 0.18));
             }
             if (showValues) {
-                var value = FormatValue(chart, point.Y);
-                c.DrawTextEmphasized(startX + barArea + 12, y - t.DataLabelFontSize / 2.0, value, t.Text, t.DataLabelFontSize);
+                var valueMaxWidth = Math.Max(8, valueWidth - 4);
+                var rawValue = FormatValue(chart, point.Y);
+                var valueFontSize = TextFontSizeForEmphasizedWidth(rawValue, valueMaxWidth, t.DataLabelFontSize);
+                var value = TrimReadablePngLabelToWidth(rawValue, valueFontSize, valueMaxWidth);
+                if (value.Length > 0) {
+                    c.DrawTextEmphasized(startX + barArea + 12, y - valueFontSize / 2.0, value, t.Text, valueFontSize);
+                }
             }
         }
     }

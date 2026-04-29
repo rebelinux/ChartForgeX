@@ -254,6 +254,7 @@ public sealed partial class SvgChartRenderer {
         var xLabelAngle = Clamp(o.XAxisLabelAngle, -80, 80);
         var xLabels = XAxisTickLabels(chart, xTicks, false);
         var xLabelY = plot.Bottom + XAxisLabelOffset(chart, xLabels);
+        var xLabelMaxWidth = AxisTickLabelMaxWidth(plot, xTicks.Count, xLabelAngle);
         foreach (var yv in yTicks) {
             var y = map.Y(yv);
             if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\"/>");
@@ -263,7 +264,7 @@ public sealed partial class SvgChartRenderer {
             var xv = xTicks[i];
             var x = map.X(xv);
             if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.GridVerticalOpacity)}\"/>");
-            if (ShowXAxis(chart)) DrawXAxisLabel(sb, chart, plot, xLabels[i], x, xLabelY, xLabelAngle);
+            if (ShowXAxis(chart)) DrawXAxisLabel(sb, chart, plot, xLabels[i], x, xLabelY, xLabelAngle, maxWidth: xLabelMaxWidth);
         }
         var zeroY = map.Y(0);
         if (ShowXAxis(chart) && ShowAxisLines(chart) && zeroY > plot.Top && zeroY < plot.Bottom) {
@@ -279,19 +280,31 @@ public sealed partial class SvgChartRenderer {
         }
     }
 
-    private static void DrawXAxisLabel(StringBuilder sb, Chart chart, ChartRect plot, string label, double x, double y, double angle, string? role = null) {
+    private static void DrawXAxisLabel(StringBuilder sb, Chart chart, ChartRect plot, string label, double x, double y, double angle, string? role = null, double maxWidth = 0) {
         var t = chart.Options.Theme;
         var style = chart.Options.TickLabelStyle;
-        var fontSize = StyleFontSize(style, t.TickLabelFontSize);
+        var preferredFontSize = StyleFontSize(style, t.TickLabelFontSize);
+        var widthLimit = maxWidth > 0 ? maxWidth : PlotLabelMaxWidth(plot);
+        var fontSize = TextFontSizeForSvgWidth(label, widthLimit, preferredFontSize);
+        label = TrimSvgLabelToWidth(label, fontSize, widthLimit);
+        if (label.Length == 0) return;
         var roleAttribute = string.IsNullOrWhiteSpace(role) ? string.Empty : $" data-cfx-role=\"{role}\"";
         if (Math.Abs(angle) < 0.001) {
             var anchor = EdgeAwareAnchor(label, x, plot, fontSize);
-            sb.AppendLine($"<text{roleAttribute} x=\"{F(x)}\" y=\"{F(y)}\" text-anchor=\"{anchor}\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
+            var safeX = EdgeAwareTextX(label, x, plot, fontSize);
+            sb.AppendLine($"<text{roleAttribute} x=\"{F(safeX)}\" y=\"{F(y)}\" text-anchor=\"{anchor}\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
             return;
         }
 
         var rotatedAnchor = RotatedAnchor(label, x, plot, angle, fontSize);
-        sb.AppendLine($"<text{roleAttribute} x=\"{F(x)}\" y=\"{F(y)}\" text-anchor=\"{rotatedAnchor}\" dominant-baseline=\"middle\" transform=\"rotate({F(angle)} {F(x)} {F(y)})\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
+        var rotatedX = Clamp(x, plot.Left + ChartVisualPrimitives.DataLabelPlotInset, plot.Right - ChartVisualPrimitives.DataLabelPlotInset);
+        sb.AppendLine($"<text{roleAttribute} x=\"{F(rotatedX)}\" y=\"{F(y)}\" text-anchor=\"{rotatedAnchor}\" dominant-baseline=\"middle\" transform=\"rotate({F(angle)} {F(rotatedX)} {F(y)})\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
+    }
+
+    private static double AxisTickLabelMaxWidth(ChartRect plot, int tickCount, double angle) {
+        var slotWidth = tickCount <= 1 ? plot.Width : plot.Width / Math.Max(1, tickCount - 1);
+        var angleFactor = Math.Abs(angle) < 0.001 ? 0.92 : 1.35;
+        return Math.Max(64, Math.Min(plot.Width, slotWidth * angleFactor));
     }
 
     private static void DrawAnnotationBands(StringBuilder sb, Chart chart, ChartRect plot, ChartMapper map) {
@@ -652,12 +665,12 @@ public sealed partial class SvgChartRenderer {
 
     private static bool ReserveSvgLabel(string label, double x, double y, Chart chart, ChartRect plot, List<ChartLabelBounds> reserved) {
         var fontSize = chart.Options.Theme.DataLabelFontSize;
-        label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
+        label = TrimSvgLabelToWidth(label, fontSize, PlotLabelMaxWidth(plot));
         if (label.Length == 0) return false;
-        var safeY = Clamp(y, plot.Top + fontSize * 0.7, plot.Bottom - fontSize * 0.35);
         var width = EstimateTextWidth(label, fontSize) + 8;
         var height = fontSize + 6;
-        var safeX = Clamp(x, plot.Left + 4, plot.Right - 4);
+        var safeY = Clamp(y, plot.Top + ChartVisualPrimitives.DataLabelPlotInset + height / 2.0, plot.Bottom - ChartVisualPrimitives.DataLabelPlotInset - height / 2.0);
+        var safeX = EdgeAwareTextX(label, x, plot, fontSize);
         var anchor = EdgeAwareAnchor(label, x, plot, fontSize);
         var left = anchor == "end" ? safeX - width : anchor == "start" ? safeX : safeX - width / 2;
         var bounds = new ChartLabelBounds(left, safeY - height / 2, width, height);
@@ -674,10 +687,10 @@ public sealed partial class SvgChartRenderer {
             var reserve = LegendBottomReserve(chart);
             plot = new ChartRect(plot.X, plot.Y + reserve, plot.Width, Math.Max(1, plot.Height - reserve));
         } else if (chart.Options.ShowLegend && chart.Series.Count > 0 && IsLeftLegend(chart.Options.LegendPosition)) {
-            var reserve = LegendSideReserve(chart);
+            var reserve = LegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             plot = new ChartRect(plot.X + reserve, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
         } else if (chart.Options.ShowLegend && chart.Series.Count > 0 && IsRightLegend(chart.Options.LegendPosition)) {
-            var reserve = LegendSideReserve(chart);
+            var reserve = LegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             plot = new ChartRect(plot.X, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
         }
 

@@ -48,6 +48,12 @@ internal static class ChartWordCloudLayout {
         var maxFontSize = chart.Options.WordCloudMaxFontSize;
         var angles = chart.Options.WordCloudAngles;
         var density = chart.Options.WordCloudDensity;
+        var edgePadding = EdgePadding(plot);
+        var safePlot = new ChartRect(
+            plot.X + edgePadding,
+            plot.Y + edgePadding,
+            Math.Max(1, plot.Width - edgePadding * 2),
+            Math.Max(1, plot.Height - edgePadding * 2));
         var placed = new List<ChartWordCloudTerm>();
         var bounds = new List<ChartRect>();
         foreach (var item in values) {
@@ -62,7 +68,7 @@ internal static class ChartWordCloudLayout {
                 var collisionPadding = 8.0 / density;
                 var collisionWidth = RotatedWidth(width, height, angle) + collisionPadding;
                 var collisionHeight = RotatedHeight(width, height, angle) + collisionPadding;
-                if (!TryPlace(plot, bounds, collisionWidth, collisionHeight, density, out var x, out var y)) continue;
+                if (!TryPlace(safePlot, bounds, collisionWidth, collisionHeight, density, out var x, out var y)) continue;
                 placed.Add(new ChartWordCloudTerm(item.Index, text, item.Point.Y, x, y, width, height, fontSize, angle));
                 bounds.Add(new ChartRect(x - collisionWidth / 2, y - collisionHeight / 2, collisionWidth, collisionHeight));
                 break;
@@ -71,6 +77,13 @@ internal static class ChartWordCloudLayout {
 
         return placed;
     }
+
+    public static double EdgePadding(ChartRect plot) =>
+        Math.Min(
+            ChartVisualPrimitives.WordCloudEdgePaddingMax,
+            Math.Max(
+                ChartVisualPrimitives.WordCloudEdgePaddingMin,
+                Math.Min(plot.Width, plot.Height) * ChartVisualPrimitives.WordCloudEdgePaddingFactor));
 
     private static bool TryPlace(ChartRect plot, List<ChartRect> bounds, double width, double height, double density, out double x, out double y) {
         var cx = plot.Left + plot.Width / 2;

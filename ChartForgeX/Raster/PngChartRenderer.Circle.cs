@@ -44,8 +44,12 @@ public sealed partial class PngChartRenderer {
         var valueFontSize = Math.Max(24, Math.Min(theme.TitleFontSize * 1.72, radius * 0.72));
         var titleFontSize = Math.Max(9, Math.Min(theme.LegendFontSize, radius * 0.22));
         if (circle.ShowDataLabels != false) {
-            DrawPngTextEmphasizedCenteredX(c, cx, cy - valueFontSize * 0.08 - valueFontSize / 2.0, valueLabel, theme.Text, valueFontSize, labelWidth);
-            DrawPngTextEmphasizedCenteredX(c, cx, cy + valueFontSize * 0.48 - titleFontSize + 1, circle.Name, theme.MutedText, titleFontSize, labelWidth);
+            var centerLineGap = Math.Max(4, Math.Min(8, radius * 0.05));
+            var valueHeight = EstimatePngTextHeight(valueFontSize);
+            var titleHeight = EstimatePngTextHeight(titleFontSize);
+            var groupTop = cy - (valueHeight + centerLineGap + titleHeight) / 2.0;
+            DrawPngTextEmphasizedCenteredX(c, cx, groupTop, valueLabel, theme.Text, valueFontSize, labelWidth);
+            DrawPngTextEmphasizedCenteredX(c, cx, groupTop + valueHeight + centerLineGap, circle.Name, theme.MutedText, titleFontSize, labelWidth);
             if (chart.Options.ShowCircleStatusLabel) {
                 var statusLabel = status.Replace("-", " ");
                 var statusFontSize = TextFontSizeForEmphasizedWidth(statusLabel, labelWidth, theme.TickLabelFontSize);

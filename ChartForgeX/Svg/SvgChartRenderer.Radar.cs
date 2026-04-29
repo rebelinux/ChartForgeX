@@ -56,7 +56,10 @@ public sealed partial class SvgChartRenderer {
             var ring = RadarRing(categories.Count, cx, cy, radius * tick / max);
             if (chart.Options.ShowGrid) sb.AppendLine($"<path data-cfx-role=\"radar-ring\" d=\"{RadarPath(ring)}\" fill=\"none\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.RadarRingOpacity)}\"/>");
             var isOuterTick = Math.Abs(tick - max) <= Math.Max(0.000001, max * 0.000001);
-            if (chart.Options.ShowAxes && !isOuterTick) sb.AppendLine($"<text data-cfx-role=\"radar-ring-label\" x=\"{F(cx + 7)}\" y=\"{F(cy - radius * tick / max + 14)}\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, tick))}</text>");
+            if (chart.Options.ShowAxes && !isOuterTick) {
+                var label = FormatValue(chart, tick);
+                DrawSvgTextLeft(sb, chart, "radar-ring-label", label, cx + 7, cy - radius * tick / max + 14, t.MutedText, t.TickLabelFontSize, Math.Max(28, plot.Right - cx - 14), "400");
+            }
         }
 
         for (var i = 0; i < categories.Count; i++) {
@@ -70,13 +73,22 @@ public sealed partial class SvgChartRenderer {
 
     private static void DrawRadarAxisLabel(StringBuilder sb, Chart chart, ChartRect plot, double category, double x, double y, double angle) {
         var t = chart.Options.Theme;
-        var label = FormatX(chart, category);
+        var rawLabel = FormatX(chart, category);
+        var maxWidth = Math.Max(44, SvgRadarLabelWidth(chart, angle));
+        var fontSize = TextFontSizeForSvgWidth(rawLabel, maxWidth, t.TickLabelFontSize);
+        var label = TrimSvgLabelToWidth(rawLabel, fontSize, maxWidth);
+        if (label.Length == 0) return;
         var labelBounds = new ChartRect(24, Math.Min(24, plot.Top), Math.Max(1, chart.Options.Size.Width - 48), Math.Max(1, chart.Options.Size.Height - 48));
-        var safeX = EdgeAwareTextX(label, x, labelBounds, t.TickLabelFontSize);
-        var safeY = Clamp(y, labelBounds.Top + t.TickLabelFontSize, labelBounds.Bottom - t.TickLabelFontSize);
-        var anchor = EdgeAwareAnchor(label, safeX, labelBounds, t.TickLabelFontSize);
+        var safeX = EdgeAwareTextX(label, x, labelBounds, fontSize);
+        var safeY = Clamp(y, labelBounds.Top + fontSize, labelBounds.Bottom - fontSize);
+        var anchor = EdgeAwareAnchor(label, safeX, labelBounds, fontSize);
         if (anchor == "middle") anchor = Math.Cos(angle) > 0.32 ? "start" : Math.Cos(angle) < -0.32 ? "end" : "middle";
-        sb.AppendLine($"<text data-cfx-role=\"radar-axis-label\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"650\">{Escape(label)}</text>");
+        sb.AppendLine($"<text data-cfx-role=\"radar-axis-label\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"650\">{Escape(label)}</text>");
+    }
+
+    private static double SvgRadarLabelWidth(Chart chart, double angle) {
+        var sideRoom = chart.Options.Size.Width * 0.18;
+        return Math.Abs(Math.Cos(angle)) < 0.32 ? chart.Options.Size.Width * 0.26 : sideRoom;
     }
 
     private static double[] RadarCategories(IEnumerable<ChartSeries> series) {

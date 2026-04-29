@@ -48,8 +48,9 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<text data-cfx-role=\"gauge-status-label\" x=\"{F(statusLeft)}\" y=\"{F(cy + ChartVisualPrimitives.GaugeStatusTextOffsetY)}\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(statusFontSize)}\" font-weight=\"650\">{Escape(statusLabel)}</text>");
         }
         if (chart.Options.ShowAxes) {
-            sb.AppendLine($"<text data-cfx-role=\"gauge-min-label\" x=\"{F(cx - radius)}\" y=\"{F(cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY)}\" text-anchor=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, min))}</text>");
-            sb.AppendLine($"<text data-cfx-role=\"gauge-max-label\" x=\"{F(cx + radius)}\" y=\"{F(cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY)}\" text-anchor=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(FormatValue(chart, max))}</text>");
+            var axisLabelWidth = Math.Max(32, radius * 0.76);
+            DrawSvgTextCenteredX(sb, chart, "gauge-min-label", FormatValue(chart, min), cx - radius, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY, t.MutedText, t.TickLabelFontSize, axisLabelWidth, "400");
+            DrawSvgTextCenteredX(sb, chart, "gauge-max-label", FormatValue(chart, max), cx + radius, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY, t.MutedText, t.TickLabelFontSize, axisLabelWidth, "400");
         }
         sb.AppendLine("</g>");
     }

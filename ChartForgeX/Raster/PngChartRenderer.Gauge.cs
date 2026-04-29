@@ -48,11 +48,17 @@ public sealed partial class PngChartRenderer {
             c.DrawTextEmphasized(statusLeft, cy + ChartVisualPrimitives.GaugeStatusTextOffsetY - statusFontSize + 1, statusLabel, theme.MutedText, statusFontSize);
         }
         if (chart.Options.ShowAxes) {
-            var minLabel = FormatValue(chart, min);
-            var maxLabel = FormatValue(chart, max);
-            c.DrawText(cx - radius - EstimatePngTextWidth(minLabel, tickFontSize) / 2.0, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY - tickFontSize + 1, minLabel, theme.MutedText, tickFontSize);
-            c.DrawText(cx + radius - EstimatePngTextWidth(maxLabel, tickFontSize) / 2.0, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY - tickFontSize + 1, maxLabel, theme.MutedText, tickFontSize);
+            var axisLabelWidth = Math.Max(32, radius * 0.76);
+            DrawPngTextCentered(c, cx - radius, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY, FormatValue(chart, min), theme.MutedText, tickFontSize, axisLabelWidth);
+            DrawPngTextCentered(c, cx + radius, cy + ChartVisualPrimitives.GaugeAxisLabelOffsetY, FormatValue(chart, max), theme.MutedText, tickFontSize, axisLabelWidth);
         }
+    }
+
+    private static void DrawPngTextCentered(RgbaCanvas c, double centerX, double baselineY, string text, ChartColor color, double preferredFontSize, double maxWidth) {
+        var fontSize = TextFontSizeForWidth(text, maxWidth, preferredFontSize);
+        text = TrimPngLabelToWidth(text, fontSize, maxWidth);
+        if (text.Length == 0) return;
+        c.DrawText(centerX - EstimatePngTextWidth(text, fontSize) / 2.0, baselineY - fontSize + 1, text, color, fontSize);
     }
 
     private static bool IsGaugeChart(Chart chart) {

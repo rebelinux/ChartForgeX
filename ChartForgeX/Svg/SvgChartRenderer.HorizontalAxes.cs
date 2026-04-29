@@ -15,10 +15,12 @@ public sealed partial class SvgChartRenderer {
         var tickStyle = o.TickLabelStyle;
         var tickFontSize = StyleFontSize(tickStyle, t.TickLabelFontSize);
         var xLabels = XAxisTickLabels(chart, xTicks, true);
+        var xLabelMaxWidth = AxisTickLabelMaxWidth(plot, xTicks.Count, 0);
         for (var i = 0; i < xTicks.Count; i++) {
             var x = map.X(xTicks[i]);
+            var label = TrimSvgLabelToWidth(xLabels[i], tickFontSize, xLabelMaxWidth);
             if (o.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.HorizontalBarValueGridOpacity)}\"/>");
-            if (ShowXAxis(chart)) sb.AppendLine($"<text x=\"{F(x)}\" y=\"{F(plot.Bottom + 21)}\" text-anchor=\"middle\" fill=\"{StyleColor(tickStyle, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, tickStyle))}\" font-size=\"{F(tickFontSize)}\"{SvgTextStyleAttributes(tickStyle)}>{Escape(xLabels[i])}</text>");
+            if (ShowXAxis(chart) && label.Length > 0) DrawXAxisLabel(sb, chart, plot, label, x, plot.Bottom + 21, 0, maxWidth: xLabelMaxWidth);
         }
 
         foreach (var category in categoryTicks) {
@@ -67,8 +69,12 @@ public sealed partial class SvgChartRenderer {
         var lines = WrapSvgHorizontalCategoryLabel(label, fontSize, SvgHorizontalCategoryWrapWidth(chart));
         var lineHeight = fontSize + 3;
         var firstBaseline = y + 4 - (lines.Length - 1) * lineHeight / 2.0;
+        var maxWidth = Math.Max(8, plot.Left - 24);
         for (var i = 0; i < lines.Length; i++) {
-            sb.AppendLine($"<text data-cfx-role=\"horizontal-category-label\" data-cfx-line=\"{i}\" x=\"{F(plot.Left - 12)}\" y=\"{F(firstBaseline + i * lineHeight)}\" text-anchor=\"end\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(lines[i])}</text>");
+            var lineFontSize = TextFontSizeForSvgWidth(lines[i], maxWidth, fontSize);
+            var line = TrimSvgLabelToWidth(lines[i], lineFontSize, maxWidth);
+            if (line.Length == 0) continue;
+            sb.AppendLine($"<text data-cfx-role=\"horizontal-category-label\" data-cfx-line=\"{i}\" x=\"{F(plot.Left - 12)}\" y=\"{F(firstBaseline + i * lineHeight)}\" text-anchor=\"end\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(lineFontSize)}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(line)}</text>");
         }
     }
 

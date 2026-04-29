@@ -31,7 +31,9 @@ public sealed partial class SvgChartRenderer {
         if (ringWidth < 18) return;
         var labelSpace = SunburstSvgLabelSpace(node, sweep, ringWidth);
         if (labelSpace <= 0) return;
-        var fontSize = Math.Min(t.TickLabelFontSize, ringWidth * 0.46);
+        var preferredFontSize = Math.Min(t.TickLabelFontSize, ringWidth * 0.42);
+        var fontSize = TextFontSizeForSvgWidth(node.Label, labelSpace, preferredFontSize);
+        if (node.Depth > 0 && fontSize < preferredFontSize * 0.92) return;
         var label = node.Depth == 0 ? node.Label : TrimSvgLabelToWidth(node.Label, fontSize, labelSpace);
         if (node.Depth > 0 && label.EndsWith("...", StringComparison.Ordinal)) return;
         if (label.Length == 0) return;
@@ -50,7 +52,7 @@ public sealed partial class SvgChartRenderer {
         var arcLength = sweep * midRadius;
         if (sweep < 0.30 || arcLength < 58) return 0;
         if (node.Depth == 1 && (sweep < 0.78 || arcLength < 92)) return 0;
-        return Math.Max(36, Math.Min(arcLength * 0.56, ringWidth * 1.75));
+        return Math.Max(36, Math.Min(arcLength * 0.44, ringWidth * 1.48));
     }
 
     private static ChartColor SunburstNodeColor(Chart chart, ChartSunburstNode node) {

@@ -16,12 +16,15 @@ public sealed partial class PngChartRenderer {
         var y = PngLegendStartY(chart, area, rows.Count);
 
         foreach (var row in rows) {
+            if (y > area.Bottom) break;
             var x = PngLegendRowX(chart, area, row.Width);
             foreach (var item in row.Items) {
-                if (y > area.Bottom) break;
                 var itemX = x + item.X;
                 DrawLegendSymbol(c, chart.Series[item.SeriesIndex].Kind, itemX, y - 5, item.Color, theme.CardBackground);
-                DrawPngTextStyled(c, itemX + symbolWidth + 8, y - fontSize + 3, item.Label, chart.Options.LegendStyle, theme.MutedText, fontSize, emphasized: true);
+                var labelMaxWidth = System.Math.Max(8, item.Width - symbolWidth - 14);
+                var labelFontSize = TextFontSizeForEmphasizedWidth(item.Label, labelMaxWidth, fontSize);
+                var label = TrimReadablePngLabelToWidth(item.Label, labelFontSize, labelMaxWidth);
+                if (label.Length > 0) DrawPngTextStyled(c, itemX + symbolWidth + 8, y - labelFontSize + 3, label, chart.Options.LegendStyle, theme.MutedText, labelFontSize, emphasized: true);
             }
 
             y += rowHeight;
@@ -101,12 +104,12 @@ public sealed partial class PngChartRenderer {
         }
 
         if (PngIsLeftLegend(chart.Options.LegendPosition)) {
-            var reserve = PngLegendSideReserve(chart);
+            var reserve = PngLegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             return new ChartRect(plot.X + reserve, plot.Y, System.Math.Max(1, plot.Width - reserve), plot.Height);
         }
 
         if (PngIsRightLegend(chart.Options.LegendPosition)) {
-            var reserve = PngLegendSideReserve(chart);
+            var reserve = PngLegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             return new ChartRect(plot.X, plot.Y, System.Math.Max(1, plot.Width - reserve), plot.Height);
         }
 
@@ -128,7 +131,7 @@ public sealed partial class PngChartRenderer {
         }
 
         var reserve = PngLegendBottomReserve(chart);
-        var y = PngIsTopLegend(position) ? (chart.Options.ShowHeader ? 98 : 44) : System.Math.Max(44, chart.Options.Size.Height - reserve + 12);
+        var y = PngIsTopLegend(position) ? (chart.Options.ShowHeader ? 98 : 44) : System.Math.Max(44, chart.Options.Size.Height - reserve - 4);
         return new ChartRect(40, y, System.Math.Max(1, chart.Options.Size.Width - 80), reserve);
     }
 
@@ -142,7 +145,7 @@ public sealed partial class PngChartRenderer {
         return area.X;
     }
 
-    private static double PngLegendBottomReserve(Chart chart) => 18 + PngLegendRowCount(chart) * (PngLegendFontSize(chart) + 6);
+    private static double PngLegendBottomReserve(Chart chart) => 18 + PngLegendRowCount(chart) * (PngLegendFontSize(chart) + 6) + ChartVisualPrimitives.LegendPlotGap;
 
     private static double PngLegendSideReserve(Chart chart) {
         if (chart.Series.Count == 0) return 0;

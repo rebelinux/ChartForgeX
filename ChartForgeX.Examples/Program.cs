@@ -400,6 +400,18 @@ var donut = Chart.Create()
 
 SaveChart(donut, "result-mix-donut");
 
+var zeroValueDonut = Chart.Create().WithTitle("Zero-Value Donut").WithSubtitle("Zero slices stay out of the ring without shifting colors or labels").WithTheme(ChartTheme.ReportLight()).WithSize(820, 460).WithXLabels("No findings", "Reviewed", "Escalated").AddDonut("Review mix", Points(0, 82, 18));
+zeroValueDonut.Series[0].WithPointColor(1, ChartColor.FromRgb(15, 118, 110)).WithPointSliceOffset(1, 0.08);
+SaveChart(zeroValueDonut, "zero-value-donut-light");
+
+var zeroValuePolar = Chart.Create().WithTitle("Zero-Value Polar Area").WithSubtitle("Zero segments keep point indexes stable while positive segments remain styled").WithTheme(ChartTheme.ReportLight()).WithSize(820, 460).WithXLabels("No findings", "Reviewed", "Escalated").AddPolarArea("Review mix", Points(0, 82, 18));
+zeroValuePolar.Series[0].WithPointColor(1, ChartColor.FromRgb(15, 118, 110));
+SaveChart(zeroValuePolar, "zero-value-polar-area-light");
+
+var zeroValueFunnel = Chart.Create().WithTitle("Zero-Value Funnel Stage").WithSubtitle("Zero stages stay visible and later stages avoid fake drop-off from zero").WithTheme(ChartTheme.ReportLight()).WithSize(920, 560).WithXLabels("Opened", "Deferred", "Closed").AddFunnel("Review flow", Points(100, 0, 18));
+zeroValueFunnel.Series[0].WithPointColor(2, ChartColor.FromRgb(124, 58, 237));
+SaveChart(zeroValueFunnel, "zero-value-funnel-stage-light");
+
 var monthly = Chart.Create()
     .WithTitle("Monthly Security Posture")
     .WithSubtitle("Automatic label density with wrapped legend rows")
@@ -503,16 +515,15 @@ SaveChart(cost, "license-cost-light");
 
 var regional = Chart.Create()
     .WithTitle("Certificate Transparency by Region")
-    .WithSubtitle("Rotated category labels and compact million-scale values")
-    .WithXAxis("Region")
-    .WithYAxis("Certificates")
+    .WithSubtitle("Horizontal bars keep region names readable at catalog size")
+    .WithXAxis("Certificates")
+    .WithYAxis("Region")
     .WithTheme(ChartTheme.ReportLight())
     .WithSize(880, 560)
-    .WithXAxisLabelDensity(ChartLabelDensity.All)
-    .WithXAxisLabelAngle(-35)
+    .WithValueFormatter(value => (value / 1000000d).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "M")
     .WithXLabels("North America", "Western Europe", "Central Europe", "Asia Pacific", "Latin America", "Middle East")
-    .AddBar("Logged certificates", Points(1200000, 2350000, 1840000, 3120000, 980000, 760000))
-    .AddHorizontalLine(2000000, "2M benchmark", ChartColor.FromRgb(245, 158, 11));
+    .AddHorizontalBar("Logged certificates", Points(1200000, 2350000, 1840000, 3120000, 980000, 760000))
+    .AddVerticalLine(2000000, "2M benchmark", ChartColor.FromRgb(245, 158, 11));
 
 SaveChart(regional, "ct-regional-light");
 

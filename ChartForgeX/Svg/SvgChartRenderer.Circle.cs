@@ -42,8 +42,13 @@ public sealed partial class SvgChartRenderer {
         sb.AppendLine($"<circle data-cfx-role=\"circle-center\" cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"{F(Math.Max(18, radius - stroke * 0.82))}\" fill=\"{t.CardBackground.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.CircleCenterFillOpacity)}\" stroke=\"{t.Grid.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.CircleCenterStrokeOpacity)}\"/>");
         if (showLabels) {
             var valueFontSize = Math.Max(24, Math.Min(t.TitleFontSize * 1.72, radius * 0.72));
-            DrawSvgTextCenteredX(sb, chart, "circle-label", valueLabel, cx, cy - valueFontSize * 0.08, t.Text, valueFontSize, labelWidth, "850", t.CardBackground, 3.2);
-            DrawSvgTextCenteredX(sb, chart, "circle-title", series.Name, cx, cy + valueFontSize * 0.48, t.MutedText, Math.Max(9, Math.Min(t.LegendFontSize, radius * 0.22)), labelWidth, "700", t.CardBackground, 2.4, middleBaseline: false);
+            var titleFontSize = Math.Max(9, Math.Min(t.LegendFontSize, radius * 0.22));
+            var centerLineGap = Math.Max(4, Math.Min(8, radius * 0.05));
+            var centerGroupHeight = valueFontSize + centerLineGap + titleFontSize;
+            var valueY = cy - centerGroupHeight / 2.0 + valueFontSize / 2.0;
+            var titleY = valueY + valueFontSize / 2.0 + centerLineGap + titleFontSize / 2.0;
+            DrawSvgTextCenteredX(sb, chart, "circle-label", valueLabel, cx, valueY, t.Text, valueFontSize, labelWidth, "850", t.CardBackground, 3.2);
+            DrawSvgTextCenteredX(sb, chart, "circle-title", series.Name, cx, titleY, t.MutedText, titleFontSize, labelWidth, "700", t.CardBackground, 2.4);
             if (chart.Options.ShowCircleStatusLabel) {
                 var statusFontSize = TextFontSizeForSvgWidth(statusLabel, labelWidth, t.TickLabelFontSize);
                 statusLabel = TrimSvgLabelToWidth(statusLabel, statusFontSize, labelWidth);

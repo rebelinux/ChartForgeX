@@ -23,7 +23,7 @@ public sealed partial class SvgChartRenderer {
         var slotHeight = plot.Height / items.Count;
         var ticks = ChartTicks.Generate(min, max, Math.Min(6, Math.Max(3, chart.Options.TickCount)));
         var tickLabelWidth = Math.Max(18, plot.Width / Math.Max(1, ticks.Count - 1) - 6);
-        var rowLabelWidth = Math.Max(8, plot.Left - chart.Options.Padding.Left - 2);
+        var rowLabelWidth = Math.Max(8, plot.Left - 24);
 
         sb.AppendLine("<g data-cfx-role=\"timeline\">");
         DrawTimelineItemGradients(sb, id, items);
@@ -31,11 +31,12 @@ public sealed partial class SvgChartRenderer {
             var x = ProjectTimelineX(tick, min, max, plot);
             if (chart.Options.ShowGrid) sb.AppendLine($"<line x1=\"{F(x)}\" y1=\"{F(plot.Top)}\" x2=\"{F(x)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.TimelineGridOpacity)}\"/>");
             if (chart.Options.ShowAxes) {
-                var label = FormatTimelineTick(chart, tick);
-                label = TrimSvgLabelToWidth(label, t.TickLabelFontSize, tickLabelWidth);
-                var anchor = EdgeAwareAnchor(label, x, plot, t.TickLabelFontSize);
-                var labelX = EdgeAwareTextX(label, x, plot, t.TickLabelFontSize);
-                sb.AppendLine($"<text data-cfx-role=\"timeline-tick-label\" x=\"{F(labelX)}\" y=\"{F(plot.Bottom + 22)}\" text-anchor=\"{anchor}\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\">{Escape(label)}</text>");
+                var rawLabel = FormatTimelineTick(chart, tick);
+                var labelFontSize = TextFontSizeForSvgWidth(rawLabel, tickLabelWidth, t.TickLabelFontSize);
+                var label = TrimSvgLabelToWidth(rawLabel, labelFontSize, tickLabelWidth);
+                var anchor = EdgeAwareAnchor(label, x, plot, labelFontSize);
+                var labelX = EdgeAwareTextX(label, x, plot, labelFontSize);
+                sb.AppendLine($"<text data-cfx-role=\"timeline-tick-label\" x=\"{F(labelX)}\" y=\"{F(plot.Bottom + 22)}\" text-anchor=\"{anchor}\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(labelFontSize)}\">{Escape(label)}</text>");
             }
         }
 
@@ -50,8 +51,9 @@ public sealed partial class SvgChartRenderer {
             var summary = BuildTimelineSummary(chart, item, duration);
             if (chart.Options.ShowGrid) sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(y + rowHeight / 2)}\" x2=\"{F(plot.Right)}\" y2=\"{F(y + rowHeight / 2)}\" stroke=\"{t.Grid.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.GridStrokeWidth)}\" opacity=\"{F(ChartVisualPrimitives.TimelineRowGridOpacity)}\"/>");
             if (chart.Options.ShowAxes) {
-                var rowLabel = TrimSvgLabelToWidth(item.Name, t.TickLabelFontSize, rowLabelWidth);
-                sb.AppendLine($"<text data-cfx-role=\"timeline-row-label\" x=\"{F(plot.Left - 14)}\" y=\"{F(y + rowHeight / 2)}\" text-anchor=\"end\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"650\">{Escape(rowLabel)}</text>");
+                var rowLabelFontSize = TextFontSizeForSvgWidth(item.Name, rowLabelWidth, t.TickLabelFontSize);
+                var rowLabel = TrimSvgLabelToWidth(item.Name, rowLabelFontSize, rowLabelWidth);
+                sb.AppendLine($"<text data-cfx-role=\"timeline-row-label\" x=\"{F(plot.Left - 14)}\" y=\"{F(y + rowHeight / 2)}\" text-anchor=\"end\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(rowLabelFontSize)}\" font-weight=\"650\">{Escape(rowLabel)}</text>");
             }
             DrawTimelineRangeBar(sb, chart, item, id, i, left, y, width, rowHeight, duration, summary);
             if (item.ShowDataLabels && width >= 72) {

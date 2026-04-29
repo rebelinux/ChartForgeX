@@ -41,8 +41,13 @@ public sealed partial class PngChartRenderer {
             var rowsForItem = symbolRows[i];
             var itemTop = startY + symbolRow * rowHeight + i * itemGap;
             var labelY = itemTop + rowsForItem * rowHeight / 2;
-            var label = TrimReadablePngLabelToWidth(FormatX(chart, point.X), t.TickLabelFontSize, labelWidth - 8);
-            c.DrawTextEmphasized(plot.Left + labelWidth - 8 - EstimatePngEmphasizedTextWidth(label, t.TickLabelFontSize), labelY - t.TickLabelFontSize / 2.0, label, t.MutedText, t.TickLabelFontSize);
+            var labelMaxWidth = Math.Max(8, labelWidth - 8);
+            var rawLabel = FormatX(chart, point.X);
+            var labelFontSize = TextFontSizeForEmphasizedWidth(rawLabel, labelMaxWidth, t.TickLabelFontSize);
+            var label = TrimReadablePngLabelToWidth(rawLabel, labelFontSize, labelMaxWidth);
+            if (label.Length > 0) {
+                c.DrawTextEmphasized(plot.Left + labelWidth - 8 - EstimatePngEmphasizedTextWidth(label, labelFontSize), labelY - labelFontSize / 2.0, label, t.MutedText, labelFontSize);
+            }
             var color = PngPictorialItemColor(series, t, i);
             var filled = chart.Options.PictorialValuePerSymbol.HasValue ? point.Y / chart.Options.PictorialValuePerSymbol.Value : point.Y / max * columns;
             for (var row = 0; row < rowsForItem; row++) {
@@ -62,8 +67,13 @@ public sealed partial class PngChartRenderer {
             }
 
             if (showValues) {
-                var value = FormatValue(chart, point.Y);
-                c.DrawTextEmphasized(startX + symbolArea + 12, labelY - t.DataLabelFontSize / 2.0, value, t.Text, t.DataLabelFontSize);
+                var valueMaxWidth = Math.Max(8, valueWidth - 4);
+                var rawValue = FormatValue(chart, point.Y);
+                var valueFontSize = TextFontSizeForEmphasizedWidth(rawValue, valueMaxWidth, t.DataLabelFontSize);
+                var value = TrimReadablePngLabelToWidth(rawValue, valueFontSize, valueMaxWidth);
+                if (value.Length > 0) {
+                    c.DrawTextEmphasized(startX + symbolArea + 12, labelY - valueFontSize / 2.0, value, t.Text, valueFontSize);
+                }
             }
 
             symbolRow += rowsForItem;

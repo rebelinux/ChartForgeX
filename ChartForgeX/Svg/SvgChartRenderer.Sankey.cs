@@ -22,15 +22,23 @@ public sealed partial class SvgChartRenderer {
             var labelMaxWidth = Math.Max(64, plot.Width / Math.Max(2, model.MaxLayer + 1) * 0.62);
             var anchor = node.Layer == model.MaxLayer ? "end" : "start";
             var labelX = node.Layer == model.MaxLayer ? node.X - 10 : node.X + model.NodeWidth + 10;
-            var label = TrimSvgLabelToWidth(node.Label, t.TickLabelFontSize, labelMaxWidth);
+            var labelFontSize = TextFontSizeForSvgWidth(node.Label, labelMaxWidth, t.TickLabelFontSize);
+            var label = TrimSvgLabelToWidth(node.Label, labelFontSize, labelMaxWidth);
             var summary = node.Label + ": " + FormatValue(chart, node.Value);
             var borderStroke = ChartVisualPrimitives.SankeyNodeBorderStrokeWidth;
             var borderInset = borderStroke / 2.0;
             var radius = Math.Min(ChartVisualPrimitives.SankeyNodeCornerRadiusMax, model.NodeWidth / 2);
             sb.AppendLine($"<rect data-cfx-role=\"sankey-node\" data-cfx-node=\"{node.Index}\" data-cfx-layer=\"{node.Layer}\" data-cfx-label=\"{Escape(node.Label)}\" data-cfx-value=\"{F(node.Value)}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(node.X)}\" y=\"{F(node.Y)}\" width=\"{F(model.NodeWidth)}\" height=\"{F(node.Height)}\" rx=\"{F(radius)}\" fill=\"url(#{id}-sankeyFill{node.Index % t.Palette.Length})\"/>");
             sb.AppendLine($"<rect data-cfx-role=\"sankey-node-border\" x=\"{F(node.X + borderInset)}\" y=\"{F(node.Y + borderInset)}\" width=\"{F(Math.Max(0, model.NodeWidth - borderStroke))}\" height=\"{F(Math.Max(0, node.Height - borderStroke))}\" rx=\"{F(Math.Max(0, radius - borderInset))}\" fill=\"none\" stroke=\"{t.CardBackground.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.SankeyNodeBorderOpacity)}\" stroke-width=\"{F(borderStroke)}\"/>");
-            if (showDataLabels) {
-                sb.AppendLine($"<text data-cfx-role=\"sankey-node-label\" x=\"{F(labelX)}\" y=\"{F(node.Y + node.Height / 2)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.SankeyLabelStrokeWidth)}\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+            if (showDataLabels && label.Length > 0) {
+                var labelY = node.Y + node.Height / 2;
+                var labelWidth = EstimateTextWidth(label, labelFontSize);
+                var padX = ChartVisualPrimitives.SankeyLabelBackdropPaddingX;
+                var padY = ChartVisualPrimitives.SankeyLabelBackdropPaddingY;
+                var backdropX = anchor == "end" ? labelX - labelWidth - padX : labelX - padX;
+                var backdropY = labelY - labelFontSize / 2 - padY;
+                sb.AppendLine($"<rect data-cfx-role=\"sankey-node-label-backdrop\" data-cfx-node=\"{node.Index}\" x=\"{F(backdropX)}\" y=\"{F(backdropY)}\" width=\"{F(labelWidth + padX * 2)}\" height=\"{F(labelFontSize + padY * 2)}\" rx=\"{F(Math.Min(6, (labelFontSize + padY * 2) / 2))}\" fill=\"{t.CardBackground.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.SankeyLabelBackdropOpacity)}\" stroke=\"{t.PlotBorder.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.SankeyLabelBackdropBorderOpacity)}\"/>");
+                sb.AppendLine($"<text data-cfx-role=\"sankey-node-label\" x=\"{F(labelX)}\" y=\"{F(labelY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.MutedText.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.SankeyLabelStrokeWidth)}\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(labelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
             }
         }
 

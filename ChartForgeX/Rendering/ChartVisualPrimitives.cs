@@ -103,6 +103,9 @@ internal static class ChartVisualPrimitives {
     public const double LegendFinanceBodyHeight = 6;
     public const double LegendSwatchSize = 10;
     public const double LegendSwatchRadius = 2;
+    public const double LegendPlotGap = 14;
+    public const double SideLegendPlotGap = 12;
+    public const double DataLabelPlotInset = 8;
     public const double GaugeTrackOpacity = 0.62;
     public const double GaugeCenterYFactor = 0.66;
     public const double GaugeRadiusWidthFactor = 0.36;
@@ -124,10 +127,13 @@ internal static class ChartVisualPrimitives {
     public const double SliceLegendSwatchSize = 10;
     public const double SliceLegendSwatchRadius = 2;
     public const double PolarAreaMinRadius = 24;
-    public const double PolarAreaRadiusFactor = 0.36;
-    public const double PolarAreaCenterXFactor = 0.42;
+    public const double PolarAreaRadiusFactor = 0.44;
+    public const double PolarAreaCenterXFactor = 0.50;
     public const int PolarAreaGridRings = 4;
     public const double PolarAreaGridOpacity = 0.72;
+    public const double PolarAreaZeroSlotInnerRadiusFactor = 0.93;
+    public const double PolarAreaZeroSlotFillOpacity = 0.03;
+    public const double PolarAreaZeroSlotStrokeOpacity = 0.68;
     public const double PolarAreaLabelMinRadius = 34;
     public const double PolarAreaLabelRadiusFactor = 0.64;
 
@@ -172,6 +178,10 @@ internal static class ChartVisualPrimitives {
     public const double SankeyNodeBorderOpacity = 0.62;
     public const double SankeyNodeBorderStrokeWidth = 1.2;
     public const double SankeyLabelStrokeWidth = 2.4;
+    public const double SankeyLabelBackdropPaddingX = 5;
+    public const double SankeyLabelBackdropPaddingY = 3;
+    public const double SankeyLabelBackdropOpacity = 0.82;
+    public const double SankeyLabelBackdropBorderOpacity = 0.38;
 
     public const double FunnelSegmentStrokeWidth = 2;
     public const double FunnelSegmentStrokeOpacity = 0.80;
@@ -213,6 +223,9 @@ internal static class ChartVisualPrimitives {
     public const double TreemapTileBorderStrokeWidth = 1.4;
     public const double TreemapTileHighlightOpacity = 0.22;
     public const double TreemapTileHighlightStrokeWidth = 1;
+    public const double TreemapTileLabelInsetX = 12;
+    public const double TreemapTileLabelInsetY = 11;
+    public const double TreemapTileValueGap = 5;
     public const double TreemapValueOpacity = 0.82;
 
     public const double HeatmapCellBorderOpacity = 0.32;
@@ -224,4 +237,8 @@ internal static class ChartVisualPrimitives {
     public const double HeatmapScaleOffsetY = 32;
     public const double HeatmapScaleLabelOffsetY = 24;
     public const double HeatmapScaleStepOverlap = 0.5;
+
+    public const double WordCloudEdgePaddingMin = 8;
+    public const double WordCloudEdgePaddingMax = 18;
+    public const double WordCloudEdgePaddingFactor = 0.04;
 }

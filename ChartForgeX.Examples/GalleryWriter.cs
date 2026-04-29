@@ -24,6 +24,7 @@ public static partial class GalleryWriter {
     public static void Write(string output) {
         var htmlFiles = Directory.EnumerateFiles(output, "*.html", SearchOption.TopDirectoryOnly)
             .Where(file => !IsGalleryShellFile(Path.GetFileName(file)))
+            .Where(file => !IsConflictCopyFile(file))
             .OrderBy(file => Path.GetFileName(file), StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var sb = new System.Text.StringBuilder();
@@ -34,13 +35,13 @@ public static partial class GalleryWriter {
         sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
         sb.AppendLine("<title>ChartForgeX Examples</title>");
         sb.AppendLine("<style>");
-        sb.AppendLine(":root{color-scheme:dark;--bg:#0f172a;--panel:#111827;--panel2:#0b1120;--line:#253247;--text:#f8fafc;--muted:#aab6ca;--accent:#38bdf8}");
+        sb.AppendLine(":root{color-scheme:dark;--bg:#0f172a;--panel:#111827;--panel2:#0b1120;--preview:#0c1220;--line:#253247;--softline:#1f2b3f;--text:#f8fafc;--muted:#aab6ca;--accent:#38bdf8}");
         sb.AppendLine("*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial,sans-serif;-webkit-font-smoothing:antialiased}");
         sb.AppendLine("header{padding:36px 40px 18px}h1{margin:0 0 8px;font-size:30px;line-height:1.1}p{margin:0;color:var(--muted);font-size:14px}nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}");
-        sb.AppendLine("main{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:22px;padding:22px 40px 44px}.card{min-width:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,var(--panel),var(--panel2));overflow:hidden}");
-        sb.AppendLine(".preview{aspect-ratio:16/10;background:#0b1020;border-bottom:1px solid var(--line)}iframe{display:block;width:100%;height:100%;border:0;background:#0b1020}.body{padding:14px 16px 16px}.title{font-weight:750;font-size:15px;margin-bottom:10px}");
+        sb.AppendLine("main{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,540px),1fr));gap:22px;padding:22px 40px 44px;align-items:start}.card{min-width:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,var(--panel),var(--panel2));overflow:hidden;box-shadow:0 14px 30px rgba(0,0,0,.18)}");
+        sb.AppendLine(".preview{display:grid;place-items:center;aspect-ratio:var(--preview-aspect,16/10);background:var(--preview);border-bottom:1px solid var(--softline);padding:12px}.preview img{display:block;max-width:100%;max-height:100%;object-fit:contain}.preview iframe{display:block;width:100%;height:100%;border:0;background:var(--preview)}.body{padding:14px 16px 16px}.title{font-weight:780;font-size:15px;line-height:1.24;margin-bottom:10px}");
         sb.AppendLine(".links{display:flex;flex-wrap:wrap;gap:8px}a{color:var(--accent);text-decoration:none;font-size:12px;font-weight:700;border:1px solid rgba(56,189,248,.28);border-radius:6px;padding:6px 8px}a:hover{background:rgba(56,189,248,.12)}");
-        sb.AppendLine("@media(max-width:560px){header{padding:26px 18px 12px}main{grid-template-columns:1fr;padding:18px}.preview{aspect-ratio:4/3}}");
+        sb.AppendLine("@media(max-width:680px){header{padding:26px 18px 12px}main{grid-template-columns:1fr;padding:18px}.preview{aspect-ratio:4/3;padding:12px}}");
         sb.AppendLine("</style>");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
@@ -71,7 +72,12 @@ public static partial class GalleryWriter {
         var pngExists = File.Exists(Path.Combine(directory, baseName + ".png"));
         var title = ReadTitle(htmlFile);
         sb.AppendLine("<article class=\"card\">");
-        sb.AppendLine("<div class=\"preview\"><iframe loading=\"lazy\" src=\"" + EscapeHtml(fileName) + "\" title=\"" + EscapeHtml(title) + "\"></iframe></div>");
+        if (svgExists) {
+            var previewStyle = CatalogPreviewStyle(Path.Combine(directory, baseName + ".svg"));
+            sb.AppendLine("<a class=\"preview\" href=\"" + EscapeHtml(fileName) + "\" aria-label=\"Open " + EscapeHtml(title) + "\"" + previewStyle + "><img loading=\"lazy\" src=\"" + EscapeHtml(baseName) + ".svg\" alt=\"\"></a>");
+        } else {
+            sb.AppendLine("<div class=\"preview\"><iframe loading=\"lazy\" src=\"" + EscapeHtml(fileName) + "\" title=\"" + EscapeHtml(title) + "\"></iframe></div>");
+        }
         sb.AppendLine("<div class=\"body\">");
         sb.AppendLine("<div class=\"title\">" + EscapeHtml(title) + "</div>");
         sb.AppendLine("<div class=\"links\">");
@@ -93,6 +99,7 @@ public static partial class GalleryWriter {
 
     private static void WriteComparison(string output) {
         var pairs = Directory.EnumerateFiles(output, "*.svg", SearchOption.TopDirectoryOnly)
+            .Where(file => !IsConflictCopyFile(file))
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => !string.IsNullOrWhiteSpace(name) && File.Exists(Path.Combine(output, name + ".png")))
             .Select(name => name!)
@@ -349,6 +356,24 @@ public static partial class GalleryWriter {
         string.Equals(fileName, CatalogFileName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(fileName, QualityDashboardFileName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(fileName, ComparisonFileName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsConflictCopyFile(string file) {
+        var baseName = Path.GetFileNameWithoutExtension(file);
+        var canonicalBaseName = StripConflictCopySuffix(baseName);
+        if (string.Equals(canonicalBaseName, baseName, StringComparison.Ordinal)) return false;
+        var directory = Path.GetDirectoryName(file) ?? string.Empty;
+        return File.Exists(Path.Combine(directory, canonicalBaseName + Path.GetExtension(file)));
+    }
+
+    private static string StripConflictCopySuffix(string baseName) {
+        var separator = baseName.LastIndexOf(' ');
+        if (separator < 1 || separator == baseName.Length - 1) return baseName;
+        for (var i = separator + 1; i < baseName.Length; i++) {
+            if (!char.IsDigit(baseName[i])) return baseName;
+        }
+
+        return baseName.Substring(0, separator);
+    }
 
     private static AssetDimensions ReadSvgDimensions(string fileName) {
         try {

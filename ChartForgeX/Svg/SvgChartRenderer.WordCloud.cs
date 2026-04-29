@@ -15,7 +15,7 @@ public sealed partial class SvgChartRenderer {
         var series = chart.Series.First(item => item.Kind == ChartSeriesKind.WordCloud);
         var t = chart.Options.Theme;
         var maximumTerms = chart.Options.WordCloudMaximumTerms.HasValue ? chart.Options.WordCloudMaximumTerms.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "all";
-        sb.AppendLine($"<g data-cfx-role=\"word-cloud\" data-cfx-density=\"{F(chart.Options.WordCloudDensity)}\" data-cfx-maximum-terms=\"{maximumTerms}\">");
+        sb.AppendLine($"<g data-cfx-role=\"word-cloud\" data-cfx-density=\"{F(chart.Options.WordCloudDensity)}\" data-cfx-maximum-terms=\"{maximumTerms}\" data-cfx-edge-padding=\"{F(ChartWordCloudLayout.EdgePadding(plot))}\">");
         for (var i = 0; i < terms.Count; i++) {
             var term = terms[i];
             var color = WordCloudTermColor(series, t, term.PointIndex, i);

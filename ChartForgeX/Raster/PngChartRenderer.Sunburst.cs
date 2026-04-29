@@ -50,7 +50,7 @@ public sealed partial class PngChartRenderer {
         var arcLength = sweep * midRadius;
         if (sweep < 0.30 || arcLength < 58) return 0;
         if (node.Depth == 1 && (sweep < 0.78 || arcLength < 92)) return 0;
-        return Math.Max(36, Math.Min(arcLength * 0.56, ringWidth * 1.75));
+        return Math.Max(36, Math.Min(arcLength * 0.44, ringWidth * 1.48));
     }
 
     private static void DrawSunburstSeparator(RgbaCanvas c, Chart chart, ChartSunburstModel model, ChartSunburstNode node) {

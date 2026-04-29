@@ -78,21 +78,26 @@ public sealed partial class SvgChartRenderer {
     }
 
     private static void DrawTreemapTileLabels(StringBuilder sb, Chart chart, ChartRect rect, string label, string value, ChartColor color) {
-        if (rect.Width < 42 || rect.Height < 26) return;
+        if (rect.Width < 48 || rect.Height < 30) return;
         var t = chart.Options.Theme;
         var textColor = HeatmapTextColor(color);
-        var maxWidth = Math.Max(8, rect.Width - 14);
+        var insetX = Math.Min(ChartVisualPrimitives.TreemapTileLabelInsetX, Math.Max(6, rect.Width * 0.12));
+        var insetY = Math.Min(ChartVisualPrimitives.TreemapTileLabelInsetY, Math.Max(7, rect.Height * 0.14));
+        var maxWidth = Math.Max(8, rect.Width - insetX * 2);
         var labelFontSize = TextFontSizeForSvgWidth(label, maxWidth, Math.Min(t.LegendFontSize, Math.Max(8, rect.Height * 0.20)));
         var fittedLabel = TrimSvgLabelToWidth(label, labelFontSize, maxWidth);
         if (fittedLabel.Length > 0) {
-            sb.AppendLine($"<text data-cfx-role=\"treemap-label\" x=\"{F(rect.X + 8)}\" y=\"{F(rect.Y + 8 + labelFontSize)}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(labelFontSize)}\" font-weight=\"800\">{Escape(fittedLabel)}</text>");
+            sb.AppendLine($"<text data-cfx-role=\"treemap-label\" x=\"{F(rect.X + insetX)}\" y=\"{F(rect.Y + insetY + labelFontSize)}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(labelFontSize)}\" font-weight=\"800\">{Escape(fittedLabel)}</text>");
         }
 
-        if (rect.Height < 48) return;
+        if (rect.Height < 52) return;
         var valueFontSize = TextFontSizeForSvgWidth(value, maxWidth, Math.Min(t.DataLabelFontSize, Math.Max(8, rect.Height * 0.18)));
         var fittedValue = TrimSvgLabelToWidth(value, valueFontSize, maxWidth);
         if (fittedValue.Length > 0) {
-            sb.AppendLine($"<text data-cfx-role=\"treemap-value\" x=\"{F(rect.X + 8)}\" y=\"{F(rect.Y + 12 + labelFontSize + valueFontSize)}\" fill=\"{textColor.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.TreemapValueOpacity)}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(valueFontSize)}\" font-weight=\"700\">{Escape(fittedValue)}</text>");
+            var valueY = rect.Y + insetY + labelFontSize + ChartVisualPrimitives.TreemapTileValueGap + valueFontSize;
+            if (valueY <= rect.Bottom - insetY * 0.45) {
+                sb.AppendLine($"<text data-cfx-role=\"treemap-value\" x=\"{F(rect.X + insetX)}\" y=\"{F(valueY)}\" fill=\"{textColor.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.TreemapValueOpacity)}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(valueFontSize)}\" font-weight=\"700\">{Escape(fittedValue)}</text>");
+            }
         }
     }
 

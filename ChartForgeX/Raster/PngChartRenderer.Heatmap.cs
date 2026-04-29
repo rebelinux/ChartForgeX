@@ -52,8 +52,11 @@ public sealed partial class PngChartRenderer {
             var series = rows[rowIndex];
             var y = plot.Top + rowIndex * (cellHeight + gap);
             if (chart.Options.ShowAxes) {
-                var rowLabel = TrimReadablePngLabelToWidth(series.Name, tickFontSize, rowLabelMaxWidth);
-                c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, tickFontSize) - 10, y + cellHeight / 2 - tickFontSize / 2, rowLabel, chart.Options.Theme.MutedText, tickFontSize);
+                var rowLabelFontSize = TextFontSizeForEmphasizedWidth(series.Name, rowLabelMaxWidth, tickFontSize);
+                var rowLabel = TrimReadablePngLabelToWidth(series.Name, rowLabelFontSize, rowLabelMaxWidth);
+                if (rowLabel.Length > 0) {
+                    c.DrawTextEmphasized(plot.Left - EstimatePngEmphasizedTextWidth(rowLabel, rowLabelFontSize) - 10, y + cellHeight / 2 - rowLabelFontSize / 2, rowLabel, chart.Options.Theme.MutedText, rowLabelFontSize);
+                }
             }
             for (var columnIndex = 0; columnIndex < columnValues.Count; columnIndex++) {
                 var value = FindHeatmapValue(series, columnValues[columnIndex]);
@@ -91,10 +94,13 @@ public sealed partial class PngChartRenderer {
         if (chart.Options.ShowAxes && chart.Options.ShowHeatmapColumnLabels) {
             for (var columnIndex = 0; columnIndex < columnValues.Count; columnIndex++) {
                 var label = FormatX(chart, columnValues[columnIndex]);
-                label = TrimReadablePngLabelToWidth(label, tickFontSize, Math.Max(8, cellWidth + gap));
-                var width = EstimatePngEmphasizedTextWidth(label, tickFontSize);
+                var columnLabelWidth = Math.Max(8, cellWidth + gap);
+                var columnLabelFontSize = TextFontSizeForEmphasizedWidth(label, columnLabelWidth, tickFontSize);
+                label = TrimReadablePngLabelToWidth(label, columnLabelFontSize, columnLabelWidth);
+                if (label.Length == 0) continue;
+                var width = EstimatePngEmphasizedTextWidth(label, columnLabelFontSize);
                 var x = Clamp(plot.Left + columnIndex * (cellWidth + gap) + cellWidth / 2 - width / 2.0, plot.Left + 2, plot.Right - width - 2);
-                c.DrawTextEmphasized(x, plot.Bottom + 21 - tickFontSize + 1, label, chart.Options.Theme.MutedText, tickFontSize);
+                c.DrawTextEmphasized(x, plot.Bottom + 21 - columnLabelFontSize + 1, label, chart.Options.Theme.MutedText, columnLabelFontSize);
             }
 
             DrawDetailAxisTitles(c, chart, plot, DetailTextScale(chart));
@@ -160,10 +166,15 @@ public sealed partial class PngChartRenderer {
             c.FillRoundedRect(x + i * stepWidth, y, stepWidth + ChartVisualPrimitives.HeatmapScaleStepOverlap, height, ChartVisualPrimitives.HeatmapScaleRadius, HeatmapColor(chart, highColor, value, min, max));
         }
 
+        var labelMaxWidth = Math.Max(18, width * 0.46);
         var minLabel = FormatValue(chart, min);
+        var minFontSize = TextFontSizeForWidth(minLabel, labelMaxWidth, fontSize);
+        minLabel = TrimPngLabelToWidth(minLabel, minFontSize, labelMaxWidth);
         var maxLabel = FormatValue(chart, max);
-        c.DrawText(x, y + ChartVisualPrimitives.HeatmapScaleLabelOffsetY - fontSize + 1, minLabel, chart.Options.Theme.MutedText, fontSize);
-        c.DrawText(x + width - EstimatePngTextWidth(maxLabel, fontSize), y + ChartVisualPrimitives.HeatmapScaleLabelOffsetY - fontSize + 1, maxLabel, chart.Options.Theme.MutedText, fontSize);
+        var maxFontSize = TextFontSizeForWidth(maxLabel, labelMaxWidth, fontSize);
+        maxLabel = TrimPngLabelToWidth(maxLabel, maxFontSize, labelMaxWidth);
+        if (minLabel.Length > 0) c.DrawText(x, y + ChartVisualPrimitives.HeatmapScaleLabelOffsetY - minFontSize + 1, minLabel, chart.Options.Theme.MutedText, minFontSize);
+        if (maxLabel.Length > 0) c.DrawText(x + width - EstimatePngTextWidth(maxLabel, maxFontSize), y + ChartVisualPrimitives.HeatmapScaleLabelOffsetY - maxFontSize + 1, maxLabel, chart.Options.Theme.MutedText, maxFontSize);
     }
 
     private static double HeatmapRatio(double value, double min, double max) {
