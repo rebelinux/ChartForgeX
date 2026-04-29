@@ -145,6 +145,11 @@ public enum ChartSeriesKind {
     Tree,
 
     /// <summary>
+    /// Renders hierarchical parent-child relationships as radial partition rings.
+    /// </summary>
+    Sunburst,
+
+    /// <summary>
     /// Renders a proportional pie chart.
     /// </summary>
     Pie,
@@ -168,6 +173,21 @@ public enum ChartSeriesKind {
     /// Renders proportional flat rectangles for part-to-whole comparison.
     /// </summary>
     Treemap,
+
+    /// <summary>
+    /// Renders values with repeated pictorial symbols.
+    /// </summary>
+    Pictorial,
+
+    /// <summary>
+    /// Renders labeled horizontal progress or slider-style bars.
+    /// </summary>
+    ProgressBar,
+
+    /// <summary>
+    /// Renders weighted terms as a deterministic word cloud.
+    /// </summary>
+    WordCloud,
 
     /// <summary>
     /// Renders open, high, low, and close values as stems with open and close ticks.

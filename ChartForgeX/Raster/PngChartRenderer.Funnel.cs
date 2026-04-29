@@ -41,7 +41,7 @@ public sealed partial class PngChartRenderer {
             var topRight = topLeft + topWidth;
             var bottomLeft = plot.Left + (plot.Width - bottomWidth) / 2;
             var bottomRight = bottomLeft + bottomWidth;
-            var color = series.Color ?? chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length];
+            var color = PngFunnelSegmentColor(chart, series, i);
             var segment = new[] {
                 new ChartPoint(topLeft, y),
                 new ChartPoint(topRight, y),
@@ -90,6 +90,11 @@ public sealed partial class PngChartRenderer {
         var ratio = max <= 0 ? 1 : Clamp(value / max, 0.04, 1);
         return Math.Max(70, plotWidth * (0.22 + ratio * 0.74));
     }
+
+    private static ChartColor PngFunnelSegmentColor(Chart chart, ChartSeries series, int pointIndex) =>
+        pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue
+            ? series.PointColors[pointIndex]!.Value
+            : series.Color ?? chart.Options.Theme.Palette[pointIndex % chart.Options.Theme.Palette.Length];
 
     private static void DrawFunnelSegmentStroke(RgbaCanvas c, Chart chart, IReadOnlyList<ChartPoint> segment) {
         var border = ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.FunnelSegmentStrokeOpacity);

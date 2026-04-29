@@ -19,13 +19,14 @@ public sealed partial class SvgChartRenderer {
             var low = series.Points[pointIndex + 2];
             var close = series.Points[pointIndex + 3];
             var rising = close.Y >= open.Y;
-            var color = rising ? chart.Options.Theme.Positive : chart.Options.Theme.Negative;
+            var item = pointIndex / 4;
+            var semanticColor = rising ? chart.Options.Theme.Positive : chart.Options.Theme.Negative;
+            var color = item < series.PointColors.Count && series.PointColors[item] is { } pointColor ? pointColor : semanticColor;
             var x = map.X(open.X);
             var yOpen = map.Y(open.Y);
             var yHigh = map.Y(high.Y);
             var yLow = map.Y(low.Y);
             var yClose = map.Y(close.Y);
-            var item = pointIndex / 4;
             var summary = "open " + FormatValue(chart, open.Y) + ", high " + FormatValue(chart, high.Y) + ", low " + FormatValue(chart, low.Y) + ", close " + FormatValue(chart, close.Y);
             var status = rising ? "rising" : "falling";
 
@@ -36,8 +37,22 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<line data-cfx-role=\"ohlc-close\" x1=\"{F(x)}\" y1=\"{F(yClose)}\" x2=\"{F(x + tickWidth)}\" y2=\"{F(yClose)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.OhlcStrokeWidth)}\" stroke-linecap=\"round\"/>");
             sb.AppendLine("</g>");
             var label = FormatValue(chart, close.Y);
-            var labelX = x + tickWidth + ChartVisualPrimitives.OhlcLabelOffset;
-            if (ShouldDrawDataLabels(chart, series) && ReserveSvgHorizontalLabel(label, labelX, yClose, "start", chart, plot, reservedLabels)) DrawHorizontalValueLabel(sb, chart, label, labelX, yClose, "start", plot);
+            if (ShouldDrawDataLabels(chart, series)) {
+                var placement = DataLabelPlacement(chart, series);
+                if (placement == ChartDataLabelPlacement.Left || placement == ChartDataLabelPlacement.Right || placement == ChartDataLabelPlacement.Auto || placement == ChartDataLabelPlacement.Outside) {
+                    var left = placement == ChartDataLabelPlacement.Left;
+                    var anchor = left ? "end" : "start";
+                    var labelX = left ? x - tickWidth - ChartVisualPrimitives.OhlcLabelOffset : x + tickWidth + ChartVisualPrimitives.OhlcLabelOffset;
+                    if (ReserveSvgHorizontalLabel(label, labelX, yClose, anchor, chart, plot, reservedLabels)) DrawHorizontalValueLabel(sb, chart, label, labelX, yClose, anchor, plot, series, item);
+                } else {
+                    var labelY = placement == ChartDataLabelPlacement.Below
+                        ? yClose + 11
+                        : placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside
+                            ? yClose
+                            : yClose - 11;
+                    if (ReserveSvgLabel(label, x, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, labelY, plot, series: series, pointIndex: item);
+                }
+            }
         }
     }
 }

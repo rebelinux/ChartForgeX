@@ -45,11 +45,12 @@ public sealed partial class SvgChartRenderer {
         for (var pointIndex = 0; pointIndex + 1 < series.Points.Count; pointIndex += 2) {
             var low = series.Points[pointIndex];
             var high = series.Points[pointIndex + 1];
+            var item = pointIndex / 2;
             var x = map.X(low.X);
-            var y = Math.Min(map.Y(low.Y), map.Y(high.Y)) - 10;
+            var yLow = map.Y(low.Y);
+            var yHigh = map.Y(high.Y);
             var label = FormatValue(chart, low.Y) + "-" + FormatValue(chart, high.Y);
-            if (!ReserveSvgLabel(label, x, y, chart, plot, reservedLabels)) continue;
-            DrawDataLabel(sb, chart, label, x, y, plot);
+            DrawRangeIntervalLabel(sb, chart, series, item, plot, reservedLabels, label, x, yLow, yHigh);
         }
     }
 }

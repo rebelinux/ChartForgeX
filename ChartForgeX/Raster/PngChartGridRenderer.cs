@@ -25,8 +25,10 @@ public sealed class PngChartGridRenderer {
         output.Clear(background);
         if (layout.HeaderHeight > 0) {
             var headerWidth = Math.Max(8, layout.Width - grid.Padding * 2);
-            if (grid.Title.Length > 0) output.DrawTextEmphasized(grid.Padding, Math.Max(0, grid.Padding - 8), FitText(grid.Title, 26, headerWidth), theme.Text, 26);
-            if (grid.Subtitle.Length > 0) output.DrawText(grid.Padding + 2, grid.Padding + 30, FitText(grid.Subtitle, 14, headerWidth), theme.MutedText, 14);
+            var titleFontSize = StyleFontSize(grid.TitleStyle, theme.TitleFontSize);
+            var subtitleFontSize = StyleFontSize(grid.SubtitleStyle, theme.SubtitleFontSize);
+            if (grid.Title.Length > 0) DrawStyledText(output, grid.Padding, Math.Max(0, grid.Padding - titleFontSize * 0.3), FitText(grid.Title, titleFontSize, headerWidth), grid.TitleStyle, theme.Text, titleFontSize, emphasized: true);
+            if (grid.Subtitle.Length > 0) DrawStyledText(output, grid.Padding + 2, grid.Padding + titleFontSize + subtitleFontSize * 0.3, FitText(grid.Subtitle, subtitleFontSize, headerWidth), grid.SubtitleStyle, theme.MutedText, subtitleFontSize, emphasized: false);
         }
 
         foreach (var cell in layout.Cells) {
@@ -35,6 +37,19 @@ public sealed class PngChartGridRenderer {
         }
 
         return PngWriter.WriteRgba(output.OutputWidth, output.OutputHeight, output.ToOutputPixels());
+    }
+
+    private static double StyleFontSize(ChartTextStyle style, double fallback) => style.FontSize ?? fallback;
+
+    private static ChartColor StyleColor(ChartTextStyle style, ChartColor fallback) => style.Color ?? fallback;
+
+    private static void DrawStyledText(RgbaCanvas canvas, double x, double y, string text, ChartTextStyle style, ChartColor fallback, double fontSize, bool emphasized) {
+        var color = StyleColor(style, fallback);
+        if (emphasized) canvas.DrawTextEmphasized(x, y, text, color, fontSize);
+        else canvas.DrawText(x, y, text, color, fontSize);
+        if (!style.Underline || text.Length == 0) return;
+        var width = emphasized ? RgbaCanvas.MeasureTextEmphasizedWidth(text, fontSize, null) : RgbaCanvas.MeasureTextWidth(text, fontSize, null);
+        canvas.DrawLine(x, y + fontSize + 2, x + width, y + fontSize + 2, color, Math.Max(1, fontSize / 13.0));
     }
 
     private static string FitText(string value, double fontSize, double maxWidth) {

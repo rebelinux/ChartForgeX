@@ -9,8 +9,8 @@ internal static partial class SmokeTests {
     private static void BuildScriptVerifiesReleaseArtifacts() {
         var buildScript = Path.Combine(FindRepositoryRoot(), "Build.ps1");
         var script = File.ReadAllText(buildScript);
-        Assert(script.Contains("ChartForgeX.*.nupkg", StringComparison.Ordinal), "Build script should verify NuGet package creation.");
-        Assert(script.Contains("ChartForgeX.*.snupkg", StringComparison.Ordinal), "Build script should verify symbol package creation.");
+        Assert(script.Contains("ChartForgeX*.nupkg", StringComparison.Ordinal), "Build script should verify NuGet package creation and clean copy-suffixed package artifacts.");
+        Assert(script.Contains("ChartForgeX*.snupkg", StringComparison.Ordinal), "Build script should verify symbol package creation and clean copy-suffixed symbol artifacts.");
         Assert(script.Contains("Expected exactly one package", StringComparison.Ordinal), "Build script should reject stale or duplicate packages.");
         Assert(script.Contains("README.md", StringComparison.Ordinal), "Build script should verify README package inclusion.");
         Assert(script.Contains("CHANGELOG.md", StringComparison.Ordinal), "Build script should verify changelog package inclusion.");
@@ -22,7 +22,7 @@ internal static partial class SmokeTests {
         Assert(script.Contains("function Assert-VisualComparisonHealth", StringComparison.Ordinal), "Build script should keep visual comparison health checks isolated.");
         Assert(script.Contains("function New-VisualBaseline", StringComparison.Ordinal), "Build script should keep visual-baseline generation isolated.");
         Assert(script.Contains("function Assert-VisualBaseline", StringComparison.Ordinal), "Build script should keep visual-baseline assertions isolated.");
-        Assert(script.Contains("$minimumChartPairs = 20", StringComparison.Ordinal), "Build script should enforce the current minimum example chart coverage.");
+        Assert(script.Contains("$minimumChartPairs = 50", StringComparison.Ordinal), "Build script should enforce the current minimum example chart coverage.");
         Assert(script.Contains("$Comparison.chartPairs -lt $minimumChartPairs", StringComparison.Ordinal), "Build script should fail when generated SVG/PNG comparison coverage drops.");
         Assert(script.Contains("$Comparison.dimensionMatches -ne $Comparison.chartPairs", StringComparison.Ordinal), "Build script should fail when SVG/PNG dimensions drift apart.");
         Assert(script.Contains("$Comparison.healthySvgs -ne $Comparison.chartPairs", StringComparison.Ordinal), "Build script should fail when SVG health drops.");
@@ -57,6 +57,17 @@ internal static partial class SmokeTests {
         Assert(names.Contains("warnings-sparkline", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover compact sparkline charts.");
         Assert(names.Contains("domain-remediation-timeline-light", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover timeline charts.");
         Assert(names.Contains("security-posture-radar-dark", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover radar charts.");
+        Assert(names.Contains("control-partition-sunburst-aurora", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover sunburst hierarchy charts.");
+        Assert(names.Contains("audience-pictorial-candy", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover pictorial charts.");
+        Assert(names.Contains("support-themes-word-cloud-editorial", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover word cloud charts.");
+        Assert(names.Contains("theme-font-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover theme and font gallery output.");
+        Assert(names.Contains("brand-kit-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover brand kit gallery output.");
+        Assert(names.Contains("palette-swatch-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover palette gallery output.");
+        Assert(names.Contains("pictorial-symbol-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover pictorial symbol gallery output.");
+        Assert(names.Contains("pictorial-isotype-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover pictorial Isotype gallery output.");
+        Assert(names.Contains("people-infographic-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover people infographic gallery output.");
+        Assert(names.Contains("word-cloud-control-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover word cloud control gallery output.");
+        Assert(names.Contains("point-color-customization-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover point color customization gallery output.");
 
         foreach (var chart in charts) {
             var name = chart.GetProperty("name").GetString() ?? "<unknown>";

@@ -18,7 +18,9 @@ public sealed partial class PngChartRenderer {
             var low = series.Points[pointIndex + 2];
             var close = series.Points[pointIndex + 3];
             var rising = close.Y >= open.Y;
-            var color = rising ? chart.Options.Theme.Positive : chart.Options.Theme.Negative;
+            var item = pointIndex / 4;
+            var semanticColor = rising ? chart.Options.Theme.Positive : chart.Options.Theme.Negative;
+            var color = item < series.PointColors.Count && series.PointColors[item] is { } pointColor ? pointColor : semanticColor;
             var x = map.X(open.X);
             var yOpen = map.Y(open.Y);
             var yHigh = map.Y(high.Y);
@@ -35,11 +37,21 @@ public sealed partial class PngChartRenderer {
             if (!ShouldDrawDataLabels(chart, series)) continue;
 
             var label = FormatValue(chart, close.Y);
-            var fontSize = chart.Options.Theme.DataLabelFontSize;
-            var labelX = x + tickWidth + ChartVisualPrimitives.OhlcLabelOffset;
-            var labelY = yClose - fontSize / 2.0;
+            var fontSize = PngDataLabelFontSize(chart, series, item);
+            var labelWidth = EstimatePngEmphasizedTextWidth(label, fontSize);
+            var placement = DataLabelPlacement(chart, series);
+            var labelX = placement == ChartDataLabelPlacement.Left
+                ? x - tickWidth - ChartVisualPrimitives.OhlcLabelOffset - labelWidth
+                : placement == ChartDataLabelPlacement.Right || placement == ChartDataLabelPlacement.Auto || placement == ChartDataLabelPlacement.Outside
+                    ? x + tickWidth + ChartVisualPrimitives.OhlcLabelOffset
+                    : x - labelWidth / 2.0;
+            var labelY = placement == ChartDataLabelPlacement.Below
+                ? yClose + 4
+                : placement == ChartDataLabelPlacement.Above
+                    ? yClose - fontSize - 4
+                    : yClose - fontSize / 2.0;
             if (!ReservePngLabel(label, labelX, labelY, chart, plot, fontSize, reservedLabels)) continue;
-            DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+            DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize, DataLabelStyle(chart, series, item));
         }
     }
 }

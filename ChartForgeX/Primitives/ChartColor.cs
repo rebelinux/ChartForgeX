@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace ChartForgeX.Primitives;
 
@@ -55,6 +56,34 @@ public readonly struct ChartColor {
     public static ChartColor FromRgba(byte r, byte g, byte b, byte a) => new(r, g, b, a);
 
     /// <summary>
+    /// Creates a color from #RGB, #RGBA, #RRGGBB, or #RRGGBBAA notation.
+    /// </summary>
+    /// <param name="hex">The hexadecimal color string.</param>
+    /// <returns>A chart color.</returns>
+    public static ChartColor FromHex(string hex) {
+        if (string.IsNullOrWhiteSpace(hex)) throw new ArgumentException("Hex color must not be empty.", nameof(hex));
+        var value = hex.Trim();
+        if (value[0] == '#') value = value.Substring(1);
+        if (value.Length == 3 || value.Length == 4) {
+            var r = ParseHexByte(new string(value[0], 2), nameof(hex));
+            var g = ParseHexByte(new string(value[1], 2), nameof(hex));
+            var b = ParseHexByte(new string(value[2], 2), nameof(hex));
+            var a = value.Length == 4 ? ParseHexByte(new string(value[3], 2), nameof(hex)) : (byte)255;
+            return new ChartColor(r, g, b, a);
+        }
+
+        if (value.Length == 6 || value.Length == 8) {
+            var r = ParseHexByte(value.Substring(0, 2), nameof(hex));
+            var g = ParseHexByte(value.Substring(2, 2), nameof(hex));
+            var b = ParseHexByte(value.Substring(4, 2), nameof(hex));
+            var a = value.Length == 8 ? ParseHexByte(value.Substring(6, 2), nameof(hex)) : (byte)255;
+            return new ChartColor(r, g, b, a);
+        }
+
+        throw new ArgumentException("Hex color must use #RGB, #RGBA, #RRGGBB, or #RRGGBBAA notation.", nameof(hex));
+    }
+
+    /// <summary>
     /// Converts the color to a hexadecimal RGB string.
     /// </summary>
     /// <returns>A CSS-compatible hexadecimal color string.</returns>
@@ -80,4 +109,12 @@ public readonly struct ChartColor {
     /// Gets opaque black.
     /// </summary>
     public static ChartColor Black => new(0,0,0);
+
+    private static byte ParseHexByte(string value, string parameterName) {
+        if (!byte.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var parsed)) {
+            throw new ArgumentException("Hex color contains invalid characters.", parameterName);
+        }
+
+        return parsed;
+    }
 }

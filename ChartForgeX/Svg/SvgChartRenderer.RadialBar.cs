@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using ChartForgeX.Core;
@@ -14,11 +15,14 @@ public sealed partial class SvgChartRenderer {
 
         var t = chart.Options.Theme;
         var count = series.Points.Count;
-        var cx = plot.Left + plot.Width * (chart.Options.ShowLegend ? 0.40 : 0.50);
-        var cy = plot.Top + plot.Height * 0.50;
-        var outerRadius = Math.Max(36, Math.Min(plot.Width * (chart.Options.ShowLegend ? 0.30 : 0.36), plot.Height * 0.38));
+        var chartPlot = RadialBarPlot(chart, plot, series);
+        var cx = chartPlot.Left + chartPlot.Width * 0.50;
+        var cy = chartPlot.Top + chartPlot.Height * 0.50;
+        var baseOuterRadius = Math.Min(chartPlot.Width * 0.36, chartPlot.Height * 0.38);
+        var maxOuterRadius = Math.Min(chartPlot.Width * 0.44, chartPlot.Height * 0.44);
+        var outerRadius = Math.Max(28, Math.Min(maxOuterRadius, baseOuterRadius * chart.Options.RadialBarRadiusScale));
         var gap = Math.Max(5, outerRadius * 0.035);
-        var stroke = Math.Max(8, Math.Min(18, (outerRadius - 18) / Math.Max(1, count) - gap));
+        var stroke = Math.Max(5, Math.Min(24, ((outerRadius - 18) / Math.Max(1, count) - gap) * chart.Options.RadialBarStrokeScale));
         if (stroke * count + gap * Math.Max(0, count - 1) > outerRadius - 12) {
             stroke = Math.Max(6, (outerRadius - 12 - gap * Math.Max(0, count - 1)) / Math.Max(1, count));
         }
@@ -26,17 +30,17 @@ public sealed partial class SvgChartRenderer {
         var start = -Math.PI / 2;
         var average = series.Points.Average(point => point.Y);
         var centerLabel = FormatValue(chart, average);
-        var labelWidth = Math.Max(54, Math.Min(plot.Width * 0.32, outerRadius * 1.25));
+        var labelWidth = Math.Max(54, Math.Min(chartPlot.Width * 0.32, outerRadius * 1.25));
         var centerDiskRadius = Math.Max(26, outerRadius - count * (stroke + gap) - 2);
         var showLabels = series.ShowDataLabels != false;
 
-        sb.AppendLine("<g data-cfx-role=\"radial-bar-chart\">");
+        sb.AppendLine($"<g data-cfx-role=\"radial-bar-chart\" data-cfx-radius-scale=\"{F(chart.Options.RadialBarRadiusScale)}\" data-cfx-stroke-scale=\"{F(chart.Options.RadialBarStrokeScale)}\">");
         for (var i = 0; i < count; i++) {
             var point = series.Points[i];
             var ratio = Clamp(point.Y / 100.0, 0, 1);
             var radius = outerRadius - i * (stroke + gap) - stroke / 2;
             if (radius <= stroke / 2) continue;
-            var color = series.Color ?? t.Palette[i % t.Palette.Length];
+            var color = RadialBarColor(series, t, i);
             var label = SliceLabel(chart, point, i);
             var valueLabel = FormatValue(chart, point.Y);
             var summary = label + ": " + valueLabel;
@@ -49,7 +53,7 @@ public sealed partial class SvgChartRenderer {
         }
 
         sb.AppendLine($"<circle data-cfx-role=\"radial-bar-center\" cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"{F(centerDiskRadius)}\" fill=\"{t.CardBackground.ToCss()}\" fill-opacity=\"{F(ChartVisualPrimitives.RadialCenterFillOpacity)}\" stroke=\"{t.Grid.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.RadialCenterStrokeOpacity)}\"/>");
-        if (showLabels) {
+        if (showLabels && chart.Options.ShowRadialBarCenterLabel) {
             DrawSvgTextCenteredX(sb, chart, "radial-bar-total", centerLabel, cx, cy - t.TitleFontSize * 0.42, t.Text, Math.Max(26, t.TitleFontSize * 1.32), labelWidth, "850", t.CardBackground, 3.2);
             DrawSvgTextCenteredX(sb, chart, "radial-bar-title", series.Name, cx, cy + t.LegendFontSize + 14, t.MutedText, Math.Max(9, t.LegendFontSize - 1), labelWidth, "700", t.CardBackground, 2.4, middleBaseline: false);
         }
@@ -60,21 +64,100 @@ public sealed partial class SvgChartRenderer {
     private static void DrawRadialBarLegend(StringBuilder sb, Chart chart, ChartRect plot, ChartSeries series) {
         var t = chart.Options.Theme;
         var fontSize = t.LegendFontSize;
-        var x = plot.Left + plot.Width * 0.72;
-        var y = plot.Top + Math.Max(26, plot.Height * 0.22);
-        var valueX = plot.Right - 14;
-        for (var i = 0; i < series.Points.Count; i++) {
-            var point = series.Points[i];
-            var color = series.Color ?? t.Palette[i % t.Palette.Length];
-            var label = SliceLabel(chart, point, i);
-            var value = FormatValue(chart, point.Y);
-            var maxLabelWidth = Math.Max(24, valueX - x - 34 - EstimateTextWidth(value, fontSize));
-            label = TrimSvgLabelToWidth(label, fontSize, maxLabelWidth);
-            sb.AppendLine($"<circle data-cfx-role=\"radial-bar-legend-marker\" data-cfx-point=\"{i}\" cx=\"{F(x)}\" cy=\"{F(y - 4)}\" r=\"{F(ChartVisualPrimitives.RadialLegendMarkerRadius)}\" fill=\"{color.ToCss()}\"/>");
-            sb.AppendLine($"<text data-cfx-role=\"radial-bar-legend-label\" data-cfx-point=\"{i}\" x=\"{F(x + 13)}\" y=\"{F(y)}\" fill=\"{t.Text.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
-            sb.AppendLine($"<text data-cfx-role=\"radial-bar-legend-value\" data-cfx-point=\"{i}\" x=\"{F(valueX)}\" y=\"{F(y)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(value)}</text>");
-            y += fontSize + 10;
+        var area = RadialBarLegendArea(chart, plot, series);
+        var rows = BuildRadialBarLegendRows(chart, series, area.Width);
+        var y = RadialBarLegendStartY(chart, area, rows.Count);
+        sb.AppendLine($"<g data-cfx-role=\"radial-bar-legend\" data-cfx-position=\"{chart.Options.LegendPosition}\">");
+        foreach (var row in rows) {
+            var x = RadialBarLegendRowX(chart, area, row.Width);
+            foreach (var item in row.Items) {
+                var itemX = x + item.X;
+                sb.AppendLine($"<circle data-cfx-role=\"radial-bar-legend-marker\" data-cfx-point=\"{item.PointIndex}\" cx=\"{F(itemX)}\" cy=\"{F(y - 4)}\" r=\"{F(ChartVisualPrimitives.RadialLegendMarkerRadius)}\" fill=\"{item.Color.ToCss()}\"/>");
+                sb.AppendLine($"<text data-cfx-role=\"radial-bar-legend-label\" data-cfx-point=\"{item.PointIndex}\" x=\"{F(itemX + 13)}\" y=\"{F(y)}\" fill=\"{t.Text.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(item.Label)}</text>");
+                sb.AppendLine($"<text data-cfx-role=\"radial-bar-legend-value\" data-cfx-point=\"{item.PointIndex}\" x=\"{F(itemX + item.Width - 10)}\" y=\"{F(y)}\" text-anchor=\"end\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(item.Value)}</text>");
+            }
+
+            y += RadialBarLegendRowHeight(chart);
         }
+
+        sb.AppendLine("</g>");
+    }
+
+    private static ChartRect RadialBarPlot(Chart chart, ChartRect plot, ChartSeries series) {
+        if (!chart.Options.ShowLegend) return plot;
+        var reserve = RadialBarLegendReserve(chart, series, plot);
+        if (IsLeftLegend(chart.Options.LegendPosition)) return new ChartRect(plot.X + reserve, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
+        if (IsRightLegend(chart.Options.LegendPosition)) return new ChartRect(plot.X, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
+        if (IsTopLegend(chart.Options.LegendPosition)) return new ChartRect(plot.X, plot.Y + reserve, plot.Width, Math.Max(1, plot.Height - reserve));
+        if (IsBottomLegend(chart.Options.LegendPosition)) return new ChartRect(plot.X, plot.Y, plot.Width, Math.Max(1, plot.Height - reserve));
+        return plot;
+    }
+
+    private static double RadialBarLegendReserve(Chart chart, ChartSeries series, ChartRect plot) {
+        if (IsLeftLegend(chart.Options.LegendPosition) || IsRightLegend(chart.Options.LegendPosition)) return Math.Min(230, Math.Max(142, RadialBarLegendWidestItem(chart, series) + 22));
+        return 18 + BuildRadialBarLegendRows(chart, series, Math.Max(80, plot.Width - 80)).Count * RadialBarLegendRowHeight(chart);
+    }
+
+    private static double RadialBarLegendWidestItem(Chart chart, ChartSeries series) {
+        var widest = 0.0;
+        for (var i = 0; i < series.Points.Count; i++) {
+            var label = SliceLabel(chart, series.Points[i], i);
+            var value = FormatValue(chart, series.Points[i].Y);
+            widest = Math.Max(widest, ChartVisualPrimitives.RadialLegendMarkerRadius * 2 + EstimateTextWidth(label, chart.Options.Theme.LegendFontSize) + EstimateTextWidth(value, chart.Options.Theme.LegendFontSize) + 34);
+        }
+
+        return widest;
+    }
+
+    private static ChartRect RadialBarLegendArea(Chart chart, ChartRect plot, ChartSeries series) {
+        var reserve = RadialBarLegendReserve(chart, series, plot);
+        if (IsLeftLegend(chart.Options.LegendPosition)) return new ChartRect(plot.Left + 18, plot.Top + 20, Math.Max(1, reserve - 28), Math.Max(1, plot.Height - 40));
+        if (IsRightLegend(chart.Options.LegendPosition)) return new ChartRect(plot.Right - reserve + 10, plot.Top + 20, Math.Max(1, reserve - 28), Math.Max(1, plot.Height - 40));
+        var y = IsTopLegend(chart.Options.LegendPosition) ? plot.Top + 14 : plot.Bottom - reserve + 12;
+        return new ChartRect(plot.Left + 36, y, Math.Max(1, plot.Width - 72), reserve);
+    }
+
+    private static List<RadialBarLegendRow> BuildRadialBarLegendRows(Chart chart, ChartSeries series, double width) {
+        var rows = new List<RadialBarLegendRow>();
+        var row = new RadialBarLegendRow();
+        rows.Add(row);
+        var x = 0.0;
+        var vertical = IsLeftLegend(chart.Options.LegendPosition) || IsRightLegend(chart.Options.LegendPosition);
+        var maxX = Math.Max(48, width);
+        for (var i = 0; i < series.Points.Count; i++) {
+            var value = FormatValue(chart, series.Points[i].Y);
+            var valueWidth = EstimateTextWidth(value, chart.Options.Theme.LegendFontSize);
+            var labelMax = Math.Max(24, maxX - valueWidth - ChartVisualPrimitives.RadialLegendMarkerRadius * 2 - 28);
+            var label = TrimSvgLabelToWidth(SliceLabel(chart, series.Points[i], i), chart.Options.Theme.LegendFontSize, labelMax);
+            var itemWidth = Math.Min(maxX, ChartVisualPrimitives.RadialLegendMarkerRadius * 2 + EstimateTextWidth(label, chart.Options.Theme.LegendFontSize) + valueWidth + 34);
+            if (row.Items.Count > 0 && (vertical || x + itemWidth > maxX)) {
+                row = new RadialBarLegendRow();
+                rows.Add(row);
+                x = 0;
+            }
+
+            row.Items.Add(new RadialBarLegendItem(i, x, itemWidth, label, value, RadialBarColor(series, chart.Options.Theme, i)));
+            row.Width = Math.Max(row.Width, x + itemWidth);
+            x += itemWidth;
+        }
+
+        return rows;
+    }
+
+    private static double RadialBarLegendStartY(Chart chart, ChartRect area, int rows) =>
+        IsBottomLegend(chart.Options.LegendPosition) ? area.Bottom - 18 - Math.Max(0, rows - 1) * RadialBarLegendRowHeight(chart) : area.Top + 16;
+
+    private static double RadialBarLegendRowX(Chart chart, ChartRect area, double rowWidth) {
+        if (chart.Options.LegendPosition == ChartLegendPosition.TopRight || chart.Options.LegendPosition == ChartLegendPosition.BottomRight || IsRightLegend(chart.Options.LegendPosition)) return area.Right - Math.Min(area.Width, rowWidth);
+        if (chart.Options.LegendPosition == ChartLegendPosition.Top || chart.Options.LegendPosition == ChartLegendPosition.Bottom) return area.X + Math.Max(0, (area.Width - rowWidth) / 2.0);
+        return area.X;
+    }
+
+    private static double RadialBarLegendRowHeight(Chart chart) => chart.Options.Theme.LegendFontSize + 10;
+
+    private static ChartColor RadialBarColor(ChartSeries series, ChartForgeX.Themes.ChartTheme theme, int pointIndex) {
+        if (pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue) return series.PointColors[pointIndex]!.Value;
+        return series.Color ?? theme.Palette[pointIndex % theme.Palette.Length];
     }
 
     private static string BuildRadialBarArc(double cx, double cy, double radius, double start, double end) {
@@ -99,5 +182,28 @@ public sealed partial class SvgChartRenderer {
         var x2 = cx + Math.Cos(end) * radius;
         var y2 = cy + Math.Sin(end) * radius;
         return $"M {F(x1)} {F(y1)} A {F(radius)} {F(radius)} 0 {largeArc} 1 {F(x2)} {F(y2)}";
+    }
+
+    private sealed class RadialBarLegendRow {
+        public List<RadialBarLegendItem> Items { get; } = new();
+        public double Width { get; set; }
+    }
+
+    private readonly struct RadialBarLegendItem {
+        public RadialBarLegendItem(int pointIndex, double x, double width, string label, string value, ChartColor color) {
+            PointIndex = pointIndex;
+            X = x;
+            Width = width;
+            Label = label;
+            Value = value;
+            Color = color;
+        }
+
+        public int PointIndex { get; }
+        public double X { get; }
+        public double Width { get; }
+        public string Label { get; }
+        public string Value { get; }
+        public ChartColor Color { get; }
     }
 }

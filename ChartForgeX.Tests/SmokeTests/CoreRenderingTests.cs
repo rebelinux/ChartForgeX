@@ -280,9 +280,59 @@ internal static partial class SmokeTests {
     }
 
     private static void TypographyUsesNativeFontStackAndEscapesCustomFamilies() {
-        Assert(SampleChart().ToSvg().Contains("-apple-system, BlinkMacSystemFont", StringComparison.Ordinal), "SVG should default to a native system font stack.");
+        Assert(SampleChart().ToSvg().Contains(ChartFontStacks.SystemSans, StringComparison.Ordinal), "SVG should default to a native system font stack.");
         var svg = Chart.Create().WithFontFamily("A&B \"Display\"").AddLine("Values", Points(1, 2, 3)).ToSvg();
         Assert(svg.Contains("font-family=\"A&amp;B &quot;Display&quot;\"", StringComparison.Ordinal), "SVG font-family values should be attribute-escaped.");
+        var editorial = Chart.Create().WithTheme(ChartTheme.Editorial()).AddLine("Values", Points(1, 2, 3)).ToSvg();
+        Assert(editorial.Contains(ChartFontStacks.Serif, StringComparison.Ordinal), "Editorial themes should use the built-in serif font stack.");
+        var customized = Chart.Create()
+            .WithTitle("Custom typography")
+            .WithTheme(theme => theme
+                .WithSurfaceColors(ChartColor.FromRgb(250, 250, 250), ChartColor.FromRgb(1, 1, 1), ChartColor.FromRgb(2, 2, 2), ChartColor.FromRgb(3, 3, 3), ChartColor.FromRgb(4, 4, 4))
+                .WithTextColors(ChartColor.FromRgb(5, 5, 5), ChartColor.FromRgb(6, 6, 6))
+                .WithGuideColors(ChartColor.FromRgb(7, 7, 7), ChartColor.FromRgb(8, 8, 8))
+                .WithSemanticColors(ChartColor.FromRgb(9, 9, 9), ChartColor.FromRgb(10, 10, 10), ChartColor.FromRgb(11, 11, 11))
+                .WithFontFamily(ChartFontStacks.Mono)
+                .WithTypography(24, 12, 11, 10, 11, 10)
+                .WithCornerRadius(4, 2)
+                .WithStrokeWidth(2)
+                .WithMarkerRadius(5)
+                .WithShadowOpacity(0.2)
+                .WithSurfaceStyle(ChartSurfaceStyle.Floating))
+            .WithPalette(ChartPalettes.Pastel)
+            .AddLine("Values", Points(1, 2, 3))
+            .ToSvg();
+        Assert(customized.Contains(ChartFontStacks.Mono, StringComparison.Ordinal), "Theme callbacks should let users customize font stacks fluently.");
+        Assert(customized.Contains("font-size=\"24\"", StringComparison.Ordinal), "Theme callbacks should let users customize typography fluently.");
+        Assert(customized.Contains("#60A5FA", StringComparison.Ordinal), "Chart palette helpers should accept reusable palette presets.");
+        var hexPalette = Chart.Create()
+            .WithPalette("#123456", "#0ea5e9")
+            .AddLine("First", Points(1, 2, 3))
+            .AddLine("Second", Points(3, 2, 1))
+            .ToSvg();
+        Assert(hexPalette.Contains("#123456", StringComparison.Ordinal) && hexPalette.Contains("#0EA5E9", StringComparison.Ordinal), "Chart palette helpers should accept pasted hex colors.");
+        var hexTheme = ChartTheme.Light().WithPalette("#ABC", "#0EA5E980");
+        Assert(hexTheme.Palette[0].ToHex() == "#AABBCC" && hexTheme.Palette[1].ToCss() == "rgba(14,165,233,0.502)", "Theme palette helpers should parse short and alpha hex colors.");
+        Assert(customized.Contains("#010101", StringComparison.Ordinal) && customized.Contains("#020202", StringComparison.Ordinal), "Theme callbacks should let users customize surface colors fluently.");
+        Assert(customized.Contains("#050505", StringComparison.Ordinal), "Theme callbacks should let users customize text colors fluently.");
+        Assert(customized.Contains("#070707", StringComparison.Ordinal) && customized.Contains("#080808", StringComparison.Ordinal), "Theme callbacks should let users customize guide colors fluently.");
+        Assert(customized.Contains("rx=\"24\"", StringComparison.Ordinal), "Theme callbacks should let users apply reusable surface styles fluently.");
+        var bare = Chart.Create()
+            .WithTheme(theme => theme.WithSurfaceStyle(ChartSurfaceStyle.Bare))
+            .AddLine("Values", Points(1, 2, 3))
+            .ToSvg();
+        Assert(!bare.Contains("x=\"14\" y=\"14\"", StringComparison.Ordinal), "Bare surface style should suppress the outer card surface.");
+        var glass = ChartTheme.Light().WithSurfaceStyle(ChartSurfaceStyle.Glass);
+        Assert(glass.CardBackground.A < 255 && glass.PlotBackground.A < 255, "Glass surface style should make card and plot surfaces translucent.");
+        var compact = ChartTheme.Light().WithSurfaceStyle(ChartSurfaceStyle.Compact);
+        Assert(compact.TitleFontSize == 22 && compact.MarkerRadius < ChartTheme.Light().MarkerRadius, "Compact surface style should tighten typography and markers.");
+        var grid = ChartGrid.Create()
+            .WithTitle("Custom grid")
+            .WithTheme(theme => theme.WithFontFamily(ChartFontStacks.Mono).WithTypography(22, 12, 11, 10, 11, 10))
+            .Add(Chart.Create().AddLine("Values", Points(1, 2, 3)))
+            .ToSvg();
+        Assert(grid.Contains(ChartFontStacks.Mono, StringComparison.Ordinal), "Grid theme callbacks should let users customize grid typography fluently.");
+        Assert(grid.Contains("font-size=\"22\"", StringComparison.Ordinal), "Grid theme callbacks should apply customized heading typography.");
         var html = Chart.Create().WithFontFamily("A;B{}").AddLine("Values", Points(1, 2, 3)).ToHtmlPage();
         Assert(!html.Contains("font-family:A;B{}", StringComparison.Ordinal), "HTML font-family values should not be able to break the style declaration.");
     }
@@ -310,18 +360,46 @@ internal static partial class SmokeTests {
         Assert(theme.PlotCornerRadius > 0, "Report themes should define plot corner radius.");
         Assert(theme.Positive.A > 0 && theme.Warning.A > 0 && theme.Negative.A > 0, "Report themes should define semantic status colors.");
         Assert(theme.TitleFontSize > theme.TickLabelFontSize, "Title text should be larger than tick labels.");
+        var palette = new[] { ChartColor.Black };
+        theme.Palette = palette;
+        palette[0] = ChartColor.White;
+        Assert(theme.Palette[0].R == ChartColor.Black.R && theme.Palette[0].G == ChartColor.Black.G && theme.Palette[0].B == ChartColor.Black.B, "Themes should snapshot assigned palettes instead of retaining caller-owned arrays.");
+        var pastel = ChartPalettes.Pastel;
+        pastel[0] = ChartColor.Black;
+        Assert(ChartPalettes.Pastel[0].R != ChartColor.Black.R || ChartPalettes.Pastel[0].G != ChartColor.Black.G || ChartPalettes.Pastel[0].B != ChartColor.Black.B, "Palette presets should return fresh arrays so callers can mutate local copies safely.");
+        foreach (var namedTheme in new[] { ChartTheme.Colorblind(), ChartTheme.Aurora(), ChartTheme.Editorial(), ChartTheme.Candy(), ChartTheme.Terminal(), ChartTheme.Minimal() }) {
+            Assert(namedTheme.Palette.Length >= 8, "Built-in style themes should provide broad qualitative palettes.");
+            Assert(namedTheme.FontFamily.Length > 0, "Built-in style themes should define a font stack.");
+            Assert(namedTheme.Text.A > 0 && namedTheme.MutedText.A > 0 && namedTheme.Grid.A > 0, "Built-in style themes should define core visual tokens.");
+        }
+        foreach (var preset in new[] { ChartPalettes.Report, ChartPalettes.Colorblind, ChartPalettes.Vivid, ChartPalettes.Pastel, ChartPalettes.Editorial, ChartPalettes.Jewel, ChartPalettes.Terminal }) {
+            Assert(preset.Length >= 8, "Reusable palette presets should provide enough colors for multi-series charts.");
+        }
     }
 
     private static void StandaloneHtmlUsesVisibleBackground() {
         var html = SampleChart().ToHtmlPage();
         Assert(!html.Contains("background:transparent", StringComparison.Ordinal), "Standalone pages should use a visible page background.");
         Assert(html.Contains("-webkit-font-smoothing:antialiased", StringComparison.Ordinal), "Standalone pages should request browser font smoothing.");
+        var untitled = Chart.Create().AddLine("Values", Points(1, 2, 3)).ToHtmlPage();
+        Assert(untitled.Contains("<title>ChartForgeX chart</title>", StringComparison.Ordinal), "Untitled standalone pages should provide a useful browser title.");
     }
 
     private static void HtmlFragmentIsResponsive() {
         var html = SampleChart().ToHtmlFragment();
         Assert(html.Contains("style=\"width:100%;max-width:640px;box-sizing:border-box\"", StringComparison.Ordinal), "HTML fragment should carry responsive wrapper styles.");
         Assert(html.Contains("style=\"max-width:100%;height:auto;display:block\"", StringComparison.Ordinal), "SVG should carry responsive sizing styles.");
+        var repeated = Chart.Create().WithTitle("Repeated fragment").WithSize(320, 220).AddLine("Values", Points(10, 20, 30));
+        var combined = repeated.ToHtmlFragment() + repeated.ToHtmlFragment();
+        var titleIds = ExtractAttributeValues(combined, "<title id=\"");
+        Assert(titleIds.Length == 2 && titleIds.Distinct(StringComparer.Ordinal).Count() == 2, "Concatenated HTML fragments should give repeated charts unique SVG title IDs.");
+        AssertNoDuplicateIds(combined, "Concatenated HTML fragments");
+        var scopedRawSvg = repeated.ToSvg("embed-a") + repeated.ToSvg("embed-b");
+        AssertNoDuplicateIds(scopedRawSvg, "Scoped raw SVG charts");
+        Assert(repeated.ToSvg("stable-scope") == repeated.ToSvg("stable-scope"), "Explicit SVG ID scopes should keep raw SVG output deterministic.");
+        var boundaryA = Chart.Create().WithTitle("ab").WithSubtitle("c").WithSize(320, 220).AddLine("Values", Points(10, 20, 30));
+        var boundaryB = Chart.Create().WithTitle("a").WithSubtitle("bc").WithSize(320, 220).AddLine("Values", Points(10, 20, 30));
+        AssertNoDuplicateIds(boundaryA.ToSvg("embed") + boundaryB.ToSvg("embed"), "Boundary-distinct scoped raw SVG charts");
     }
 
     private static void SmallMultipleGridRendersStaticHtml() {
@@ -349,6 +427,16 @@ internal static partial class SmokeTests {
         Assert(CountOccurrences(html, "<svg ") == 2, "Chart grids should render each chart as inline SVG.");
         Assert(html.Contains(">Control scorecards</h1>", StringComparison.Ordinal), "Chart grids should render report titles.");
         Assert(!html.Contains("<script", StringComparison.OrdinalIgnoreCase), "Chart grids should remain JavaScript-free.");
+        var repeated = Chart.Create().WithTitle("Repeated").WithSize(320, 220).AddLine("Values", Points(10, 20, 30));
+        var repeatedHtml = ChartGrid.Create().Add(repeated).Add(repeated).ToHtmlPage();
+        var repeatedTitleIds = ExtractAttributeValues(repeatedHtml, "<title id=\"");
+        Assert(repeatedTitleIds.Length == 2 && repeatedTitleIds.Distinct(StringComparer.Ordinal).Count() == 2, "Inline HTML grids should give repeated charts unique SVG title IDs.");
+        AssertNoDuplicateIds(repeatedHtml, "Inline HTML grids");
+        var repeatedGrid = ChartGrid.Create().Add(repeated);
+        var combinedGridFragments = repeatedGrid.ToHtmlFragment() + repeatedGrid.ToHtmlFragment();
+        var combinedGridTitleIds = ExtractAttributeValues(combinedGridFragments, "<title id=\"");
+        Assert(combinedGridTitleIds.Length == 2 && combinedGridTitleIds.Distinct(StringComparer.Ordinal).Count() == 2, "Concatenated HTML grid fragments should scope child SVG title IDs per grid render.");
+        AssertNoDuplicateIds(combinedGridFragments, "Concatenated HTML grid fragments");
         Assert(coverage.Options.YAxisMinimum == readiness.Options.YAxisMinimum && coverage.Options.YAxisMaximum == readiness.Options.YAxisMaximum, "Shared y-axis grids should apply equal y-axis bounds to compatible charts.");
         Assert(coverage.ToPng().Length > 64 && readiness.ToPng().Length > 64, "Shared y-axis bounds should apply to PNG rendering too.");
         var early = Chart.Create().WithSize(300, 200).AddLine("Early", new[] { new ChartPoint(2, 10), new ChartPoint(3, 20) });
@@ -361,6 +449,15 @@ internal static partial class SmokeTests {
         var svg = grid.ToSvg();
         Assert(svg.StartsWith("<svg", StringComparison.Ordinal), "Chart grids should export standalone SVG.");
         Assert(CountOccurrences(svg, "data:image/svg+xml;base64,") == 2, "Chart grid SVG should embed each child chart without id collisions.");
+        var combinedGridSvgs = grid.ToSvg() + grid.ToSvg();
+        var gridSvgTitleIds = ExtractAttributeValues(combinedGridSvgs, "<title id=\"");
+        Assert(gridSvgTitleIds.Length == 2 && gridSvgTitleIds.Distinct(StringComparer.Ordinal).Count() == 2, "Concatenated SVG grid exports should scope root accessibility IDs per render.");
+        AssertNoDuplicateIds(combinedGridSvgs, "Concatenated SVG grid exports");
+        AssertNoDuplicateIds(grid.ToSvg("grid-a") + grid.ToSvg("grid-b"), "Scoped raw SVG grid exports");
+        Assert(grid.ToSvg("stable-grid") == grid.ToSvg("stable-grid"), "Explicit SVG grid ID scopes should keep raw SVG grid output deterministic.");
+        var boundaryGridA = ChartGrid.Create().WithTitle("b|c").Add(repeated);
+        var boundaryGridB = ChartGrid.Create().WithTitle("c").Add(repeated);
+        AssertNoDuplicateIds(boundaryGridA.ToSvg("a") + boundaryGridB.ToSvg("a|b"), "Boundary-distinct scoped SVG grid exports");
         Assert(svg.Contains("width=\"291\" height=\"200\"", StringComparison.Ordinal), "Fixed panel grid exports should contain charts without distorting their aspect ratio.");
         var png = grid.ToPng();
         Assert(ReadBigEndianInt32(png, 16) == 680, "Chart grid PNG should use fixed panel width and custom padding.");
@@ -379,6 +476,9 @@ internal static partial class SmokeTests {
 
         grid.WithAutomaticPanelSize().WithAutomaticTheme();
         Assert(!grid.PanelSize.HasValue && grid.Theme == null, "Automatic grid panel and theme settings should clear explicit export controls.");
+        stretched.Theme = ChartTheme.ReportDark();
+        stretched.Theme = null;
+        Assert(stretched.Theme == null, "Nullable grid theme assignments should clear explicit grid themes.");
     }
 
     private static void ExplicitAxisBoundsAffectSvgTicks() {
@@ -420,21 +520,31 @@ internal static partial class SmokeTests {
         Assert(svg.Contains(">1M</text>", StringComparison.Ordinal) || svg.Contains(">1.2M</text>", StringComparison.Ordinal), "Large SVG values should use M suffixes instead of thousands of k.");
     }
 
+    private static void DefaultNumericCompactFormatterIsShared() {
+        var svg = Chart.Create().WithSize(640, 360).AddLine("Values", Points(1200000, 2400000, 3600000)).ToSvg();
+        Assert(svg.Contains(">1M</text>", StringComparison.Ordinal) || svg.Contains(">1.2M</text>", StringComparison.Ordinal), "Default compact values should use million suffixes.");
+        var root = FindRepositoryRoot();
+        var svgHelpers = File.ReadAllText(Path.Combine(root, "ChartForgeX", "Svg", "SvgChartRenderer.Helpers.cs"));
+        var pngRenderer = File.ReadAllText(Path.Combine(root, "ChartForgeX", "Raster", "PngChartRenderer.cs"));
+        Assert(svgHelpers.Contains("ChartNumericFormatter.FormatCompact", StringComparison.Ordinal), "SVG default numeric labels should use the shared compact formatter.");
+        Assert(pngRenderer.Contains("ChartNumericFormatter.FormatCompact", StringComparison.Ordinal), "PNG default numeric labels should use the shared compact formatter.");
+    }
+
     private static void LegendRowsWrapWithRoleMarkers() {
-        var svg = Chart.Create().WithSize(420, 320)
-            .AddLine("Primary domain checks", Points(1, 2, 3))
-            .AddLine("Certificate transparency drift", Points(2, 3, 4))
-            .AddLine("Dnssec policy posture", Points(3, 4, 5))
-            .AddLine("Mail authentication alignment", Points(4, 5, 6))
-            .ToSvg();
+        var svg = Chart.Create().WithSize(420, 320).AddLine("Primary domain checks", Points(1, 2, 3)).AddLine("Certificate transparency drift", Points(2, 3, 4)).AddLine("Dnssec policy posture", Points(3, 4, 5)).AddLine("Mail authentication alignment", Points(4, 5, 6)).ToSvg();
         Assert(svg.Contains("data-cfx-role=\"legend\"", StringComparison.Ordinal), "SVG should expose a semantic legend group.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"legend-row\"") > 1, "Long legends should wrap into multiple rows.");
 
-        var longSvg = Chart.Create().WithSize(320, 220)
-            .AddLine("Extremely long certificate transparency drift monitor", Points(1, 2, 3))
-            .AddLine("Extremely long DNSSEC posture remediation backlog", Points(2, 3, 4))
-            .ToSvg();
+        var rightLegend = Chart.Create().WithSize(520, 320).WithLegendPosition(ChartLegendPosition.Right).AddLine("Primary domain checks with a realistic name", Points(1, 2, 3)).AddLine("Certificate transparency drift with another realistic name", Points(2, 3, 4));
+        var rightLegendSvg = rightLegend.ToSvg();
+        Assert(rightLegendSvg.Contains("data-cfx-role=\"legend\" data-cfx-position=\"Right\"", StringComparison.Ordinal), "SVG legends should expose configurable legend placement.");
+        Assert(rightLegendSvg.Contains("...</text>", StringComparison.Ordinal), "Side legends should shorten long series names inside their reserved lane.");
+        Assert(rightLegend.ToPng().Length > 64, "Configured legend positions should render PNG output.");
+
+        var longSvg = Chart.Create().WithSize(320, 220).AddLine("Extremely long certificate transparency drift monitor", Points(1, 2, 3)).AddLine("Extremely long DNSSEC posture remediation backlog", Points(2, 3, 4)).ToSvg();
         Assert(longSvg.Contains("...</text>", StringComparison.Ordinal), "SVG legends should shorten series names that exceed the bounded legend lane.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithLegendPosition((ChartLegendPosition)999), "Legend positions should reject undefined enum values.");
+
     }
 
     private static void SvgHasNoInvalidNumbers() {
@@ -477,15 +587,25 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartRect(0, 0, -1, 10), "ChartRect should reject negative dimensions.");
         AssertThrows<ArgumentNullException>(() => new ChartAxisLabel(1, null!), "Axis labels should reject null text.");
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartAxisLabel(double.NaN, "bad"), "Axis labels should reject non-finite values.");
+        AssertThrows<ArgumentException>(() => Chart.Create().WithXLabels(new[] { default(ChartAxisLabel) }), "Explicit axis labels should reject default labels with null text.");
         AssertThrows<ArgumentNullException>(() => ChartTheme.Light().Palette = null!, "Themes should reject null palettes.");
         AssertThrows<ArgumentException>(() => ChartTheme.Light().Palette = Array.Empty<ChartColor>(), "Themes should reject empty palettes.");
+        AssertThrows<ArgumentException>(() => ChartColor.FromHex("#12"), "Hex colors should reject invalid lengths.");
+        AssertThrows<ArgumentException>(() => ChartColor.FromHex("#ggg"), "Hex colors should reject invalid characters.");
+        AssertThrows<ArgumentException>(() => ChartPalettes.FromHex(), "Hex palette helpers should reject empty palettes.");
         AssertThrows<ArgumentOutOfRangeException>(() => ChartTheme.Light().TitleFontSize = 0, "Themes should reject non-positive font sizes.");
         AssertThrows<ArgumentOutOfRangeException>(() => ChartTheme.Light().ShadowOpacity = 2, "Themes should reject opacity values outside zero to one.");
+        AssertThrows<ArgumentOutOfRangeException>(() => ChartTheme.Light().WithSurfaceStyle((ChartSurfaceStyle)999), "Themes should reject unknown surface styles.");
         AssertThrows<ArgumentNullException>(() => ChartTheme.Light().FontFamily = null!, "Themes should reject null font families.");
         AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().AddLine("Values", new[] { new ChartPoint(1, double.PositiveInfinity) }), "Series should reject non-finite point values.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartSeries("Values", (ChartSeriesKind)999, Points(1, 2, 3)), "Series should reject unknown series kinds.");
         AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().AddLine("Values", Points(1, 2, 3)).Series[0].StrokeWidth = 0, "Series stroke widths should reject non-positive values.");
         AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().AddLine("Values", Points(1, 2, 3)).Series[0].StrokeWidth = double.NaN, "Series stroke widths should reject non-finite values.");
         AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().AddLine("Values", Points(1, 2, 3)).Series[0].YAxis = (ChartAxisSide)99, "Series y-axis side should reject unknown enum values.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartAnnotation((ChartAnnotationKind)999, 1, null, "bad", ChartColor.Black, 1), "Annotations should reject unknown annotation kinds.");
+        AssertThrows<ArgumentException>(() => new ChartAnnotation(ChartAnnotationKind.HorizontalBand, 1, null, "bad", ChartColor.Black, 0.2), "Band annotations should require an end value.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartAnnotation(ChartAnnotationKind.VerticalBand, 1, 1, "bad", ChartColor.Black, 0.2), "Band annotations should reject empty ranges.");
+        AssertThrows<ArgumentException>(() => new ChartAnnotation(ChartAnnotationKind.HorizontalLine, 1, 2, "bad", ChartColor.Black, 1), "Line annotations should reject unused end values.");
         AssertThrows<ArgumentNullException>(() => Chart.Create().WithSecondaryYAxis(null!), "Secondary y-axis titles should reject null.");
         AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithSecondaryYAxisBounds(10, 10), "Secondary y-axis bounds should reject empty numeric domains.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddHistogram("Empty", Array.Empty<double>()), "Histograms should reject empty raw value sets.");
@@ -514,6 +634,7 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartRangeBand(1, double.NaN, 4), "Range bands should reject non-finite values.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddDumbbell("Empty", Array.Empty<ChartDumbbell>()), "Dumbbell charts should reject empty value sets.");
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartDumbbell(1, double.NaN, 4), "Dumbbell charts should reject non-finite values.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddHeatmapRow("Empty", Array.Empty<ChartPoint>()), "Heatmap rows should reject empty value sets.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddPareto("Empty", Array.Empty<ChartParetoItem>()), "Pareto charts should reject empty item sets.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddPareto("Zero", new[] { new ChartParetoItem("A", 0), new ChartParetoItem("B", 0) }), "Pareto charts should reject all-zero item sets.");
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartParetoItem("Bad", -1), "Pareto items should reject negative values.");
@@ -521,6 +642,32 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentException>(() => Chart.Create().AddTreemap("Empty", Array.Empty<ChartTreemapItem>()), "Treemaps should reject empty item sets.");
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartTreemapItem("Bad", -1), "Treemap items should reject negative values.");
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartTreemapItem("Bad", double.NaN), "Treemap items should reject non-finite values.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddPictorial("Empty", Array.Empty<ChartPictorialItem>()), "Pictorial charts should reject empty item sets.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartPictorialItem("Bad", -1), "Pictorial items should reject negative values.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartPictorialItem("Bad", double.NaN), "Pictorial items should reject non-finite values.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().AddPictorial("Bad", new[] { new ChartPictorialItem("A", 1) }, (ChartPictorialShape)999), "Pictorial charts should reject unknown shapes.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPictorialShape((ChartPictorialShape)999), "Pictorial shape customization should reject unknown shapes.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPictorialColumns(0), "Pictorial charts should reject column counts below one.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().Options.PictorialColumns = 101, "Pictorial chart options should reject excessive column counts.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPictorialMaximum(0), "Pictorial charts should reject zero scale maximums.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().Options.PictorialMaximum = double.NaN, "Pictorial chart options should reject non-finite scale maximums.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPictorialValuePerSymbol(0), "Pictorial charts should reject zero value-per-symbol scales.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().Options.PictorialValuePerSymbol = double.NaN, "Pictorial chart options should reject non-finite value-per-symbol scales.");
+        AssertThrows<ArgumentException>(() => Chart.Create().WithPictorialSvgPath(""), "Pictorial charts should reject empty SVG path data.");
+        AssertThrows<ArgumentException>(() => Chart.Create().WithPictorialSvgPath("M0 0 <script>"), "Pictorial charts should reject unsafe SVG path data.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPictorialSvgPath("M0 0 L1 1 Z", new ChartRect(0, 0, 0, 24)), "Pictorial charts should reject empty SVG path viewBoxes.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithPictorialSvgPath("M0 0 L1 1 Z", (ChartPictorialShape)999), "Pictorial charts should reject unknown PNG fallback shapes.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddWordCloud("Empty", Array.Empty<ChartWordCloudItem>()), "Word clouds should reject empty item sets.");
+        AssertThrows<ArgumentException>(() => new ChartWordCloudItem("", 1), "Word cloud terms should reject empty text.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartWordCloudItem("Bad", -1), "Word cloud terms should reject negative weights.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new ChartWordCloudItem("Bad", double.NaN), "Word cloud terms should reject non-finite weights.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithWordCloudFontRange(0, 40), "Word clouds should reject non-positive minimum font sizes.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithWordCloudFontRange(40, 40), "Word clouds should reject inverted font ranges.");
+        AssertThrows<ArgumentException>(() => Chart.Create().WithWordCloudAngles(), "Word clouds should reject empty angle patterns.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithWordCloudAngles(-91), "Word clouds should reject excessive term rotation.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithWordCloudMaximumTerms(0), "Word clouds should reject non-positive term limits.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithWordCloudDensity(0.49), "Word clouds should reject overly loose layout density.");
+        AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().WithWordCloudDensity(2.01), "Word clouds should reject overly dense layout density.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddBoxPlot("Empty", Array.Empty<ChartBoxPlot>()), "Box plots should reject empty summary sets.");
         AssertThrows<ArgumentNullException>(() => Chart.Create().AddBoxPlot("Raw", 1, null!), "Raw box plots should reject null sample sets.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddBoxPlot("Raw", 1, Array.Empty<double>()), "Raw box plots should reject empty sample sets.");
@@ -540,12 +687,17 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartSankeyLink("A", "B", 0), "Sankey links should reject non-positive values.");
         AssertThrows<ArgumentException>(() => new ChartSankeyLink("", "B", 1), "Sankey links should reject empty source labels.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddSankey("Flow", new[] { new ChartSankeyLink("A", "A", 1) }), "Sankey charts should reject self links.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddSankey("Flow", new[] { new ChartSankeyLink("A", "B", 1), new ChartSankeyLink("B", "A", 1) }), "Sankey charts should reject cyclic link sets.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddTree("Tree", Array.Empty<ChartTreeLink>()), "Tree charts should reject empty link sets.");
         AssertThrows<ArgumentOutOfRangeException>(() => new ChartTreeLink("A", "B", 0), "Tree links should reject non-positive values.");
         AssertThrows<ArgumentException>(() => new ChartTreeLink("", "B"), "Tree links should reject empty parent labels.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddTree("Tree", new[] { new ChartTreeLink("A", "A") }), "Tree charts should reject self links.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddTree("Tree", new[] { new ChartTreeLink("A", "C"), new ChartTreeLink("B", "C") }), "Tree charts should reject multiple parents for a child.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddTree("Tree", new[] { new ChartTreeLink("A", "B"), new ChartTreeLink("C", "D") }), "Tree charts should reject multiple roots.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddSunburst("Sunburst", Array.Empty<ChartTreeLink>()), "Sunburst charts should reject empty link sets.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddSunburst("Sunburst", new[] { new ChartTreeLink("A", "A") }), "Sunburst charts should reject self links.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddSunburst("Sunburst", new[] { new ChartTreeLink("A", "C"), new ChartTreeLink("B", "C") }), "Sunburst charts should reject multiple parents for a child.");
+        AssertThrows<ArgumentException>(() => Chart.Create().AddSunburst("Sunburst", new[] { new ChartTreeLink("A", "B"), new ChartTreeLink("C", "D") }), "Sunburst charts should reject multiple roots.");
         AssertThrows<ArgumentOutOfRangeException>(() => Chart.Create().AddHorizontalBand(1, 2, opacity: 1.5), "Band opacity should reject values outside zero to one.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddMeanLine("Mean", Array.Empty<ChartPoint>()), "Mean overlays should reject empty source points.");
         AssertThrows<ArgumentException>(() => Chart.Create().AddStandardDeviationBand("Sigma", Points(10)), "Standard deviation bands should reject single-point source data.");
@@ -562,6 +714,7 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentOutOfRangeException>(() => ChartGrid.Create().WithGap(-1), "Chart grids should reject negative gaps.");
         AssertThrows<ArgumentOutOfRangeException>(() => ChartGrid.Create().WithPadding(-1), "Chart grids should reject negative padding.");
         AssertThrows<ArgumentOutOfRangeException>(() => ChartGrid.Create().WithPanelSize(0, 200), "Chart grids should reject non-positive panel widths.");
+        AssertThrows<ArgumentOutOfRangeException>(() => ChartGrid.Create().PanelSize = default(ChartSize), "Chart grid panel size setters should reject non-positive dimensions.");
         AssertThrows<ArgumentOutOfRangeException>(() => ChartGrid.Create().WithPanelFit((ChartGridPanelFit)999), "Chart grids should reject unknown panel fit values.");
         AssertThrows<ArgumentNullException>(() => ChartGrid.Create().WithTheme(null!), "Chart grids should reject null themes.");
         AssertThrows<InvalidOperationException>(() => ChartGrid.Create().WithSharedXAxis(), "Shared x-axis grids should reject empty grids.");
@@ -576,6 +729,31 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentNullException>(() => new HtmlChartRenderer().RenderPage(null!), "HTML page rendering should reject null charts.");
         AssertThrows<ArgumentNullException>(() => new HtmlChartGridRenderer().RenderPage(null!), "HTML grid rendering should reject null grids.");
         AssertThrows<InvalidOperationException>(() => ChartGrid.Create().ToHtmlPage(), "HTML grid rendering should reject empty grids.");
+        var chartWithNullSeries = Chart.Create();
+        chartWithNullSeries.Series.Add(null!);
+        AssertThrows<InvalidOperationException>(() => chartWithNullSeries.ToSvg(), "Rendering should reject null entries in the public series collection.");
+        var chartWithNullAnnotation = Chart.Create().AddLine("Values", Points(1, 2, 3));
+        chartWithNullAnnotation.Annotations.Add(null!);
+        AssertThrows<InvalidOperationException>(() => chartWithNullAnnotation.ToPng(), "Rendering should reject null entries in the public annotation collection.");
+        var chartWithDefaultAxisLabel = Chart.Create().AddLine("Values", Points(1, 2, 3));
+        chartWithDefaultAxisLabel.Options.XAxisLabels.Add(default);
+        AssertThrows<InvalidOperationException>(() => chartWithDefaultAxisLabel.ToSvg(), "Rendering should reject default axis labels added through the mutable options collection.");
+        var malformedBubble = Chart.Create();
+        malformedBubble.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Bubble, new[] { new ChartPoint(1, 2) }));
+        AssertThrows<InvalidOperationException>(() => malformedBubble.ToSvg(), "Bubble renderers should reject incomplete public series tuples.");
+        var malformedErrorBar = Chart.Create();
+        malformedErrorBar.Series.Add(new ChartSeries("Bad", ChartSeriesKind.ErrorBar, new[] { new ChartPoint(1, 5), new ChartPoint(1, 6), new ChartPoint(1, 8) }));
+        AssertThrows<InvalidOperationException>(() => malformedErrorBar.ToPng(), "Error-bar renderers should reject inverted public lower bounds.");
+        var malformedCandlestick = Chart.Create();
+        malformedCandlestick.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Candlestick, new[] { new ChartPoint(1, 5), new ChartPoint(1, 4), new ChartPoint(1, 2), new ChartPoint(1, 3) }));
+        AssertThrows<InvalidOperationException>(() => malformedCandlestick.ToSvg(), "Candlestick renderers should reject malformed public OHLC tuples.");
+        var malformedBoxPlot = Chart.Create();
+        malformedBoxPlot.Series.Add(new ChartSeries("Bad", ChartSeriesKind.BoxPlot, new[] { new ChartPoint(1, 1), new ChartPoint(1, 4), new ChartPoint(1, 3), new ChartPoint(1, 5), new ChartPoint(1, 6) }));
+        AssertThrows<InvalidOperationException>(() => malformedBoxPlot.ToPng(), "Box plot renderers should reject unordered public summary tuples.");
+        var fractionalGanttDependency = Chart.Create();
+        fractionalGanttDependency.Series.Add(new ChartSeries("A", ChartSeriesKind.Gantt, new[] { new ChartPoint(1, 2), new ChartPoint(1, -1), new ChartPoint(0, 0) }));
+        fractionalGanttDependency.Series.Add(new ChartSeries("B", ChartSeriesKind.Gantt, new[] { new ChartPoint(2, 3), new ChartPoint(1, 0.4), new ChartPoint(0, 0) }));
+        AssertThrows<InvalidOperationException>(() => fractionalGanttDependency.ToSvg(), "Gantt renderers should reject fractional dependency indexes instead of rounding them.");
     }
 
     private static void SpecializedChartsRejectMixedSeries() {
@@ -584,10 +762,39 @@ internal static partial class SmokeTests {
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddGauge("Score", 87).AddGauge("Other", 72).ToSvg(), "Single-panel specialized charts should reject multiple series.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddPie("Empty", Points(0, 0, 0)).ToSvg(), "Pie charts should reject data with no positive slice values.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddDonut("Empty", Points(-3, 0, -2)).ToPng(), "Donut charts should reject data with no positive slice values.");
+        AssertThrows<InvalidOperationException>(() => Chart.Create().AddPie("Bad", Points(20, -1, 30)).ToSvg(), "Pie charts should reject negative slice values instead of silently filtering them.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddFunnel("Empty", Points(0, -1, 0)).ToSvg(), "Funnel charts should reject data with no positive stage values.");
+        AssertThrows<InvalidOperationException>(() => Chart.Create().AddFunnel("Bad", Points(100, -10, 50)).ToSvg(), "Funnel charts should reject negative stage values instead of silently filtering them.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddTreemap("Empty", new[] { new ChartTreemapItem("A", 0), new ChartTreemapItem("B", 0) }).ToPng(), "Treemaps should reject data with no positive tile values.");
+        AssertThrows<InvalidOperationException>(() => Chart.Create().AddPictorial("Empty", new[] { new ChartPictorialItem("A", 0), new ChartPictorialItem("B", 0) }).ToSvg(), "Pictorial charts should reject data with no positive values.");
+        AssertThrows<InvalidOperationException>(() => Chart.Create().AddWordCloud("Empty", new[] { new ChartWordCloudItem("A", 0), new ChartWordCloudItem("B", 0) }).ToSvg(), "Word clouds should reject data with no positive weights.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddPolarArea("Empty", Points(0, -1, 0)).ToSvg(), "Polar-area charts should reject data with no positive segment values.");
+        AssertThrows<InvalidOperationException>(() => Chart.Create().AddPolarArea("Bad", Points(30, -1, 40)).ToPng(), "Polar-area charts should reject negative segment values instead of silently filtering them.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddWaterfall("Empty", Array.Empty<ChartPoint>()).ToSvg(), "Waterfall charts should reject empty data instead of rendering a blank chart.");
         AssertThrows<InvalidOperationException>(() => Chart.Create().AddRadar("Too small", Points(72, 84)).ToPng(), "Radar charts should reject fewer than three categories instead of rendering a blank chart.");
+        var malformedHeatmap = Chart.Create();
+        malformedHeatmap.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Heatmap, Array.Empty<ChartPoint>()));
+        AssertThrows<InvalidOperationException>(() => malformedHeatmap.ToSvg(), "Heatmap renderers should reject empty public rows instead of rendering a blank matrix.");
+        var malformedBullet = Chart.Create();
+        malformedBullet.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Bullet, Points(72)));
+        AssertThrows<InvalidOperationException>(() => malformedBullet.ToSvg(), "Bullet renderers should reject malformed public series instead of rendering a blank chart.");
+        var malformedGantt = Chart.Create();
+        malformedGantt.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Gantt, Points(1, 2)));
+        AssertThrows<InvalidOperationException>(() => malformedGantt.ToPng(), "Gantt renderers should reject malformed public series instead of rendering a blank chart.");
+        var cyclicSankey = Chart.Create();
+        cyclicSankey.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Sankey, new[] { new ChartPoint(0, 1), new ChartPoint(1, 1), new ChartPoint(1, 0), new ChartPoint(1, 1) }));
+        AssertThrows<InvalidOperationException>(() => cyclicSankey.ToSvg(), "Sankey renderers should reject cyclic public series instead of laying out backward links.");
+        var fractionalSankey = Chart.Create();
+        fractionalSankey.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Sankey, new[] { new ChartPoint(0.4, 1), new ChartPoint(1, 1) }));
+        AssertThrows<InvalidOperationException>(() => fractionalSankey.ToPng(), "Sankey renderers should reject fractional node indexes instead of rounding them.");
+        var disconnectedTree = Chart.Create();
+        disconnectedTree.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Tree, new[] { new ChartPoint(0, 1), new ChartPoint(1, 1), new ChartPoint(2, 3), new ChartPoint(1, 1) }));
+        AssertThrows<InvalidOperationException>(() => disconnectedTree.ToPng(), "Tree renderers should reject disconnected public series instead of rendering an arbitrary root.");
+        var fractionalTree = Chart.Create();
+        fractionalTree.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Tree, new[] { new ChartPoint(0, 1.4), new ChartPoint(1, 1) }));
+        AssertThrows<InvalidOperationException>(() => fractionalTree.ToSvg(), "Tree renderers should reject fractional node indexes instead of rounding them.");
+        var disconnectedSunburst = Chart.Create();
+        disconnectedSunburst.Series.Add(new ChartSeries("Bad", ChartSeriesKind.Sunburst, new[] { new ChartPoint(0, 1), new ChartPoint(1, 1), new ChartPoint(2, 3), new ChartPoint(1, 1) }));
+        AssertThrows<InvalidOperationException>(() => disconnectedSunburst.ToPng(), "Sunburst renderers should reject disconnected public series instead of rendering an arbitrary root.");
     }
 }

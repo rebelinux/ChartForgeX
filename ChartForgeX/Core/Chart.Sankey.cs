@@ -24,6 +24,7 @@ public sealed partial class Chart {
             points.Add(new ChartPoint(link.Value, link.Value));
         }
 
+        ValidateSankeyAcyclic(points, nodeLabels.Count, nameof(links));
         Options.SankeyNodeLabels.Clear();
         Options.SankeyNodeLabels.AddRange(nodeLabels);
         return Add(name, ChartSeriesKind.Sankey, points, color);
@@ -35,5 +36,26 @@ public sealed partial class Chart {
         nodeIndexes.Add(label, index);
         nodeLabels.Add(label);
         return index;
+    }
+
+    private static void ValidateSankeyAcyclic(IReadOnlyList<ChartPoint> points, int nodeCount, string parameterName) {
+        var outgoing = new List<int>[nodeCount];
+        for (var i = 0; i < outgoing.Length; i++) outgoing[i] = new List<int>();
+        for (var i = 0; i + 1 < points.Count; i += 2) {
+            var source = (int)Math.Round(points[i].X);
+            var target = (int)Math.Round(points[i].Y);
+            outgoing[source].Add(target);
+        }
+
+        var state = new int[nodeCount];
+        for (var i = 0; i < state.Length; i++) Visit(i);
+
+        void Visit(int node) {
+            if (state[node] == 1) throw new ArgumentException("Sankey links must not contain cycles.", parameterName);
+            if (state[node] == 2) return;
+            state[node] = 1;
+            foreach (var target in outgoing[node]) Visit(target);
+            state[node] = 2;
+        }
     }
 }

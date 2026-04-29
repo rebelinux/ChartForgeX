@@ -10,7 +10,6 @@ namespace ChartForgeX.Svg;
 public sealed partial class SvgChartRenderer {
     private static void DrawBoxPlots(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
         var series = chart.Series[index];
-        var color = Color(chart, index);
         var boxCount = Math.Max(1, series.Points.Count / 5);
         var boxWidth = Math.Max(14, Math.Min(46, plot.Width / Math.Max(1, boxCount * 5.0)));
         var capWidth = boxWidth * 0.74;
@@ -31,6 +30,7 @@ public sealed partial class SvgChartRenderer {
             var top = Math.Min(yQ1, yQ3);
             var height = Math.Max(2, Math.Abs(yQ3 - yQ1));
             var item = pointIndex / 5;
+            var color = PointColor(chart, series, index, item);
             var summary = FormatValue(chart, minimum.Y) + "-" + FormatValue(chart, maximum.Y) + ", median " + FormatValue(chart, median.Y);
 
             sb.AppendLine($"<g data-cfx-role=\"box-plot\" data-cfx-series=\"{index}\" data-cfx-point=\"{item}\" data-cfx-x=\"{F(minimum.X)}\" data-cfx-min=\"{F(minimum.Y)}\" data-cfx-q1=\"{F(q1.Y)}\" data-cfx-median=\"{F(median.Y)}\" data-cfx-q3=\"{F(q3.Y)}\" data-cfx-max=\"{F(maximum.Y)}\" role=\"img\" aria-label=\"{Escape(summary)}\">");
@@ -42,7 +42,21 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<line data-cfx-role=\"box-median\" x1=\"{F(x - boxWidth / 2)}\" y1=\"{F(yMedian)}\" x2=\"{F(x + boxWidth / 2)}\" y2=\"{F(yMedian)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.BoxPlotMedianStrokeWidth)}\" stroke-linecap=\"round\"/>");
             sb.AppendLine("</g>");
             var label = FormatValue(chart, median.Y);
-            if (ShouldDrawDataLabels(chart, series) && ReserveSvgLabel(label, x, yMedian - 11, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, yMedian - 11, plot);
+            if (ShouldDrawDataLabels(chart, series)) {
+                var placement = DataLabelPlacement(chart, series);
+                if (placement == ChartDataLabelPlacement.Left || placement == ChartDataLabelPlacement.Right) {
+                    var anchor = placement == ChartDataLabelPlacement.Left ? "end" : "start";
+                    var labelX = placement == ChartDataLabelPlacement.Left ? x - boxWidth / 2 - 8 : x + boxWidth / 2 + 8;
+                    if (ReserveSvgHorizontalLabel(label, labelX, yMedian, anchor, chart, plot, reservedLabels)) DrawHorizontalValueLabel(sb, chart, label, labelX, yMedian, anchor, plot, series, item);
+                } else {
+                    var labelY = placement == ChartDataLabelPlacement.Below
+                        ? Math.Max(yQ1, yQ3) + 11
+                        : placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside
+                            ? yMedian
+                            : Math.Min(yQ1, yQ3) - 11;
+                    if (ReserveSvgLabel(label, x, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, labelY, plot, series: series, pointIndex: item);
+                }
+            }
         }
     }
 }

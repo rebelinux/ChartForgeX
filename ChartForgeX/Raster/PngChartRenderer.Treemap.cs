@@ -21,7 +21,7 @@ public sealed partial class PngChartRenderer {
         foreach (var tile in tiles) {
             var rect = tile.Rect;
             if (rect.Width <= 0 || rect.Height <= 0) continue;
-            var color = series.Color ?? chart.Options.Theme.Palette[tile.PointIndex % chart.Options.Theme.Palette.Length];
+            var color = PngTreemapTileColor(chart, series, tile.PointIndex);
             var radius = Math.Min(ChartVisualPrimitives.TreemapTileCornerRadiusMax, Math.Min(rect.Width, rect.Height) * ChartVisualPrimitives.TreemapTileCornerRadiusFactor);
             c.FillRoundedRectVerticalGradient(rect.X, rect.Y, rect.Width, rect.Height, radius, TreemapTileGradientTop(color), TreemapTileGradientBottom(color));
             c.StrokeRoundedRect(rect.X, rect.Y, rect.Width, rect.Height, radius, ApplyOpacity(chart.Options.Theme.CardBackground, ChartVisualPrimitives.TreemapTileBorderOpacity), ChartVisualPrimitives.TreemapTileBorderStrokeWidth);
@@ -38,8 +38,7 @@ public sealed partial class PngChartRenderer {
     }
 
     private static ChartRect TreemapPlot(Chart chart, ChartRect basePlot) {
-        var legendReserve = chart.Options.ShowLegend ? 18 + PngLegendRowCount(chart) * (PngLegendFontSize(chart) + 6) : 0;
-        return new ChartRect(basePlot.X + 10, basePlot.Y + 12, Math.Max(1, basePlot.Width - 20), Math.Max(1, basePlot.Height - 24 - legendReserve));
+        return new ChartRect(basePlot.X + 10, basePlot.Y + 12, Math.Max(1, basePlot.Width - 20), Math.Max(1, basePlot.Height - 24));
     }
 
     private static void DrawTreemapTileLabels(RgbaCanvas c, Chart chart, ChartRect rect, string label, string value, ChartColor color) {
@@ -64,6 +63,11 @@ public sealed partial class PngChartRenderer {
         foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.Treemap) return true;
         return false;
     }
+
+    private static ChartColor PngTreemapTileColor(Chart chart, ChartSeries series, int pointIndex) =>
+        pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue
+            ? series.PointColors[pointIndex]!.Value
+            : series.Color ?? chart.Options.Theme.Palette[pointIndex % chart.Options.Theme.Palette.Length];
 
     private static ChartColor TreemapTileGradientTop(ChartColor color) => Blend(ChartColor.White, color, ChartVisualPrimitives.TreemapTileGradientTopBlend);
 

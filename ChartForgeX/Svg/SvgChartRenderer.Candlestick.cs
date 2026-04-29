@@ -19,7 +19,9 @@ public sealed partial class SvgChartRenderer {
             var low = series.Points[pointIndex + 2];
             var close = series.Points[pointIndex + 3];
             var rising = close.Y >= open.Y;
-            var color = rising ? chart.Options.Theme.Positive : chart.Options.Theme.Negative;
+            var item = pointIndex / 4;
+            var semanticColor = rising ? chart.Options.Theme.Positive : chart.Options.Theme.Negative;
+            var color = item < series.PointColors.Count && series.PointColors[item] is { } pointColor ? pointColor : semanticColor;
             var x = map.X(open.X);
             var yOpen = map.Y(open.Y);
             var yHigh = map.Y(high.Y);
@@ -27,7 +29,6 @@ public sealed partial class SvgChartRenderer {
             var yClose = map.Y(close.Y);
             var bodyTop = Math.Min(yOpen, yClose);
             var bodyHeight = Math.Max(2, Math.Abs(yClose - yOpen));
-            var item = pointIndex / 4;
             var summary = "open " + FormatValue(chart, open.Y) + ", high " + FormatValue(chart, high.Y) + ", low " + FormatValue(chart, low.Y) + ", close " + FormatValue(chart, close.Y);
             var fillOpacity = rising ? ChartVisualPrimitives.CandlestickRisingFillOpacity : ChartVisualPrimitives.CandlestickFallingFillOpacity;
             var status = rising ? "rising" : "falling";
@@ -38,10 +39,23 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<rect data-cfx-role=\"candlestick-body\" x=\"{F(x - candleWidth / 2)}\" y=\"{F(bodyTop)}\" width=\"{F(candleWidth)}\" height=\"{F(bodyHeight)}\" rx=\"{F(ChartVisualPrimitives.CandlestickBodyRadius)}\" fill=\"{color.ToCss()}\" fill-opacity=\"{F(fillOpacity)}\" stroke=\"{color.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.CandlestickStrokeWidth)}\"/>");
             sb.AppendLine("</g>");
             var label = FormatValue(chart, close.Y);
-            var aboveY = bodyTop - chart.Options.Theme.DataLabelFontSize - 4;
-            var belowY = Math.Max(yOpen, yClose) + 5;
-            var labelY = aboveY < plot.Top + 2 ? belowY : aboveY;
-            if (ShouldDrawDataLabels(chart, series) && ReserveSvgLabel(label, x, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, labelY, plot);
+            if (ShouldDrawDataLabels(chart, series)) {
+                var placement = DataLabelPlacement(chart, series);
+                if (placement == ChartDataLabelPlacement.Left || placement == ChartDataLabelPlacement.Right) {
+                    var anchor = placement == ChartDataLabelPlacement.Left ? "end" : "start";
+                    var labelX = placement == ChartDataLabelPlacement.Left ? x - candleWidth / 2 - 8 : x + candleWidth / 2 + 8;
+                    if (ReserveSvgHorizontalLabel(label, labelX, bodyTop + bodyHeight / 2, anchor, chart, plot, reservedLabels)) DrawHorizontalValueLabel(sb, chart, label, labelX, bodyTop + bodyHeight / 2, anchor, plot, series, item);
+                } else {
+                    var aboveY = bodyTop - chart.Options.Theme.DataLabelFontSize - 4;
+                    var belowY = Math.Max(yOpen, yClose) + 5;
+                    var labelY = placement == ChartDataLabelPlacement.Below
+                        ? belowY
+                        : placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside
+                            ? bodyTop + bodyHeight / 2
+                            : aboveY < plot.Top + 2 ? belowY : aboveY;
+                    if (ReserveSvgLabel(label, x, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, labelY, plot, series: series, pointIndex: item);
+                }
+            }
         }
     }
 }

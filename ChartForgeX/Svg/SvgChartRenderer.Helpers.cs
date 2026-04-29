@@ -13,18 +13,20 @@ public sealed partial class SvgChartRenderer {
     private static void DrawLegend(StringBuilder sb, Chart chart, int w, int h) {
         if (!chart.Options.ShowLegend) return;
         var t = chart.Options.Theme;
-        var rows = BuildLegendRows(chart, w);
-        var y = h - 28.0 - Math.Max(0, rows.Count - 1) * LegendRowHeight;
-        sb.AppendLine("<g data-cfx-role=\"legend\">");
+        var area = LegendArea(chart, w, h);
+        var rows = BuildLegendRows(chart, area.Width);
+        var y = LegendStartY(chart, area, rows.Count);
+        sb.AppendLine($"<g data-cfx-role=\"legend\" data-cfx-position=\"{chart.Options.LegendPosition}\">");
         foreach (var row in rows) {
-            sb.AppendLine($"<g data-cfx-role=\"legend-row\" transform=\"translate(0 {F(y)})\">");
+            var xShift = LegendRowX(chart.Options.LegendPosition, area, row.Width);
+            sb.AppendLine($"<g data-cfx-role=\"legend-row\" transform=\"translate({F(area.X + xShift)} {F(y)})\">");
             foreach (var item in row.Items) {
-                var c = Color(chart, item.Index);
-                var label = SvgLegendLabel(chart, item.Index, w);
-                var series = chart.Series[item.Index];
-                sb.AppendLine($"<g data-cfx-role=\"legend-item\" data-cfx-series=\"{item.Index}\" data-cfx-kind=\"{Escape(series.Kind.ToString())}\" data-cfx-label=\"{Escape(series.Name)}\">");
-                DrawLegendSymbol(sb, chart.Series[item.Index].Kind, item.X, -4, c, t.CardBackground);
-                sb.AppendLine($"<text data-cfx-role=\"legend-label\" data-cfx-series=\"{item.Index}\" x=\"{F(item.X + 26)}\" y=\"0\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.LegendFontSize)}\" font-weight=\"600\">{Escape(label)}</text>");
+                var series = chart.Series[item.SeriesIndex];
+                var pointAttribute = item.PointIndex >= 0 ? $" data-cfx-point=\"{item.PointIndex}\"" : string.Empty;
+                sb.AppendLine($"<g data-cfx-role=\"legend-item\" data-cfx-series=\"{item.SeriesIndex}\"{pointAttribute} data-cfx-kind=\"{Escape(series.Kind.ToString())}\" data-cfx-label=\"{Escape(item.Label)}\">");
+                DrawLegendSymbol(sb, series.Kind, item.X, -4, item.Color, t.CardBackground);
+                var style = chart.Options.LegendStyle;
+                sb.AppendLine($"<text data-cfx-role=\"legend-label\" data-cfx-series=\"{item.SeriesIndex}\"{pointAttribute} x=\"{F(item.X + 26)}\" y=\"0\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, t.LegendFontSize))}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(item.Label)}</text>");
                 sb.AppendLine("</g>");
             }
 
@@ -34,34 +36,111 @@ public sealed partial class SvgChartRenderer {
         sb.AppendLine("</g>");
     }
 
-    private static List<LegendRow> BuildLegendRows(Chart chart, int width) {
+    private static List<LegendRow> BuildLegendRows(Chart chart, double width) {
         var rows = new List<LegendRow>();
         if (chart.Series.Count == 0) return rows;
 
-        var maxX = Math.Max(80, width - 40);
+        var maxX = Math.Max(64, width);
+        var vertical = IsVerticalLegend(chart.Options.LegendPosition);
         var row = new LegendRow();
         rows.Add(row);
-        var x = LegendStartX;
-        for (var i = 0; i < chart.Series.Count; i++) {
-            var label = SvgLegendLabel(chart, i, width);
-            var itemWidth = 34 + EstimateTextWidth(label, chart.Options.Theme.LegendFontSize) + 18;
-            if (row.Items.Count > 0 && x + itemWidth > maxX) {
+        var x = 0.0;
+        foreach (var entry in BuildLegendEntries(chart, width)) {
+            var itemWidth = Math.Min(maxX, 34 + EstimateTextWidth(entry.Label, chart.Options.Theme.LegendFontSize) + 18);
+            if (row.Items.Count > 0 && (vertical || x + itemWidth > maxX)) {
                 row = new LegendRow();
                 rows.Add(row);
-                x = LegendStartX;
+                x = 0;
             }
 
-            row.Items.Add(new LegendItem(i, x));
+            row.Items.Add(new LegendItem(entry.SeriesIndex, entry.PointIndex, x, itemWidth, entry.Label, entry.Color));
+            row.Width = Math.Max(row.Width, x + itemWidth);
             x += itemWidth;
         }
 
         return rows;
     }
 
-    private static string SvgLegendLabel(Chart chart, int index, int width) =>
+    private static string SvgLegendLabel(Chart chart, int index, double width) =>
         TrimSvgLabelToWidth(chart.Series[index].Name, chart.Options.Theme.LegendFontSize, LegendLabelMaxWidth(width));
 
-    private static double LegendLabelMaxWidth(int width) => Math.Max(48, Math.Min(220, width * 0.34));
+    private static List<LegendEntry> BuildLegendEntries(Chart chart, double width) {
+        if (!chart.Options.ShowPointLegend || chart.Series.Count != 1 || !CanUsePointLegend(chart.Series[0])) {
+            return chart.Series.Select((series, index) => new LegendEntry(index, -1, SvgLegendLabel(chart, index, width), Color(chart, index))).ToList();
+        }
+
+        var series0 = chart.Series[0];
+        var entries = new List<LegendEntry>();
+        var count = VisualPointCount(series0);
+        for (var i = 0; i < count; i++) {
+            var rawIndex = VisualPointRawIndex(series0, i);
+            if (rawIndex < 0 || rawIndex >= series0.Points.Count) continue;
+            var label = LegendPointLabel(chart, series0.Points[rawIndex], i);
+            label = TrimSvgLabelToWidth(label, chart.Options.Theme.LegendFontSize, LegendLabelMaxWidth(width));
+            entries.Add(new LegendEntry(0, i, label, LegendPointColor(chart, series0, 0, i)));
+        }
+
+        return entries.Count == 0 ? new List<LegendEntry> { new(0, -1, SvgLegendLabel(chart, 0, width), Color(chart, 0)) } : entries;
+    }
+
+    private static ChartColor LegendPointColor(Chart chart, ChartSeries series, int seriesIndex, int pointIndex) {
+        if (pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue) return series.PointColors[pointIndex]!.Value;
+        if (series.Color.HasValue) return series.Color.Value;
+        if (UsesPalettePointColors(series.Kind)) return chart.Options.Theme.Palette[pointIndex % chart.Options.Theme.Palette.Length];
+        return Color(chart, seriesIndex);
+    }
+
+    private static bool UsesPalettePointColors(ChartSeriesKind kind) =>
+        kind == ChartSeriesKind.Funnel || kind == ChartSeriesKind.Pictorial || kind == ChartSeriesKind.ProgressBar || kind == ChartSeriesKind.Treemap || kind == ChartSeriesKind.WordCloud;
+
+    private static double LegendLabelMaxWidth(double width) => Math.Max(48, Math.Min(IsVerticalLegendWidth(width) ? 170 : 260, width * 0.72));
+
+    private static bool IsVerticalLegendWidth(double width) => width <= 230;
+
+    private static ChartRect LegendArea(Chart chart, int w, int h) {
+        var padding = 32.0;
+        var position = chart.Options.LegendPosition;
+        if (IsLeftLegend(position)) return new ChartRect(padding, chart.Options.ShowHeader ? 100 : 48, LegendSideReserve(chart), Math.Max(1, h - (chart.Options.ShowHeader ? 130 : 78)));
+        if (IsRightLegend(position)) {
+            var width = LegendSideReserve(chart);
+            return new ChartRect(Math.Max(padding, w - width - padding), chart.Options.ShowHeader ? 100 : 48, width, Math.Max(1, h - (chart.Options.ShowHeader ? 130 : 78)));
+        }
+
+        var y = IsTopLegend(position) ? (chart.Options.ShowHeader ? 98 : 44) : Math.Max(44, h - LegendBottomReserve(chart) + 12);
+        return new ChartRect(40, y, Math.Max(1, w - 80), LegendBottomReserve(chart));
+    }
+
+    private static double LegendStartY(Chart chart, ChartRect area, int rowCount) {
+        if (IsBottomLegend(chart.Options.LegendPosition)) return area.Bottom - 24 - Math.Max(0, rowCount - 1) * LegendRowHeight;
+        return area.Top + 14;
+    }
+
+    private static double LegendRowX(ChartLegendPosition position, ChartRect area, double rowWidth) {
+        if (position == ChartLegendPosition.TopRight || position == ChartLegendPosition.BottomRight || position == ChartLegendPosition.Right) return area.Width - Math.Min(area.Width, rowWidth);
+        if (position == ChartLegendPosition.Top || position == ChartLegendPosition.Bottom) return Math.Max(0, (area.Width - rowWidth) / 2.0);
+        return 0;
+    }
+
+    private static double LegendBottomReserve(Chart chart) => 18 + BuildLegendRows(chart, Math.Max(1, chart.Options.Size.Width - 80)).Count * LegendRowHeight;
+
+    private static double LegendSideReserve(Chart chart) {
+        if (chart.Series.Count == 0) return 0;
+        var t = chart.Options.Theme;
+        var widest = BuildLegendEntries(chart, LegendSideReserveMaximumWidth).Max(item => EstimateTextWidth(item.Label, t.LegendFontSize));
+        return Math.Min(240, Math.Max(124, widest + 54));
+    }
+
+    private const double LegendSideReserveMaximumWidth = 240;
+
+    private static bool IsTopLegend(ChartLegendPosition position) => position == ChartLegendPosition.Top || position == ChartLegendPosition.TopLeft || position == ChartLegendPosition.TopRight;
+
+    private static bool IsBottomLegend(ChartLegendPosition position) => position == ChartLegendPosition.Bottom || position == ChartLegendPosition.BottomLeft || position == ChartLegendPosition.BottomRight;
+
+    private static bool IsLeftLegend(ChartLegendPosition position) => position == ChartLegendPosition.Left;
+
+    private static bool IsRightLegend(ChartLegendPosition position) => position == ChartLegendPosition.Right;
+
+    private static bool IsVerticalLegend(ChartLegendPosition position) => IsLeftLegend(position) || IsRightLegend(position);
 
     private static void DrawLegendSymbol(StringBuilder sb, ChartSeriesKind kind, double x, double y, ChartColor color, ChartColor background) {
         if (IsLineLikeLegend(kind)) {
@@ -90,25 +169,42 @@ public sealed partial class SvgChartRenderer {
         sb.AppendLine($"<text data-cfx-role=\"annotation-label-text\" data-cfx-label=\"{Escape(label)}\" x=\"{F(textX)}\" y=\"{F(rectY + 16)}\" text-anchor=\"{placement.Anchor}\" fill=\"{textColor.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(t.TickLabelFontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
     }
 
-    private static void DrawDataLabel(StringBuilder sb, Chart chart, string label, double x, double y, ChartRect plot, string role = "data-label") {
+    private static void DrawDataLabel(StringBuilder sb, Chart chart, string label, double x, double y, ChartRect plot, string role = "data-label", ChartSeries? series = null, int pointIndex = -1) {
         var t = chart.Options.Theme;
-        var fontSize = t.DataLabelFontSize;
+        var style = DataLabelStyle(chart, series, pointIndex);
+        var fontSize = StyleFontSize(style, t.DataLabelFontSize);
         label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
         if (label.Length == 0) return;
 
         var safeY = Clamp(y, plot.Top + fontSize * 0.7, plot.Bottom - fontSize * 0.35);
         var anchor = EdgeAwareAnchor(label, x, plot, fontSize);
         var safeX = Clamp(x, plot.Left + 4, plot.Right - 4);
-        sb.AppendLine($"<text data-cfx-role=\"{role}\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{t.Text.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+        sb.AppendLine($"<text data-cfx-role=\"{role}\" x=\"{F(safeX)}\" y=\"{F(safeY)}\" text-anchor=\"{anchor}\" dominant-baseline=\"middle\" fill=\"{StyleColor(style, t.Text).ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, fontSize))}\" font-weight=\"{StyleWeight(style, "700")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
     }
 
     private static bool ShouldDrawDataLabels(Chart chart, ChartSeries series) => series.ShowDataLabels ?? chart.Options.ShowDataLabels;
 
     private static bool HasHorizontalBarDataLabels(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.HorizontalBar && ShouldDrawDataLabels(chart, series));
 
-    private static void DrawHorizontalValueLabel(StringBuilder sb, Chart chart, string label, double x, double y, string anchor, ChartRect plot) {
+    private static ChartDataLabelPlacement DataLabelPlacement(Chart chart, ChartSeries? series) => series?.DataLabelPlacement ?? chart.Options.DataLabelPlacement;
+
+    private static ChartColor DataLabelConnectorColor(Chart chart) => chart.Options.DataLabelConnectorColor ?? chart.Options.Theme.MutedText;
+
+    private static ChartTextStyle SeriesDataLabelStyle(Chart chart, ChartSeries? series) => DataLabelStyle(chart, series);
+
+    private static ChartTextStyle DataLabelStyle(Chart chart, ChartSeries? series, int pointIndex = -1) {
+        if (series != null && pointIndex >= 0 && pointIndex < series.PointDataLabelStyles.Count) {
+            var pointStyle = series.PointDataLabelStyles[pointIndex];
+            if (pointStyle != null && pointStyle.HasOverrides) return pointStyle;
+        }
+
+        return series != null && series.DataLabelStyle.HasOverrides ? series.DataLabelStyle : chart.Options.DataLabelStyle;
+    }
+
+    private static void DrawHorizontalValueLabel(StringBuilder sb, Chart chart, string label, double x, double y, string anchor, ChartRect plot, ChartSeries? series = null, int pointIndex = -1) {
         var t = chart.Options.Theme;
-        var fontSize = t.DataLabelFontSize;
+        var style = DataLabelStyle(chart, series, pointIndex);
+        var fontSize = StyleFontSize(style, t.DataLabelFontSize);
         label = TrimSvgLabelToWidth(label, fontSize, Math.Max(8, plot.Width - 8));
         if (label.Length == 0) return;
 
@@ -125,7 +221,7 @@ public sealed partial class SvgChartRenderer {
             safeX = plot.Right - 4;
         }
 
-        sb.AppendLine($"<text data-cfx-role=\"data-label\" x=\"{F(safeX)}\" y=\"{F(Clamp(y, plot.Top + 4, plot.Bottom - 4))}\" text-anchor=\"{effectiveAnchor}\" dominant-baseline=\"middle\" fill=\"{t.Text.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"700\">{Escape(label)}</text>");
+        sb.AppendLine($"<text data-cfx-role=\"data-label\" x=\"{F(safeX)}\" y=\"{F(Clamp(y, plot.Top + 4, plot.Bottom - 4))}\" text-anchor=\"{effectiveAnchor}\" dominant-baseline=\"middle\" fill=\"{StyleColor(style, t.Text).ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"3\" paint-order=\"stroke fill\" stroke-linejoin=\"round\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(StyleFontSize(style, fontSize))}\" font-weight=\"{StyleWeight(style, "700")}\"{SvgTextStyleAttributes(style)}>{Escape(label)}</text>");
     }
 
     private static bool ReserveSvgHorizontalLabel(string label, double x, double y, string anchor, Chart chart, ChartRect plot, List<ChartLabelBounds> reserved) {
@@ -228,8 +324,9 @@ public sealed partial class SvgChartRenderer {
         return Math.Max(minFontSize, fontSize);
     }
 
-    private static void DrawSvgTextCenteredX(StringBuilder sb, Chart chart, string role, string text, double centerX, double y, ChartColor fill, double fontSize, double maxWidth, string fontWeight, ChartColor? stroke = null, double strokeWidth = 0, bool middleBaseline = true) {
-        var fittedFontSize = TextFontSizeForSvgWidth(text, Math.Max(8, maxWidth), fontSize);
+    private static void DrawSvgTextCenteredX(StringBuilder sb, Chart chart, string role, string text, double centerX, double y, ChartColor fill, double fontSize, double maxWidth, string fontWeight, ChartColor? stroke = null, double strokeWidth = 0, bool middleBaseline = true, ChartTextStyle? style = null) {
+        var preferredFontSize = StyleFontSize(style, fontSize);
+        var fittedFontSize = TextFontSizeForSvgWidth(text, Math.Max(8, maxWidth), preferredFontSize);
         var fittedText = TrimSvgLabelToWidth(text, fittedFontSize, Math.Max(8, maxWidth));
         if (fittedText.Length == 0) return;
 
@@ -238,44 +335,72 @@ public sealed partial class SvgChartRenderer {
         var strokeAttribute = stroke.HasValue && strokeWidth > 0
             ? $" stroke=\"{stroke.Value.ToCss()}\" stroke-width=\"{F(strokeWidth)}\" paint-order=\"stroke fill\" stroke-linejoin=\"round\""
             : string.Empty;
-        sb.AppendLine($"<text{roleAttribute} x=\"{F(centerX)}\" y=\"{F(y)}\" text-anchor=\"middle\"{baselineAttribute} fill=\"{fill.ToCss()}\"{strokeAttribute} font-family=\"{SvgFontFamily(chart.Options.Theme.FontFamily)}\" font-size=\"{F(fittedFontSize)}\" font-weight=\"{fontWeight}\">{Escape(fittedText)}</text>");
+        sb.AppendLine($"<text{roleAttribute} x=\"{F(centerX)}\" y=\"{F(y)}\" text-anchor=\"middle\"{baselineAttribute} fill=\"{StyleColor(style, fill).ToCss()}\"{strokeAttribute} font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fittedFontSize)}\" font-weight=\"{StyleWeight(style, fontWeight)}\"{SvgTextStyleAttributes(style)}>{Escape(fittedText)}</text>");
     }
 
-    private static void DrawSvgTextLeft(StringBuilder sb, Chart chart, string role, string text, double x, double y, ChartColor fill, double fontSize, double maxWidth, string fontWeight) {
-        var fittedFontSize = TextFontSizeForSvgWidth(text, Math.Max(8, maxWidth), fontSize);
+    private static void DrawSvgTextLeft(StringBuilder sb, Chart chart, string role, string text, double x, double y, ChartColor fill, double fontSize, double maxWidth, string fontWeight, ChartTextStyle? style = null) {
+        var preferredFontSize = StyleFontSize(style, fontSize);
+        var fittedFontSize = TextFontSizeForSvgWidth(text, Math.Max(8, maxWidth), preferredFontSize);
         var fittedText = TrimSvgLabelToWidth(text, fittedFontSize, Math.Max(8, maxWidth));
         if (fittedText.Length == 0) return;
         var roleAttribute = string.IsNullOrEmpty(role) ? string.Empty : $" data-cfx-role=\"{role}\"";
-        sb.AppendLine($"<text{roleAttribute} x=\"{F(x)}\" y=\"{F(y)}\" fill=\"{fill.ToCss()}\" font-family=\"{SvgFontFamily(chart.Options.Theme.FontFamily)}\" font-size=\"{F(fittedFontSize)}\" font-weight=\"{fontWeight}\">{Escape(fittedText)}</text>");
+        sb.AppendLine($"<text{roleAttribute} x=\"{F(x)}\" y=\"{F(y)}\" fill=\"{StyleColor(style, fill).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fittedFontSize)}\" font-weight=\"{StyleWeight(style, fontWeight)}\"{SvgTextStyleAttributes(style)}>{Escape(fittedText)}</text>");
     }
 
     private static void DrawSvgXAxisTitle(StringBuilder sb, Chart chart, ChartRect plot, double y, string role = "") {
         if (string.IsNullOrWhiteSpace(chart.XAxisTitle)) return;
-        DrawSvgTextCenteredX(sb, chart, role, chart.XAxisTitle, plot.Left + plot.Width / 2, y, chart.Options.Theme.MutedText, chart.Options.Theme.AxisTitleFontSize, plot.Width - 4, "600", middleBaseline: false);
+        DrawSvgTextCenteredX(sb, chart, role, chart.XAxisTitle, plot.Left + plot.Width / 2, y, chart.Options.Theme.MutedText, chart.Options.Theme.AxisTitleFontSize, plot.Width - 4, "600", middleBaseline: false, style: chart.Options.AxisTitleStyle);
     }
 
     private static void DrawSvgYAxisTitle(StringBuilder sb, Chart chart, ChartRect plot, double axisX, string role = "") {
         if (string.IsNullOrWhiteSpace(chart.YAxisTitle)) return;
         var t = chart.Options.Theme;
         var maxWidth = Math.Max(40, plot.Height * 0.72);
-        var fontSize = TextFontSizeForSvgWidth(chart.YAxisTitle, maxWidth, t.AxisTitleFontSize);
+        var style = chart.Options.AxisTitleStyle;
+        var fontSize = TextFontSizeForSvgWidth(chart.YAxisTitle, maxWidth, StyleFontSize(style, t.AxisTitleFontSize));
         var text = TrimSvgLabelToWidth(chart.YAxisTitle, fontSize, maxWidth);
         if (text.Length == 0) return;
         var roleAttribute = string.IsNullOrWhiteSpace(role) ? string.Empty : $" data-cfx-role=\"{role}\"";
-        sb.AppendLine($"<text{roleAttribute} transform=\"translate({F(axisX)} {F(plot.Top + plot.Height / 2)}) rotate(-90)\" text-anchor=\"middle\" fill=\"{t.MutedText.ToCss()}\" font-family=\"{SvgFontFamily(t.FontFamily)}\" font-size=\"{F(fontSize)}\" font-weight=\"600\">{Escape(text)}</text>");
+        sb.AppendLine($"<text{roleAttribute} transform=\"translate({F(axisX)} {F(plot.Top + plot.Height / 2)}) rotate(-90)\" text-anchor=\"middle\" fill=\"{StyleColor(style, t.MutedText).ToCss()}\" font-family=\"{SvgFontFamily(StyleFontFamily(chart, style))}\" font-size=\"{F(fontSize)}\" font-weight=\"{StyleWeight(style, "600")}\"{SvgTextStyleAttributes(style)}>{Escape(text)}</text>");
+    }
+
+    private static ChartColor StyleColor(ChartTextStyle? style, ChartColor fallback) => style?.Color ?? fallback;
+
+    private static double StyleFontSize(ChartTextStyle? style, double fallback) => style?.FontSize ?? fallback;
+
+    private static string StyleWeight(ChartTextStyle? style, string fallback) => style?.FontWeight ?? fallback;
+
+    private static string StyleFontFamily(Chart chart, ChartTextStyle? style) => style?.FontFamily ?? chart.Options.Theme.FontFamily;
+
+    private static string SvgTextStyleAttributes(ChartTextStyle? style) {
+        if (style == null) return string.Empty;
+        var value = string.Empty;
+        if (style.Italic) value += " font-style=\"italic\"";
+        if (style.Underline) value += " text-decoration=\"underline\"";
+        return value;
     }
 
     private static ChartColor Color(Chart chart, int index) => chart.Series[index].Color ?? chart.Options.Theme.Palette[index % chart.Options.Theme.Palette.Length];
 
+    private static ChartColor PointColor(Chart chart, ChartSeries series, int seriesIndex, int pointIndex) =>
+        pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue
+            ? series.PointColors[pointIndex]!.Value
+            : Color(chart, seriesIndex);
+
+    private static string BarFill(Chart chart, ChartSeries series, int seriesIndex, int pointIndex, string id) =>
+        pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue
+            ? series.PointColors[pointIndex]!.Value.ToCss()
+            : $"url(#{id}-seriesFill{seriesIndex})";
+
+    private static bool ShowXAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowXAxis;
+
+    private static bool ShowYAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowYAxis;
+
+    private static bool ShowAxisLines(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowAxisLines;
+
     private static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 
-    private static string FormatNumber(double v) {
-        var abs = Math.Abs(v);
-        if (abs >= 1000000000) return (v / 1000000000).ToString("0.#", CultureInfo.InvariantCulture) + "B";
-        if (abs >= 1000000) return (v / 1000000).ToString("0.#", CultureInfo.InvariantCulture) + "M";
-        if (abs >= 1000) return (v / 1000).ToString("0.#", CultureInfo.InvariantCulture) + "k";
-        return v.ToString("0.##", CultureInfo.InvariantCulture);
-    }
+    private static string FormatNumber(double v) => ChartNumericFormatter.FormatCompact(v);
 
     private static string FormatValue(Chart chart, double value) {
         var formatter = chart.Options.ValueFormatter;
@@ -409,9 +534,10 @@ public sealed partial class SvgChartRenderer {
         return sb.ToString();
     }
 
-    private static string BuildId(Chart chart) {
+    private static string BuildId(Chart chart, string idScope) {
         unchecked {
             uint hash = 2166136261;
+            Add(ref hash, idScope ?? string.Empty);
             Add(ref hash, chart.Title);
             Add(ref hash, chart.Subtitle);
             Add(ref hash, chart.Options.Size.Width.ToString(CultureInfo.InvariantCulture));
@@ -430,6 +556,13 @@ public sealed partial class SvgChartRenderer {
     }
 
     private static void Add(ref uint hash, string value) {
+        AddRaw(ref hash, value.Length.ToString(CultureInfo.InvariantCulture));
+        AddRaw(ref hash, ":");
+        AddRaw(ref hash, value);
+        AddRaw(ref hash, "|");
+    }
+
+    private static void AddRaw(ref uint hash, string value) {
         foreach (var ch in value) {
             hash ^= ch;
             hash *= 16777619;
@@ -471,6 +604,14 @@ public sealed partial class SvgChartRenderer {
 
     private static bool IsTreeChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Tree);
 
+    private static bool IsSunburstChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Sunburst);
+
+    private static bool IsPictorialChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.Pictorial);
+
+    private static bool IsProgressBarChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.ProgressBar);
+
+    private static bool IsWordCloudChart(Chart chart) => chart.Series.Any(series => series.Kind == ChartSeriesKind.WordCloud);
+
     private static string SliceLabel(Chart chart, ChartPoint point, int index) {
         foreach (var label in chart.Options.XAxisLabels) {
             if (Math.Abs(label.Value - point.X) < 0.000001) return label.Text;
@@ -479,19 +620,81 @@ public sealed partial class SvgChartRenderer {
         return "Slice " + (index + 1).ToString(CultureInfo.InvariantCulture);
     }
 
+    private static bool CanUsePointLegend(ChartSeries series) => VisualPointCount(series) > 1;
+
+    private static int VisualPointCount(ChartSeries series) {
+        var tupleSize = VisualTupleSize(series.Kind);
+        return tupleSize <= 1 ? series.Points.Count : series.Points.Count / tupleSize;
+    }
+
+    private static int VisualPointRawIndex(ChartSeries series, int pointIndex) {
+        var tupleSize = VisualTupleSize(series.Kind);
+        return tupleSize <= 1 ? pointIndex : pointIndex * tupleSize;
+    }
+
+    private static int VisualTupleSize(ChartSeriesKind kind) =>
+        kind == ChartSeriesKind.Bubble || kind == ChartSeriesKind.RangeBand || kind == ChartSeriesKind.RangeArea || kind == ChartSeriesKind.RangeBar || kind == ChartSeriesKind.Dumbbell
+            ? 2
+            : kind == ChartSeriesKind.ErrorBar
+                ? 3
+                : kind == ChartSeriesKind.Candlestick || kind == ChartSeriesKind.Ohlc
+                    ? 4
+                    : kind == ChartSeriesKind.BoxPlot
+                        ? 5
+                        : 1;
+
+    private static string LegendPointLabel(Chart chart, ChartPoint point, int index) {
+        foreach (var label in chart.Options.XAxisLabels) {
+            if (Math.Abs(label.Value - point.X) < 0.000001) return label.Text;
+        }
+
+        return "Item " + (index + 1).ToString(CultureInfo.InvariantCulture);
+    }
+
     private sealed class LegendRow {
         public List<LegendItem> Items { get; } = new();
+
+        public double Width { get; set; }
     }
 
     private readonly struct LegendItem {
-        public LegendItem(int index, double x) {
-            Index = index;
+        public LegendItem(int seriesIndex, int pointIndex, double x, double width, string label, ChartColor color) {
+            SeriesIndex = seriesIndex;
+            PointIndex = pointIndex;
             X = x;
+            Width = width;
+            Label = label;
+            Color = color;
         }
 
-        public int Index { get; }
+        public int SeriesIndex { get; }
+
+        public int PointIndex { get; }
 
         public double X { get; }
+
+        public double Width { get; }
+
+        public string Label { get; }
+
+        public ChartColor Color { get; }
+    }
+
+    private readonly struct LegendEntry {
+        public LegendEntry(int seriesIndex, int pointIndex, string label, ChartColor color) {
+            SeriesIndex = seriesIndex;
+            PointIndex = pointIndex;
+            Label = label;
+            Color = color;
+        }
+
+        public int SeriesIndex { get; }
+
+        public int PointIndex { get; }
+
+        public string Label { get; }
+
+        public ChartColor Color { get; }
     }
 
     private readonly struct BarLayoutInfo {

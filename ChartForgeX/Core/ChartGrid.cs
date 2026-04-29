@@ -11,6 +11,7 @@ namespace ChartForgeX.Core;
 /// </summary>
 public sealed class ChartGrid {
     private readonly List<Chart> _charts = new();
+    private readonly List<ChartGridPanelSpan> _panelSpans = new();
     private string _title = string.Empty;
     private string _subtitle = string.Empty;
     private int _columns = 2;
@@ -86,7 +87,10 @@ public sealed class ChartGrid {
     /// </summary>
     public ChartSize? PanelSize {
         get => _panelSize;
-        set => _panelSize = value;
+        set {
+            if (value.HasValue && (value.Value.Width <= 0 || value.Value.Height <= 0)) throw new ArgumentOutOfRangeException(nameof(value), "Grid panel size must have positive dimensions.");
+            _panelSize = value;
+        }
     }
 
     /// <summary>
@@ -105,13 +109,28 @@ public sealed class ChartGrid {
     /// </summary>
     public ChartTheme? Theme {
         get => _theme;
-        set => _theme = value ?? throw new ArgumentNullException(nameof(value));
+        set => _theme = value;
     }
+
+    /// <summary>
+    /// Gets the text style used for the grid title.
+    /// </summary>
+    public ChartTextStyle TitleStyle { get; } = new();
+
+    /// <summary>
+    /// Gets the text style used for the grid subtitle.
+    /// </summary>
+    public ChartTextStyle SubtitleStyle { get; } = new();
 
     /// <summary>
     /// Gets the charts included in the grid.
     /// </summary>
     public IReadOnlyList<Chart> Charts => _charts;
+
+    /// <summary>
+    /// Gets the panel spans for charts included in the grid.
+    /// </summary>
+    public IReadOnlyList<ChartGridPanelSpan> PanelSpans => _panelSpans;
 
     /// <summary>
     /// Creates a new chart grid.
@@ -132,6 +151,28 @@ public sealed class ChartGrid {
     /// <param name="subtitle">The report subtitle.</param>
     /// <returns>The current chart grid.</returns>
     public ChartGrid WithSubtitle(string subtitle) { Subtitle = subtitle ?? throw new ArgumentNullException(nameof(subtitle)); return this; }
+
+    /// <summary>
+    /// Configures grid title text styling.
+    /// </summary>
+    /// <param name="configure">The style configuration callback.</param>
+    /// <returns>The current chart grid.</returns>
+    public ChartGrid WithTitleStyle(Action<ChartTextStyle> configure) {
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
+        configure(TitleStyle);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures grid subtitle text styling.
+    /// </summary>
+    /// <param name="configure">The style configuration callback.</param>
+    /// <returns>The current chart grid.</returns>
+    public ChartGrid WithSubtitleStyle(Action<ChartTextStyle> configure) {
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
+        configure(SubtitleStyle);
+        return this;
+    }
 
     /// <summary>
     /// Sets the preferred number of columns on wide viewports.
@@ -207,9 +248,32 @@ public sealed class ChartGrid {
     /// </summary>
     /// <param name="chart">The chart to add.</param>
     /// <returns>The current chart grid.</returns>
-    public ChartGrid Add(Chart chart) {
+    public ChartGrid Add(Chart chart) => Add(chart, 1, 1);
+
+    /// <summary>
+    /// Adds a chart to the grid with a panel span.
+    /// </summary>
+    /// <param name="chart">The chart to add.</param>
+    /// <param name="columnSpan">The number of columns occupied by the chart panel.</param>
+    /// <param name="rowSpan">The number of rows occupied by the chart panel.</param>
+    /// <returns>The current chart grid.</returns>
+    public ChartGrid Add(Chart chart, int columnSpan, int rowSpan = 1) {
         if (chart == null) throw new ArgumentNullException(nameof(chart));
         _charts.Add(chart);
+        _panelSpans.Add(new ChartGridPanelSpan(columnSpan, rowSpan));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the panel span for an existing chart in the grid.
+    /// </summary>
+    /// <param name="chartIndex">The zero-based chart index.</param>
+    /// <param name="columnSpan">The number of columns occupied by the chart panel.</param>
+    /// <param name="rowSpan">The number of rows occupied by the chart panel.</param>
+    /// <returns>The current chart grid.</returns>
+    public ChartGrid WithPanelSpan(int chartIndex, int columnSpan, int rowSpan = 1) {
+        if (chartIndex < 0 || chartIndex >= _charts.Count) throw new ArgumentOutOfRangeException(nameof(chartIndex), chartIndex, "Chart index must reference an existing grid chart.");
+        _panelSpans[chartIndex] = new ChartGridPanelSpan(columnSpan, rowSpan);
         return this;
     }
 
@@ -224,6 +288,7 @@ public sealed class ChartGrid {
         var maximum = double.NegativeInfinity;
         var compatible = new List<Chart>();
         foreach (var chart in _charts) {
+            ChartGuards.RenderCompatibility(chart);
             if (!UsesCartesianYAxis(chart)) continue;
             var range = ChartRange.FromChart(chart, false);
             if (range.MinY < minimum) minimum = range.MinY;
@@ -248,6 +313,7 @@ public sealed class ChartGrid {
         var maximum = double.NegativeInfinity;
         var compatible = new List<Chart>();
         foreach (var chart in _charts) {
+            ChartGuards.RenderCompatibility(chart);
             if (!UsesCartesianXAxis(chart)) continue;
             var range = ChartRange.FromChart(chart, false);
             if (range.MinX < minimum) minimum = range.MinX;
@@ -287,6 +353,9 @@ public sealed class ChartGrid {
                 series.Kind == ChartSeriesKind.Gantt ||
                 series.Kind == ChartSeriesKind.Sankey ||
                 series.Kind == ChartSeriesKind.Tree ||
+                series.Kind == ChartSeriesKind.Sunburst ||
+                series.Kind == ChartSeriesKind.Pictorial ||
+                series.Kind == ChartSeriesKind.WordCloud ||
                 series.Kind == ChartSeriesKind.Pie ||
                 series.Kind == ChartSeriesKind.Donut ||
                 series.Kind == ChartSeriesKind.PolarArea) {
@@ -314,6 +383,9 @@ public sealed class ChartGrid {
                 series.Kind == ChartSeriesKind.Gantt ||
                 series.Kind == ChartSeriesKind.Sankey ||
                 series.Kind == ChartSeriesKind.Tree ||
+                series.Kind == ChartSeriesKind.Sunburst ||
+                series.Kind == ChartSeriesKind.Pictorial ||
+                series.Kind == ChartSeriesKind.WordCloud ||
                 series.Kind == ChartSeriesKind.Pie ||
                 series.Kind == ChartSeriesKind.Donut ||
                 series.Kind == ChartSeriesKind.PolarArea) {

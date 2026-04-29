@@ -31,7 +31,7 @@ public sealed partial class PngChartRenderer {
             var start = -Math.PI / 2 + i * sweep;
             var end = start + sweep;
             var segmentRadius = radius * Math.Sqrt(values[i].Y / max);
-            var color = chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length];
+            var color = PieSliceColor(chart, series, i);
             c.FillRingSlice(cx, cy, segmentRadius, 0, start, end, color);
             DrawSliceSeparator(c, cx, cy, segmentRadius, 0, start, separator);
             c.DrawArc(cx, cy, segmentRadius, start, end, separator, ChartVisualPrimitives.SliceSeparatorStrokeWidth);
@@ -46,7 +46,7 @@ public sealed partial class PngChartRenderer {
         }
 
         if (chart.Options.ShowGrid) c.DrawCircleOutline(cx, cy, radius, ApplyOpacity(chart.Options.Theme.Grid, ChartVisualPrimitives.PolarAreaGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
-        if (chart.Options.ShowLegend) DrawSliceLegend(c, chart, values, plot, total);
+        if (chart.Options.ShowLegend) DrawSliceLegend(c, chart, series, values, plot, total);
     }
 
     private static void DrawPolarAreaGrid(RgbaCanvas c, Chart chart, double cx, double cy, double radius) {

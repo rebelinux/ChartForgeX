@@ -1,0 +1,30 @@
+using System;
+using ChartForgeX;
+using ChartForgeX.Core;
+using ChartForgeX.Themes;
+
+namespace ChartForgeX.Tests;
+
+internal static partial class SmokeTests {
+    private static void SunburstLinksRenderRadialHierarchy() {
+        var chart = Chart.Create()
+            .WithSize(760, 520)
+            .WithTheme(ChartTheme.Aurora())
+            .AddSunburst("Control partition", new[] {
+                new ChartTreeLink("Security posture", "Mail authentication", 42),
+                new ChartTreeLink("Security posture", "Certificate lifecycle", 28),
+                new ChartTreeLink("Security posture", "DNS hygiene", 18),
+                new ChartTreeLink("Mail authentication", "SPF", 16),
+                new ChartTreeLink("Mail authentication", "DKIM", 14),
+                new ChartTreeLink("Certificate lifecycle", "Expiry monitoring", 17)
+            });
+
+        var svg = chart.ToSvg();
+        Assert(svg.Contains("data-cfx-role=\"sunburst-chart\"", StringComparison.Ordinal), "Sunburst charts should expose a chart role marker.");
+        Assert(CountOccurrences(svg, "data-cfx-role=\"sunburst-segment\"") == 7, "Sunburst charts should render one segment per hierarchy node.");
+        Assert(svg.Contains("data-cfx-depth=\"2\"", StringComparison.Ordinal), "Sunburst segments should expose depth metadata.");
+        Assert(svg.Contains("role=\"img\" aria-label=\"Mail authentication:", StringComparison.Ordinal), "Sunburst segments should expose accessible summaries.");
+        Assert(svg.Contains("data-cfx-role=\"sunburst-label\"", StringComparison.Ordinal), "Sunburst charts should render readable labels.");
+        Assert(chart.ToPng().Length > 64, "Sunburst charts should render PNG output.");
+    }
+}

@@ -280,6 +280,13 @@ public sealed partial class Chart {
     public Chart WithLegend(bool visible = true) { Options.ShowLegend = visible; return this; }
 
     /// <summary>
+    /// Sets whether capable legends should render one entry per visual point instead of one entry per series.
+    /// </summary>
+    /// <param name="visible">True to render point-level legend entries; otherwise false.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithPointLegend(bool visible = true) { Options.ShowPointLegend = visible; return this; }
+
+    /// <summary>
     /// Sets whether the chart title and subtitle should be rendered.
     /// </summary>
     /// <param name="visible">True to render the header; otherwise false.</param>
@@ -299,20 +306,6 @@ public sealed partial class Chart {
     /// <param name="visible">True to render the plot background; otherwise false.</param>
     /// <returns>The current chart.</returns>
     public Chart WithPlotBackground(bool visible = true) { Options.ShowPlotBackground = visible; return this; }
-
-    /// <summary>
-    /// Sets whether grid lines should be rendered.
-    /// </summary>
-    /// <param name="visible">True to render grid lines; otherwise false.</param>
-    /// <returns>The current chart.</returns>
-    public Chart WithGrid(bool visible = true) { Options.ShowGrid = visible; return this; }
-
-    /// <summary>
-    /// Sets whether axes, tick labels, and axis titles should be rendered.
-    /// </summary>
-    /// <param name="visible">True to render axes; otherwise false.</param>
-    /// <returns>The current chart.</returns>
-    public Chart WithAxes(bool visible = true) { Options.ShowAxes = visible; return this; }
 
     /// <summary>
     /// Sets the preferred number of ticks per axis.
@@ -359,6 +352,13 @@ public sealed partial class Chart {
     /// <param name="visible">True to render data labels; otherwise false.</param>
     /// <returns>The current chart.</returns>
     public Chart WithDataLabels(bool visible = true) { Options.ShowDataLabels = visible; return this; }
+
+    /// <summary>
+    /// Sets the preferred data-label placement for capable renderers.
+    /// </summary>
+    /// <param name="placement">The preferred placement.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithDataLabelPlacement(ChartDataLabelPlacement placement) { Options.DataLabelPlacement = placement; return this; }
 
     /// <summary>
     /// Sets how multiple bar series are arranged within each category.
@@ -424,6 +424,8 @@ public sealed partial class Chart {
         Options.ShowLegend = !enabled;
         Options.ShowGrid = !enabled;
         Options.ShowAxes = !enabled;
+        Options.ShowXAxis = !enabled;
+        Options.ShowYAxis = !enabled;
         Options.ShowCard = !enabled;
         Options.ShowPlotBackground = !enabled;
         if (enabled) Options.Padding = new ChartPadding(8, 8, 8, 8);
@@ -451,7 +453,11 @@ public sealed partial class Chart {
         if (labels == null) throw new ArgumentNullException(nameof(labels));
         Options.XAxisLabels.Clear();
         var materialized = labels.ToArray();
-        foreach (var label in materialized) ChartGuards.Finite(label.Value, nameof(labels));
+        foreach (var label in materialized) {
+            ChartGuards.Finite(label.Value, nameof(labels));
+            if (label.Text == null) throw new ArgumentException("Axis label text must not be null.", nameof(labels));
+        }
+
         Options.XAxisLabels.AddRange(materialized);
         return this;
     }
@@ -585,7 +591,12 @@ public sealed partial class Chart {
     /// <param name="points">The cell values. The x values identify columns and the y values set cell intensity.</param>
     /// <param name="color">An optional high-intensity cell color.</param>
     /// <returns>The current chart.</returns>
-    public Chart AddHeatmapRow(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) => Add(name, ChartSeriesKind.Heatmap, points, color);
+    public Chart AddHeatmapRow(string name, IEnumerable<ChartPoint> points, ChartColor? color = null) {
+        var materialized = ChartGuards.Points(points, nameof(points));
+        if (materialized.Count == 0) throw new ArgumentException("Heatmap rows must contain at least one cell value.", nameof(points));
+        Series.Add(new ChartSeries(name ?? throw new ArgumentNullException(nameof(name)), ChartSeriesKind.Heatmap, materialized) { Color = color });
+        return this;
+    }
 
     /// <summary>
     /// Adds a single-value gauge series.

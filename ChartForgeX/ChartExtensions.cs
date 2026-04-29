@@ -1,9 +1,12 @@
+using System;
 using System.IO;
 using System.Text;
 using ChartForgeX.Core;
 using ChartForgeX.Html;
+using ChartForgeX.Primitives;
 using ChartForgeX.Raster;
 using ChartForgeX.Svg;
+using ChartForgeX.Themes;
 
 namespace ChartForgeX;
 
@@ -12,11 +15,99 @@ namespace ChartForgeX;
 /// </summary>
 public static class ChartExtensions {
     /// <summary>
+    /// Configures the current chart theme in place.
+    /// </summary>
+    /// <param name="chart">The chart to configure.</param>
+    /// <param name="configure">The theme customization callback.</param>
+    /// <returns>The current chart.</returns>
+    public static Chart WithTheme(this Chart chart, Action<ChartTheme> configure) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
+        configure(chart.Options.Theme);
+        return chart;
+    }
+
+    /// <summary>
+    /// Sets the default series palette on the current chart theme.
+    /// </summary>
+    /// <param name="chart">The chart to configure.</param>
+    /// <param name="colors">The palette colors.</param>
+    /// <returns>The current chart.</returns>
+    public static Chart WithPalette(this Chart chart, params ChartColor[] colors) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
+        chart.Options.Theme.Palette = colors;
+        return chart;
+    }
+
+    /// <summary>
+    /// Sets the default series palette on the current chart theme from hexadecimal color strings.
+    /// </summary>
+    /// <param name="chart">The chart to configure.</param>
+    /// <param name="colors">The color strings in #RGB, #RGBA, #RRGGBB, or #RRGGBBAA notation.</param>
+    /// <returns>The current chart.</returns>
+    public static Chart WithPalette(this Chart chart, params string[] colors) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
+        chart.Options.Theme.Palette = ChartPalettes.FromHex(colors);
+        return chart;
+    }
+
+    /// <summary>
+    /// Applies a reusable brand kit to the current chart theme.
+    /// </summary>
+    /// <param name="chart">The chart to configure.</param>
+    /// <param name="brandKit">The brand kit to apply.</param>
+    /// <returns>The current chart.</returns>
+    public static Chart WithBrandKit(this Chart chart, ChartBrandKit brandKit) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
+        if (brandKit == null) throw new ArgumentNullException(nameof(brandKit));
+        brandKit.ApplyTo(chart.Options.Theme);
+        return chart;
+    }
+
+    /// <summary>
+    /// Configures the current chart grid theme in place, creating a light grid theme when the grid is currently automatic.
+    /// </summary>
+    /// <param name="grid">The chart grid to configure.</param>
+    /// <param name="configure">The theme customization callback.</param>
+    /// <returns>The current chart grid.</returns>
+    public static ChartGrid WithTheme(this ChartGrid grid, Action<ChartTheme> configure) {
+        if (grid == null) throw new ArgumentNullException(nameof(grid));
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
+        var theme = grid.Theme ?? ChartTheme.Light();
+        configure(theme);
+        grid.Theme = theme;
+        return grid;
+    }
+
+    /// <summary>
+    /// Applies a reusable brand kit to the current chart grid theme, creating a light grid theme when the grid is currently automatic.
+    /// </summary>
+    /// <param name="grid">The chart grid to configure.</param>
+    /// <param name="brandKit">The brand kit to apply.</param>
+    /// <returns>The current chart grid.</returns>
+    public static ChartGrid WithBrandKit(this ChartGrid grid, ChartBrandKit brandKit) {
+        if (grid == null) throw new ArgumentNullException(nameof(grid));
+        if (brandKit == null) throw new ArgumentNullException(nameof(brandKit));
+        var theme = grid.Theme ?? ChartTheme.Light();
+        brandKit.ApplyTo(theme);
+        grid.Theme = theme;
+        return grid;
+    }
+
+    /// <summary>
     /// Renders a chart to SVG markup.
     /// </summary>
     /// <param name="chart">The chart to render.</param>
     /// <returns>SVG markup.</returns>
     public static string ToSvg(this Chart chart) => new SvgChartRenderer().Render(chart);
+
+    /// <summary>
+    /// Renders a chart to SVG markup with an additional deterministic ID scope.
+    /// </summary>
+    /// <param name="chart">The chart to render.</param>
+    /// <param name="idScope">A caller-provided scope used to keep SVG element IDs unique when embedding multiple SVGs in one document.</param>
+    /// <returns>SVG markup.</returns>
+    public static string ToSvg(this Chart chart, string idScope) => new SvgChartRenderer().Render(chart, idScope);
 
     /// <summary>
     /// Renders a chart to a standalone HTML fragment containing inline SVG.
@@ -73,6 +164,14 @@ public static class ChartExtensions {
     /// <param name="grid">The chart grid to render.</param>
     /// <returns>SVG markup.</returns>
     public static string ToSvg(this ChartGrid grid) => new SvgChartGridRenderer().Render(grid);
+
+    /// <summary>
+    /// Renders a chart grid to SVG markup with an additional deterministic ID scope.
+    /// </summary>
+    /// <param name="grid">The chart grid to render.</param>
+    /// <param name="idScope">A caller-provided scope used to keep SVG element IDs unique when embedding multiple SVG grids in one document.</param>
+    /// <returns>SVG markup.</returns>
+    public static string ToSvg(this ChartGrid grid, string idScope) => new SvgChartGridRenderer().Render(grid, idScope);
 
     /// <summary>
     /// Renders a chart grid to a standalone HTML fragment containing inline SVG charts.

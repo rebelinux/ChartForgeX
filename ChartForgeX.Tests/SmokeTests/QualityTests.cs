@@ -66,10 +66,13 @@ internal static partial class SmokeTests {
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddPolarArea("Polar", Points(92, 74, 88)),
             Chart.Create().WithSize(640, 360).WithXLabels("A", "B", "C").AddFunnel("Funnel", Points(420, 318, 174)),
             Chart.Create().WithSize(640, 360).AddTreemap("Treemap", new[] { new ChartTreemapItem("A", 50), new ChartTreemapItem("B", 30), new ChartTreemapItem("C", 20) }),
+            Chart.Create().WithSize(640, 360).AddPictorial("Pictorial", new[] { new ChartPictorialItem("A", 50), new ChartPictorialItem("B", 30), new ChartPictorialItem("C", 20) }, ChartPictorialShape.Diamond),
+            Chart.Create().WithSize(640, 360).AddWordCloud("WordCloud", new[] { new ChartWordCloudItem("Alpha", 50), new ChartWordCloudItem("Beta", 30), new ChartWordCloudItem("Gamma", 20) }),
             Chart.Create().WithSize(640, 360).AddTimelineItem("Timeline", timelineStart, timelineStart.AddDays(14)),
             Chart.Create().WithSize(640, 360).WithGanttToday(timelineStart.AddDays(8)).AddGanttTask("Gantt", timelineStart, timelineStart.AddDays(14), 0.5),
             Chart.Create().WithSize(640, 360).AddSankey("Sankey", new[] { new ChartSankeyLink("A", "B", 10), new ChartSankeyLink("B", "C", 7) }),
             Chart.Create().WithSize(640, 360).AddTree("Tree", new[] { new ChartTreeLink("A", "B"), new ChartTreeLink("A", "C") }),
+            Chart.Create().WithSize(640, 360).AddSunburst("Sunburst", new[] { new ChartTreeLink("A", "B", 10), new ChartTreeLink("A", "C", 7), new ChartTreeLink("B", "D", 4) }),
             Chart.Create().WithSize(640, 360).WithXLabels("Passed", "Warnings", "Failed").AddDonut("Donut", Points(70, 20, 10)),
             Chart.Create().WithSize(360, 90).WithSparkline().AddSmoothArea("Spark", Points(10, 14, 13, 19))
         };

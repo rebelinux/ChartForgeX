@@ -27,11 +27,10 @@ public sealed partial class SvgChartRenderer {
             var start = -Math.PI / 2 + i * sweep;
             var end = start + sweep;
             var segmentRadius = radius * Math.Sqrt(values[i].Y / max);
-            var color = t.Palette[i % t.Palette.Length];
             var label = SliceLabel(chart, values[i], i);
             var percent = values[i].Y / total;
             var summary = label + ": " + FormatValue(chart, values[i].Y) + ", " + FormatPercent(percent);
-            sb.AppendLine($"<path data-cfx-role=\"polar-area-segment\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(values[i].Y)}\" data-cfx-percent=\"{F(percent)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{BuildSlicePath(cx, cy, segmentRadius, 0, start, end)}\" fill=\"url(#{id}-sliceFill{i % t.Palette.Length})\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.SliceSeparatorStrokeWidth)}\"/>");
+            sb.AppendLine($"<path data-cfx-role=\"polar-area-segment\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(label)}\" data-cfx-value=\"{F(values[i].Y)}\" data-cfx-percent=\"{F(percent)}\" role=\"img\" aria-label=\"{Escape(summary)}\" d=\"{BuildSlicePath(cx, cy, segmentRadius, 0, start, end)}\" fill=\"{PieSliceFill(chart, series, i, id)}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.SliceSeparatorStrokeWidth)}\"/>");
 
             if (ShouldDrawDataLabels(chart, series) && segmentRadius > ChartVisualPrimitives.PolarAreaLabelMinRadius) {
                 var mid = start + sweep / 2;
@@ -40,7 +39,7 @@ public sealed partial class SvgChartRenderer {
             }
         }
 
-        if (chart.Options.ShowLegend) DrawSliceLegend(sb, chart, values, plot, total);
+        if (chart.Options.ShowLegend) DrawSliceLegend(sb, chart, series, values, plot, total);
         sb.AppendLine("</g>");
     }
 

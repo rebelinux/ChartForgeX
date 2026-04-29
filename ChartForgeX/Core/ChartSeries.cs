@@ -10,6 +10,7 @@ namespace ChartForgeX.Core;
 public sealed class ChartSeries {
     private double _strokeWidth = 3;
     private ChartAxisSide _yAxis = ChartAxisSide.Primary;
+    private ChartDataLabelPlacement? _dataLabelPlacement;
 
     /// <summary>
     /// Gets the display name shown in legends.
@@ -32,6 +33,21 @@ public sealed class ChartSeries {
     public ChartColor? Color { get; set; }
 
     /// <summary>
+    /// Gets optional point-level colors. Null entries fall back to the series color or theme palette.
+    /// </summary>
+    public List<ChartColor?> PointColors { get; } = new();
+
+    /// <summary>
+    /// Gets optional point-level data-label styles. Null entries fall back to the series or chart data-label style.
+    /// </summary>
+    public List<ChartTextStyle?> PointDataLabelStyles { get; } = new();
+
+    /// <summary>
+    /// Gets optional point-level pie/donut slice offset ratios. Zero entries use the default slice position.
+    /// </summary>
+    public List<double> PointSliceOffsets { get; } = new();
+
+    /// <summary>
     /// Gets or sets a value indicating whether capable renderers should smooth connected line segments.
     /// </summary>
     public bool Smooth { get; set; }
@@ -40,6 +56,22 @@ public sealed class ChartSeries {
     /// Gets or sets a series-specific data-label override. When null, the chart-level setting is used.
     /// </summary>
     public bool? ShowDataLabels { get; set; }
+
+    /// <summary>
+    /// Gets or sets the series-specific data-label placement. When null, the chart-level placement is used.
+    /// </summary>
+    public ChartDataLabelPlacement? DataLabelPlacement {
+        get => _dataLabelPlacement;
+        set {
+            if (value.HasValue && !Enum.IsDefined(typeof(ChartDataLabelPlacement), value.Value)) throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown data-label placement.");
+            _dataLabelPlacement = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets the series-specific data-label style. When empty, the chart-level data-label style is used.
+    /// </summary>
+    public ChartTextStyle DataLabelStyle { get; } = new();
 
     /// <summary>
     /// Gets or sets the vertical axis used for cartesian rendering.
@@ -65,6 +97,77 @@ public sealed class ChartSeries {
     }
 
     /// <summary>
+    /// Sets the series color. Pass null to use the chart theme palette.
+    /// </summary>
+    /// <param name="color">The series color, or null to use the theme palette.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithColor(ChartColor? color) {
+        Color = color;
+        return this;
+    }
+
+    /// <summary>
+    /// Clears the series color so the chart theme palette is used.
+    /// </summary>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseThemeColor() {
+        Color = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the color for one point. Pass null to use the series color or theme palette.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <param name="color">The point color, or null to use the series color.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithPointColor(int pointIndex, ChartColor? color) {
+        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        while (PointColors.Count <= pointIndex) PointColors.Add(null);
+        PointColors[pointIndex] = color;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the color for one point from hex notation.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <param name="hex">The point color in #RGB, #RGBA, #RRGGBB, or #RRGGBBAA notation.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithPointColor(int pointIndex, string hex) => WithPointColor(pointIndex, ChartColor.FromHex(hex));
+
+    /// <summary>
+    /// Clears the color for one point so the series color or theme palette is used.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseSeriesColor(int pointIndex) {
+        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        if (pointIndex < PointColors.Count) PointColors[pointIndex] = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the stroke width for line and area series.
+    /// </summary>
+    /// <param name="width">The stroke width in pixels.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithStrokeWidth(double width) {
+        StrokeWidth = width;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets whether capable renderers should smooth connected line segments.
+    /// </summary>
+    /// <param name="smooth">True to smooth connected segments; otherwise false.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithSmooth(bool smooth = true) {
+        Smooth = smooth;
+        return this;
+    }
+
+    /// <summary>
     /// Sets a series-specific data-label visibility override.
     /// </summary>
     /// <param name="visible">A value indicating whether labels should render for this series.</param>
@@ -80,6 +183,89 @@ public sealed class ChartSeries {
     /// <returns>The current series.</returns>
     public ChartSeries UseChartDataLabels() {
         ShowDataLabels = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a series-specific data-label placement.
+    /// </summary>
+    /// <param name="placement">The preferred placement.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithDataLabelPlacement(ChartDataLabelPlacement placement) {
+        DataLabelPlacement = placement;
+        return this;
+    }
+
+    /// <summary>
+    /// Clears the series-specific data-label placement and uses the chart-level placement.
+    /// </summary>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseChartDataLabelPlacement() {
+        DataLabelPlacement = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures series-specific data-label styling.
+    /// </summary>
+    /// <param name="configure">The style configuration callback.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithDataLabelStyle(Action<ChartTextStyle> configure) {
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
+        configure(DataLabelStyle);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures data-label styling for one point.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <param name="configure">The style configuration callback.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithPointDataLabelStyle(int pointIndex, Action<ChartTextStyle> configure) {
+        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
+        while (PointDataLabelStyles.Count <= pointIndex) PointDataLabelStyles.Add(null);
+        var style = PointDataLabelStyles[pointIndex] ?? new ChartTextStyle();
+        configure(style);
+        PointDataLabelStyles[pointIndex] = style;
+        return this;
+    }
+
+    /// <summary>
+    /// Clears point-specific data-label styling for one point.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseSeriesDataLabelStyle(int pointIndex) {
+        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        if (pointIndex < PointDataLabelStyles.Count) PointDataLabelStyles[pointIndex] = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the pie/donut slice offset ratio for one point.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <param name="ratio">The offset ratio from zero to 0.35 of the outer radius.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries WithPointSliceOffset(int pointIndex, double ratio) {
+        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ChartGuards.Finite(ratio, nameof(ratio));
+        if (ratio < 0 || ratio > 0.35) throw new ArgumentOutOfRangeException(nameof(ratio), ratio, "Slice offset ratio must be between zero and 0.35.");
+        while (PointSliceOffsets.Count <= pointIndex) PointSliceOffsets.Add(0);
+        PointSliceOffsets[pointIndex] = ratio;
+        return this;
+    }
+
+    /// <summary>
+    /// Clears the pie/donut slice offset ratio for one point.
+    /// </summary>
+    /// <param name="pointIndex">The zero-based point index.</param>
+    /// <returns>The current series.</returns>
+    public ChartSeries UseDefaultSliceOffset(int pointIndex) {
+        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        if (pointIndex < PointSliceOffsets.Count) PointSliceOffsets[pointIndex] = 0;
         return this;
     }
 
@@ -109,6 +295,7 @@ public sealed class ChartSeries {
     /// <param name="points">The ordered data points.</param>
     public ChartSeries(string name, ChartSeriesKind kind, IEnumerable<ChartPoint> points) {
         Name = name ?? throw new ArgumentNullException(nameof(name));
+        if (!Enum.IsDefined(typeof(ChartSeriesKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown series kind.");
         Kind = kind;
         Points.AddRange(ChartGuards.Points(points, nameof(points)));
     }

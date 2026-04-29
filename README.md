@@ -37,7 +37,7 @@ Run the full local quality loop with:
 ./Build.ps1
 ```
 
-That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs the core library, creates a `.snupkg` symbol package, verifies package contents, verifies the package has no runtime NuGet dependencies, and installs the freshly packed package into a clean temporary console app. The generated demo entry points are `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/catalog.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`, and `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`.
+That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs the core library, creates a `.snupkg` symbol package, verifies package contents, verifies the package has no runtime NuGet dependencies, and installs the freshly packed package into a clean temporary console app. The generated demo entry points are `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/catalog.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`, and `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`. The catalog includes theme, brand-kit, palette-swatch, pictorial-symbol, pictorial-Isotype, point-color customization, and word-cloud-control picker pages so visual choices can be reviewed in HTML, SVG, and PNG.
 
 The GitHub Actions workflow is configured for private repositories and requires a self-hosted runner with the labels `self-hosted` and `private`.
 
@@ -111,10 +111,11 @@ var report = ChartGrid.Create()
     .WithPadding(32)
     .WithPanelSize(520, 320)
     .WithPanelFit(ChartGridPanelFit.Contain)
-    .Add(gaugeChart)
+    .Add(gaugeChart, columnSpan: 2)
     .Add(trendChart)
     .Add(coverageChart)
     .Add(findingsChart)
+    .WithPanelSpan(2, columnSpan: 2)
     .WithSharedAxes();
 
 report.SaveHtml("scorecards.html");
@@ -122,7 +123,13 @@ report.SaveSvg("scorecards.svg");
 report.SavePng("scorecards.png");
 ```
 
+Use `Add(chart, columnSpan, rowSpan)` or `WithPanelSpan(index, columnSpan, rowSpan)` when a report needs a hero panel, wide trend, or tall narrative chart without creating a new chart type just for layout.
+
+ChartForgeX validates chart data before rendering so invalid report payloads fail close to the caller instead of producing partial markup or malformed PNGs. Public APIs reject non-finite numbers, invalid enum values, empty required data sets, malformed specialized series, negative proportional values, cyclic Sankey flows, and tree data with multiple roots or parents. HTML fragments and grids scope child SVG IDs per render, so repeated or identical charts can be safely embedded on the same page. When embedding raw SVG strings yourself, pass a stable scope such as `chart.ToSvg("panel-a")` or `grid.ToSvg("report-a")` to keep element IDs unique without giving up deterministic output.
+
 For a single chart, `WithXAxisBounds(minimum, maximum)` and `WithYAxisBounds(minimum, maximum)` pin cartesian axes explicitly. `WithAutomaticXAxisBounds()` and `WithAutomaticYAxisBounds()` return them to data-driven scaling.
+
+Use `WithXAxisVisible(false)` or `WithYAxisVisible(false)` when an infographic-style chart should keep one axis worth of labels while removing the other axis line, ticks, and title. Use `WithAxisLines(false)` when tick labels and titles should remain but the axis rules and zero-lines should disappear. For example, horizontal scorecards often keep category labels on the left and hide the numeric value axis plus the remaining axis rule.
 
 Generated numeric x-axis ticks can be formatted independently from y-axis values and data labels. The same formatter is used by numeric timeline and Gantt summaries:
 
@@ -146,6 +153,18 @@ var labels = Chart.Create()
     .AddLine("Hidden", Points(84));
 
 labels.Series[1].WithDataLabels(false);
+```
+
+Series can also be styled after data is added:
+
+```csharp
+labels.Series[0]
+    .WithColor(ChartColor.FromHex("#EC4899"))
+    .WithPointColor(0, "#14B8A6")
+    .WithStrokeWidth(4)
+    .WithSmooth();
+
+labels.Series[0].UseThemeColor();
 ```
 
 Bar-line combo charts add a bar series first and render the line on top:
@@ -202,19 +221,136 @@ var observed = Chart.Create()
 | Horizontal bar | `AddHorizontalBar`, `WithStackedHorizontalBars` | Long category names and stacked composition across long categories |
 | Heatmap | `AddHeatmapRow` | Matrix values and coverage grids |
 | Gauge | `AddGauge` | Single score or KPI |
-| Circle | `AddCircle` | Compact single-value progress KPIs |
-| Radial bar | `AddRadialBar` | Circular progress rings for multiple KPI percentages |
+| Circle | `AddCircle`, `WithCircleStatusLabel`, `WithCircleRadiusScale`, `WithCircleStrokeScale` | Compact single-value progress KPIs with tunable ring sizing |
+| Radial bar | `AddRadialBar`, `WithRadialBarCenterLabel`, `WithRadialBarRadiusScale`, `WithRadialBarStrokeScale` | Circular progress rings for multiple KPI percentages with tunable radius and stroke weight |
 | Bullet | `AddBullet` | Value, target, and qualitative ranges |
 | Waterfall | `AddWaterfall` | Cumulative positive and negative changes |
 | Radar | `AddRadar` | Multi-axis profile comparison |
 | Polar area | `AddPolarArea` | Equal-angle radial contribution comparison |
 | Funnel | `AddFunnel` | Stage drop-off |
 | Treemap | `AddTreemap` | Part-to-whole composition across many labeled items |
+| Pictorial | `AddPictorial`, `ChartPictorialItem`, `ChartPictorialShape`, `WithPictorialShape`, `WithPictorialColumns`, `WithPictorialMaximum`, `WithPictorialValuePerSymbol`, `WithPictorialValues`, `WithPictorialSymbolScale`, `WithPictorialEmptyOpacity`, `WithPictorialSvgPath` | Icon-row charts for playful scorecards and audience-friendly comparisons. Built-in shapes include `Circle`, `Square`, `Diamond`, `Triangle`, `Star`, `Heart`, `Shield`, `Check`, `Person`, and `PersonDress` |
+| Progress bar | `AddProgressBars`, `ChartProgressItem`, `WithProgressMaximum`, `WithProgressValues`, `WithProgressHandles`, `WithProgressBarThickness`, `WithProgressTrackOpacity` | Slider-style or clean horizontal progress rows for infographic controls, survey shares, and compact percent scorecards |
+| Word cloud | `AddWordCloud`, `ChartWordCloudItem`, `WithWordCloudFontRange`, `WithWordCloudAngles`, `WithWordCloudMaximumTerms`, `WithWordCloudDensity` | Weighted term clouds for themes, tags, and narrative summaries |
 | Timeline | `AddTimelineItem`, `AddTimelineRange` | Date or numeric ranges |
 | Gantt | `AddGanttTask`, `AddGanttMilestone`, `WithGanttToday` | Project schedules with progress, dependencies, milestones, and current-date markers |
 | Sankey | `AddSankey`, `ChartSankeyLink` | Weighted flows between stages, systems, or outcomes |
 | Tree | `AddTree`, `ChartTreeLink` | Hierarchies, ownership maps, and control structures |
-| Pie and donut | `AddPie`, `AddDonut` | Simple proportional breakdowns |
+| Sunburst | `AddSunburst`, `ChartTreeLink` | Radial partition charts for nested part-to-whole hierarchies |
+| Pie and donut | `AddPie`, `AddDonut`, `WithDonutCenterLabel`, `WithDonutCenterText`, `WithDonutInnerRadiusRatio` | Proportional breakdowns with optional custom center text and tunable donut ring thickness |
+
+## Customization cookbook
+
+Use a built-in theme first, then tweak only the tokens that matter for the report audience:
+
+```csharp
+var chart = Chart.Create()
+    .WithTitle("Adoption Pulse")
+    .WithTheme(ChartTheme.Aurora())
+    .WithPalette(ChartPalettes.Vivid)
+    .AddSmoothLine("Active users", Points(42, 58, 71, 86));
+```
+
+When the same colors and type should carry across a report, package them as a brand kit:
+
+```csharp
+var brand = ChartBrandKit.Create()
+    .WithPalette("#0EA5E9", "#EC4899", "#14B8A6")
+    .WithFontFamily(ChartFontStacks.Geometric)
+    .WithTextColors(ChartColor.FromHex("#111827"), ChartColor.FromHex("#4B5563"))
+    .WithGuideColors(ChartColor.FromHex("#CBD5E1"), ChartColor.FromHex("#64748B"))
+    .WithSemanticColors(ChartColor.FromHex("#059669"), ChartColor.FromHex("#F59E0B"), ChartColor.FromHex("#DC2626"))
+    .WithSurfaceStyle(ChartSurfaceStyle.Framed);
+
+var brandedChart = Chart.Create()
+    .WithBrandKit(brand)
+    .AddBar("Launch", Points(42, 58, 71));
+
+var brandedGrid = ChartGrid.Create()
+    .WithBrandKit(brand)
+    .Add(brandedChart);
+```
+
+`ChartBrandKit` works with `WithBrandKit(...)` on charts and grids, and can also be applied directly to a `ChartTheme`. Presets such as `ChartBrandKit.Executive()`, `Product()`, `PeopleInfographic()`, `Editorial()`, and `Accessible()` provide polished starting points.
+
+For publication, executive, or customer-facing output, tune typography and surface shape in one callback:
+
+```csharp
+var editorial = Chart.Create()
+    .WithTheme(theme => theme
+        .WithFontFamily(ChartFontStacks.Serif)
+        .WithSurfaceColors(ChartColor.Transparent, ChartColor.White, ChartColor.FromRgb(250, 246, 238), ChartColor.FromRgba(120, 113, 108, 72), ChartColor.FromRgba(168, 162, 158, 58))
+        .WithTextColors(ChartColor.FromRgb(28, 25, 23), ChartColor.FromRgb(87, 83, 78))
+        .WithGuideColors(ChartColor.FromRgba(168, 162, 158, 74), ChartColor.FromRgba(68, 64, 60, 140))
+        .WithSemanticColors(ChartColor.FromRgb(22, 101, 52), ChartColor.FromRgb(180, 83, 9), ChartColor.FromRgb(185, 28, 28))
+        .WithTypography(title: 30, subtitle: 14, axisTitle: 12, tickLabel: 11, legend: 12, dataLabel: 11)
+        .WithCornerRadius(card: 8, plot: 6)
+        .WithStrokeWidth(2.8)
+        .WithMarkerRadius(3.5)
+        .WithShadowOpacity(0.08)
+        .WithSurfaceStyle(ChartSurfaceStyle.Framed))
+    .WithXLabels("Q1", "Q2", "Q3", "Q4")
+    .AddBar("Revenue", Points(120, 148, 173, 210));
+```
+
+Surface presets are available when the chart needs a different container treatment without hand-tuning radii and shadows:
+
+```csharp
+var embedded = Chart.Create()
+    .WithTheme(theme => theme.WithSurfaceStyle(ChartSurfaceStyle.Bare))
+    .AddSmoothLine("Signals", Points(42, 58, 71, 86));
+
+var glassy = Chart.Create()
+    .WithTheme(theme => theme
+        .WithSurfaceStyle(ChartSurfaceStyle.Glass)
+        .WithPalette(ChartPalettes.Pastel))
+    .AddArea("Adoption", Points(18, 32, 49, 66));
+```
+
+Surface styles include `Default`, `Flat`, `Framed`, `Floating`, `Glass`, `Bare`, and `Compact`.
+
+For multi-panel reports, configure the grid heading/background separately from the child charts:
+
+```csharp
+var grid = ChartGrid.Create()
+    .WithTitle("Theme Review")
+    .WithTheme(theme => theme
+        .WithFontFamily(ChartFontStacks.Geometric)
+        .WithTypography(title: 28, subtitle: 13, axisTitle: 12, tickLabel: 11, legend: 12, dataLabel: 11))
+    .Add(chartA)
+    .Add(chartB);
+```
+
+Choose a visual system by audience first, then adjust palette or surface details only where the report needs it:
+
+| Report intent | Theme starting point | Brand kit starting point |
+| --- | --- | --- |
+| Executive summary, board deck, customer PDF | `ChartTheme.ReportLight()` or `ChartTheme.Minimal()` | `ChartBrandKit.Executive()` |
+| Product dashboard, launch review, adoption story | `ChartTheme.Aurora()` | `ChartBrandKit.Product()` |
+| Demographic infographic, survey poster, people dashboard | `ChartTheme.PeopleInfographic()` | `ChartBrandKit.PeopleInfographic()` |
+| Publication, narrative report, static document | `ChartTheme.Editorial()` | `ChartBrandKit.Editorial()` |
+| Accessibility-first categorical comparison | `ChartTheme.Colorblind()` | `ChartBrandKit.Accessible()` |
+| Playful scorecard, education, pictorial view | `ChartTheme.Candy()` | `ChartBrandKit.Product()` with pictorial shapes |
+| Dense operations or command-center view | `ChartTheme.Terminal()` | `ChartBrandKit.Accessible()` with `ChartSurfaceStyle.Compact` |
+
+Themes are complete visual presets for one chart. Brand kits are reusable brand tokens that can be layered onto charts, grids, or themes.
+
+Reusable palette presets are available through `ChartPalettes.Report`, `Colorblind`, `Vivid`, `Pastel`, `PeopleInfographic`, `Editorial`, `Jewel`, and `Terminal`. Each property returns a fresh array, so callers can safely modify a local copy before passing it to `WithPalette(...)`.
+
+You can also paste colors directly from a design tool:
+
+```csharp
+var branded = Chart.Create()
+    .WithPalette("#0EA5E9", "#EC4899", "#14B8A6", "#F59E0B")
+    .AddBar("Launch", Points(42, 58, 71));
+
+var brandedTheme = ChartTheme.Light()
+    .WithPalette("#1E40AF", "#BE123C", "#059669");
+```
+
+Use `ChartColor.FromHex(...)` and `ChartPalettes.FromHex(...)` for `#RGB`, `#RGBA`, `#RRGGBB`, and `#RRGGBBAA` notation.
+
+SVG and HTML use `ChartTheme.FontFamily` and CSS font stacks. PNG can use a specific `.ttf` or `.ttc` file with `WithPngFont(...)`; otherwise it auto-detects a platform font and then falls back to the built-in tiny chart font.
 
 PNG output uses a dependency-free rasterizer. When a platform TrueType font can be loaded, PNG text is rendered from real font outlines; otherwise ChartForgeX falls back to its built-in tiny chart font. You can prefer a specific `.ttf` file or `.ttc` collection for report consistency:
 
@@ -570,6 +706,8 @@ var matrix = Chart.Create()
     .AddHeatmapRow("Parked domains", Points(74, 62, 51));
 ```
 
+Use `WithHeatmapScaleLegend(false)` and `WithHeatmapColumnLabels(false)` for compact scorecard-style heatmaps when row labels and data labels already explain the scale.
+
 Gauges are available for single-value dashboard summaries:
 
 ```csharp
@@ -594,7 +732,19 @@ Circle charts show compact single-value progress KPIs:
 ```csharp
 var ready = Chart.Create()
     .WithTitle("Policy Readiness")
+    .WithCircleRadiusScale(1.12)
+    .WithCircleStrokeScale(1.25)
     .AddCircle("Ready", 87, 0, 100);
+```
+
+Radial bars use the same scale approach for denser or airier multi-ring KPI panels:
+
+```csharp
+var coverage = Chart.Create()
+    .WithTitle("Coverage Rings")
+    .WithRadialBarRadiusScale(1.08)
+    .WithRadialBarStrokeScale(1.18)
+    .AddRadialBar("Average coverage", Points(92, 74, 88, 96));
 ```
 
 Waterfall charts are available for explaining cumulative change:
@@ -684,6 +834,81 @@ var hierarchy = Chart.Create()
     });
 ```
 
+Sunburst charts use the same parent-child link model to show nested composition as radial partition rings:
+
+```csharp
+var partition = Chart.Create()
+    .WithTitle("Control Coverage Partition")
+    .WithTheme(ChartTheme.Aurora())
+    .AddSunburst("Controls", new[] {
+        new ChartTreeLink("Security posture", "Mail authentication", 42),
+        new ChartTreeLink("Security posture", "Certificate lifecycle", 28),
+        new ChartTreeLink("Mail authentication", "SPF", 16),
+        new ChartTreeLink("Mail authentication", "DKIM", 14)
+    });
+```
+
+Pictorial charts turn values into repeated built-in symbols:
+
+```csharp
+var audience = Chart.Create()
+    .WithTitle("Audience Mix")
+    .WithTheme(ChartTheme.Candy())
+    .WithPictorialColumns(10)
+    .WithPictorialMaximum(100)
+    .WithPictorialValuePerSymbol(10)
+    .WithPictorialValues(false)
+    .WithPictorialSymbolScale(1.15)
+    .WithPictorialEmptyOpacity(0.12)
+    .WithPictorialSvgPath("M12 2 L15 9 L22 9 L17 14 L19 22 L12 17 L5 22 L7 14 L2 9 L9 9 Z", ChartPictorialShape.Star)
+    .AddPictorial("Segments", new[] {
+        new ChartPictorialItem("New users", 84, ChartColor.FromRgb(14, 165, 233)),
+        new ChartPictorialItem("Returning users", 62, ChartColor.FromRgb(236, 72, 153)),
+        new ChartPictorialItem("Advocates", 29, ChartColor.FromRgb(20, 184, 166))
+    }, ChartPictorialShape.Person);
+```
+
+Use `WithPictorialColumns(5)` for rating-style rows, `10` for percentage-style scorecards, or a denser count when a report needs finer-grained comparison. Add `WithPictorialMaximum(5)` for fixed five-star scales or `WithPictorialMaximum(100)` for true percentage rows; omit it when each chart should scale to the largest item. Fractional values render as partial symbol fills in SVG, HTML, and PNG. Use `WithPictorialValuePerSymbol(...)` when one icon should represent an absolute unit such as one person, 5,000 residents, or 10%; values larger than one configured row wrap into additional symbol rows automatically. Use `WithPictorialValues(false)` for clean Isotype-style rows where the repeated symbols carry the number. `WithPictorialSymbolScale(...)` makes symbols feel denser or airier, and `WithPictorialEmptyOpacity(...)` tunes how strongly unfilled symbols remain visible. Each `ChartPictorialItem` can carry its own color.
+
+Use `WithPictorialSvgPath` to bring a custom filled SVG path into SVG and HTML output. PNG output remains dependency-free by using the fallback `ChartPictorialShape` supplied to the method. Use `WithPictorialShape(...)` after `AddPictorial(...)` to switch an existing chart back to one of the built-in symbols; it clears any custom SVG path.
+
+Progress bars render slider-style infographic rows:
+
+```csharp
+var preference = Chart.Create()
+    .WithTitle("Preference Sliders")
+    .WithTheme(ChartTheme.PeopleInfographic())
+    .WithProgressBarThickness(0.28)
+    .WithProgressTrackOpacity(0.20)
+    .WithValueFormatter(value => value.ToString("0") + "%")
+    .AddProgressBars("Preference", new[] {
+        new ChartProgressItem("Male", 40, ChartColor.FromHex("#06B6D4")),
+        new ChartProgressItem("Female", 60, ChartColor.FromHex("#DB2777"))
+    });
+```
+
+Use `WithProgressMaximum(...)` when rows compare against something other than 100, `WithProgressValues(false)` when the slider handle is enough, `WithProgressHandles(false)` for clean completion bars, and `WithProgressBarThickness(...)` / `WithProgressTrackOpacity(...)` to tune dense KPI rows without introducing a separate chart type.
+
+Word clouds place weighted terms deterministically, so static reports stay reproducible:
+
+```csharp
+var topics = Chart.Create()
+    .WithTitle("Support Themes")
+    .WithTheme(ChartTheme.Editorial())
+    .WithWordCloudFontRange(14, 52)
+    .WithWordCloudAngles(-18, 0, 12)
+    .WithWordCloudMaximumTerms(24)
+    .WithWordCloudDensity(0.9)
+    .AddWordCloud("Themes", new[] {
+        new ChartWordCloudItem("Automation", 100, ChartColor.FromRgb(30, 64, 175)),
+        new ChartWordCloudItem("Reports", 82, ChartColor.FromRgb(190, 18, 60)),
+        new ChartWordCloudItem("Charts", 64),
+        new ChartWordCloudItem("DNS", 48)
+    });
+```
+
+Use `WithWordCloudFontRange` to make the weight contrast calmer or louder, `WithWordCloudAngles` to choose a restrained editorial layout or a more playful rotated pattern, `WithWordCloudMaximumTerms` to curate noisy text sources, and `WithWordCloudDensity` from `0.5` to `2.0` to move from spacious editorial layouts to denser poster-style clouds. Optional `ChartWordCloudItem` colors emphasize selected terms.
+
 They can also be stacked when the report needs category totals:
 
 ```csharp
@@ -716,11 +941,61 @@ Typography defaults to a native system font stack for crisp SVG output. Reports 
 chart.WithFontFamily("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif");
 ```
 
+ChartForgeX also includes expressive, dependency-free style presets for different audiences:
+
+```csharp
+var boardDeck = Chart.Create()
+    .WithTheme(ChartTheme.Editorial())
+    .AddSmoothLine("Revenue", Points(120, 148, 173, 210));
+
+var productPulse = Chart.Create()
+    .WithTheme(ChartTheme.Aurora())
+    .WithPalette(ChartPalettes.Vivid)
+    .AddBar("Adoption", Points(42, 58, 71, 86));
+```
+
+Built-in themes include `ReportLight()`, `ReportDark()`, `Colorblind()`, `Aurora()`, `Editorial()`, `Candy()`, `Terminal()`, and `Minimal()`. Font helpers such as `ChartFontStacks.Serif`, `ChartFontStacks.Geometric`, `ChartFontStacks.Rounded`, and `ChartFontStacks.Mono` keep SVG/HTML typography readable without bundling external assets:
+
+```csharp
+chart.WithTheme(theme => theme
+        .WithFontFamily(ChartFontStacks.Geometric)
+        .WithTypography(title: 30, subtitle: 14, axisTitle: 12, tickLabel: 11, legend: 12, dataLabel: 11)
+        .WithCornerRadius(card: 20, plot: 14)
+        .WithStrokeWidth(3.4)
+        .WithSurfaceStyle(ChartSurfaceStyle.Floating));
+```
+
+Place legends where the chart has room with `WithLegendPosition(...)`. `ChartLegendPosition` supports `Bottom`, `Top`, `Left`, `Right`, `TopLeft`, `TopRight`, `BottomLeft`, and `BottomRight`; renderers reserve the matching lane so long labels truncate inside the chart instead of touching plot borders. Use `WithPointLegend()` for single-series charts where individual point colors need their own legend keys.
+
+Use role-based text styles when a report needs more visual personality without forking chart types. `ChartTextRole` and `ChartTextStyle` power the generic `WithTextStyle(...)` API plus convenience helpers such as `WithTitleStyle`, `WithSubtitleStyle`, `WithAxisTitleStyle`, `WithTickLabelStyle`, `WithLegendStyle`, and `WithDataLabelStyle`:
+
+```csharp
+chart
+    .WithTitleStyle(style => style
+        .WithColor("#be123c")
+        .WithFontFamily("Georgia, 'Times New Roman', serif")
+        .WithWeight("900")
+        .WithItalic()
+        .WithUnderline())
+    .WithTickLabelStyle(style => style.WithColor("#2563eb").WithItalic())
+    .WithLegendStyle(style => style.WithColor("#15803d").WithUnderline())
+    .WithDataLabelStyle(style => style.WithColor("#b45309").WithWeight("800"));
+```
+
+SVG and HTML honor color, font family, weight, italic, underline, and role font size. PNG keeps its dependency-free text renderer but honors role color, role font size, and underline where the raster text path supports it.
+Use `chart.Series[index].WithPointColor(pointIndex, "#14B8A6")` when one bar, horizontal bar, scatter marker, line marker, lollipop mark, bubble, error-bar mark, range-bar interval, dumbbell comparison, box-plot summary, candlestick/OHLC window, slope endpoint, pie/donut slice, polar-area segment, funnel segment, treemap tile, pictorial item, progress row, or word-cloud term needs its own color while the rest of the series keeps the normal palette. Pie/donut legends and outside callout leaders follow the same point color.
+Use `chart.Series[index].WithDataLabelStyle(...)` when one series should call attention to its labels without changing every label in the chart. These overrides apply to cartesian labels and specialized labels such as pie slices, heatmap cells, radar points, and waterfall deltas. Use `WithPointDataLabelStyle(pointIndex, ...)` when a single bar, point, slice, cell, or delta needs its own callout styling.
+Use `WithDataLabelPlacement(ChartDataLabelPlacement.Center)` at the chart level, or `chart.Series[index].WithDataLabelPlacement(...)` for one series, when labels should sit inside, outside, above, below, left, or right of capable cartesian and specialized marks. Bubbles, error bars, range bands, range areas, range bars, dumbbells, box plots, candlesticks, and OHLC charts honor the same placement model for their intrinsic labels in SVG and PNG. Outside pie/donut labels use side-aware lanes with connector lines, and side heatmap labels include connector ticks in SVG and PNG exports. Tune those connectors with `WithDataLabelConnectorColor(...)`, `WithDataLabelConnectorOpacity(...)`, `WithDataLabelConnectorStrokeWidth(...)`, and `WithDataLabelConnectorStyle(ChartDataLabelConnectorStyle.Curve)` for straight, elbow, or curved leaders. When no explicit connector color is set, pie and donut callout leaders use the matching slice color. Use `WithPieSliceLabelContent(...)` when pie/donut data labels should show percentage, value, category, category plus percentage, or category plus value. Use `WithPieSliceLabelFormatter(slice => slice.Label + ": " + slice.FormattedPercent)` for fully custom pie/donut callout text. Use `WithPieOutsideLabelDistance(...)` to move outside pie/donut labels closer to or farther from the ring, and `chart.Series[index].WithPointSliceOffset(pointIndex, ratio)` to pull out one pie or donut slice for emphasis.
+
+`ChartGrid` also supports `WithTitleStyle(...)` and `WithSubtitleStyle(...)` for styled report headers in SVG, PNG, and static HTML grid exports.
+
 Pie and donut charts use the same model and x-axis labels for slice names:
 
 ```csharp
 var donut = Chart.Create()
     .WithTitle("Domain Check Result Mix")
+    .WithDonutCenterText("94%", "Passed")
+    .WithDonutInnerRadiusRatio(0.68)
     .WithXLabels("Passed", "Warnings", "Failed")
     .AddDonut("Checks", Points(1260, 68, 10));
 ```
@@ -802,7 +1077,7 @@ JPG is not included. JPG has no transparency and is a poor fit for charts with s
 - Report theme presets and visual styling tokens
 - Automatic x-axis label density for crowded reports
 - Rotated x-axis labels for long categories
-- Wrapped SVG legends
+- Wrapped and positionable SVG/PNG legends
 - Grouped SVG bar rendering for multiple bar series
 - Stacked bar rendering for category totals
 - Horizontal bar rendering for long categories
@@ -817,10 +1092,13 @@ JPG is not included. JPG has no transparency and is a poor fit for charts with s
 - Polar area charts
 - Funnel charts
 - Treemap charts
+- Pictorial charts
+- Word clouds
 - Timeline charts
 - Gantt charts
 - Sankey charts
 - Tree charts
+- Sunburst partition charts
 - Sparklines
 - Date/time axes
 - Data labels

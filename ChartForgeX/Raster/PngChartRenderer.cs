@@ -45,19 +45,24 @@ public sealed partial class PngChartRenderer {
             if (o.ShowCard && t.UseCard) DrawCardSurface(c, o, t);
             var plot = ChartLayout.PlotArea(o);
             if (o.ShowHeader) DrawHeader(c, chart);
+            void DrawSpecialChart(Action<RgbaCanvas, Chart, ChartRect> draw) {
+                var legendPlot = ApplyPngLegendReserve(chart, plot);
+                DrawPlotSurface(c, o, t, legendPlot);
+                draw(c, chart, legendPlot);
+                DrawLegend(c, chart);
+            }
+
             if (IsPieLike(chart)) {
                 DrawPlotSurface(c, o, t, plot);
                 DrawPieLike(c, chart, plot);
                 return c;
             }
             if (IsGaugeChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawGauge(c, chart, plot);
+                DrawSpecialChart(DrawGauge);
                 return c;
             }
             if (IsCircleChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawCircleChart(c, chart, plot);
+                DrawSpecialChart(DrawCircleChart);
                 return c;
             }
             if (IsRadialBarChart(chart)) {
@@ -66,8 +71,7 @@ public sealed partial class PngChartRenderer {
                 return c;
             }
             if (IsBulletChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawBullet(c, chart, plot);
+                DrawSpecialChart(DrawBullet);
                 return c;
             }
             if (IsWaterfallChart(chart)) {
@@ -76,8 +80,7 @@ public sealed partial class PngChartRenderer {
                 return c;
             }
             if (IsRadarChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawRadar(c, chart, plot);
+                DrawSpecialChart(DrawRadar);
                 return c;
             }
             if (IsPolarAreaChart(chart)) {
@@ -86,39 +89,47 @@ public sealed partial class PngChartRenderer {
                 return c;
             }
             if (IsFunnelChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawFunnel(c, chart, plot);
+                DrawSpecialChart(DrawFunnel);
                 return c;
             }
             if (IsTreemapChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawTreemap(c, chart, plot);
-                DrawLegend(c, chart);
+                DrawSpecialChart(DrawTreemap);
+                return c;
+            }
+            if (IsPictorialChart(chart)) {
+                DrawSpecialChart(DrawPictorial);
+                return c;
+            }
+            if (IsProgressBarChart(chart)) {
+                DrawSpecialChart(DrawProgressBar);
+                return c;
+            }
+            if (IsWordCloudChart(chart)) {
+                DrawSpecialChart(DrawWordCloud);
                 return c;
             }
             if (IsHeatmapChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawHeatmap(c, chart, plot);
+                DrawSpecialChart(DrawHeatmap);
                 return c;
             }
             if (IsTimelineChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawTimeline(c, chart, plot);
+                DrawSpecialChart(DrawTimeline);
                 return c;
             }
             if (IsGanttChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawGantt(c, chart, plot);
+                DrawSpecialChart(DrawGantt);
                 return c;
             }
             if (IsSankeyChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawSankey(c, chart, plot);
+                DrawSpecialChart(DrawSankey);
                 return c;
             }
             if (IsTreeChart(chart)) {
-                DrawPlotSurface(c, o, t, plot);
-                DrawTree(c, chart, plot);
+                DrawSpecialChart(DrawTree);
+                return c;
+            }
+            if (IsSunburstChart(chart)) {
+                DrawSpecialChart(DrawSunburst);
                 return c;
             }
             var range = ChartRange.FromChart(chart);
@@ -131,12 +142,12 @@ public sealed partial class PngChartRenderer {
                 ApplyHorizontalValueBounds(chart, range, xTicks);
                 yTicks = GetHorizontalCategoryTicks(chart, range);
                 plot = ApplyHorizontalBarReserve(chart, plot, yTicks);
-                plot = ApplyBottomReserve(chart, plot, xTicks, true);
+                if (ShowXAxis(chart)) plot = ApplyBottomReserve(chart, plot, xTicks, true);
                 DrawPlotSurface(c, o, t, plot);
             } else {
                 yTicks = ChartTicks.Generate(range.MinY, range.MaxY, o.TickCount);
                 range.SetYBounds(yTicks[0], yTicks[yTicks.Count - 1]);
-                plot = ApplyYAxisLabelReserve(chart, plot, yTicks);
+                if (ShowYAxis(chart)) plot = ApplyYAxisLabelReserve(chart, plot, yTicks);
                 if (HasSecondaryYAxis(chart)) {
                     secondaryRange = ChartRange.FromSecondaryYAxis(chart, range);
                     secondaryTicks = ChartTicks.Generate(secondaryRange.MinY, secondaryRange.MaxY, o.TickCount);
@@ -145,7 +156,7 @@ public sealed partial class PngChartRenderer {
                 }
 
                 xTicks = GetXTicks(chart, range, plot);
-                plot = ApplyBottomReserve(chart, plot, xTicks, false);
+                if (ShowXAxis(chart)) plot = ApplyBottomReserve(chart, plot, xTicks, false);
                 DrawPlotSurface(c, o, t, plot);
             }
 
@@ -163,10 +174,10 @@ public sealed partial class PngChartRenderer {
             foreach (var yv in yTicks) {
                 var y = map.Y(yv);
                 if (o.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, t.Grid, ChartVisualPrimitives.GridStrokeWidth);
-                if (o.ShowAxes) {
+                if (ShowYAxis(chart)) {
                     var label = FormatValue(chart, yv);
                     var fontSize = PngTickFontSize(chart);
-                    c.DrawText(Math.Max(2, plot.Left - EstimatePngTextWidth(label, fontSize) - 8), y - fontSize + 4, label, t.MutedText, fontSize);
+                    DrawPngTextStyled(c, Math.Max(2, plot.Left - EstimatePngTextWidth(label, fontSize) - 8), y - fontSize + 4, label, o.TickLabelStyle, t.MutedText, fontSize, emphasized: false);
                 }
             }
             var xLabels = XAxisTickLabels(chart, xTicks, false);
@@ -174,15 +185,22 @@ public sealed partial class PngChartRenderer {
                 var x = map.X(xTicks[i]);
                 var label = xLabels[i];
                 if (o.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(t.Grid, ChartVisualPrimitives.GridVerticalOpacity), ChartVisualPrimitives.GridStrokeWidth);
-                if (o.ShowAxes) DrawXAxisTickLabel(c, chart, plot, label, x, xLabels);
+                if (ShowXAxis(chart)) DrawXAxisTickLabel(c, chart, plot, label, x, xLabels);
             }
-            if (o.ShowAxes) {
+            if (ShowXAxis(chart) && ShowAxisLines(chart)) {
                 var zeroY = map.Y(0);
                 if (zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, t.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
-                c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
-                c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+            }
+            if (ShowXAxis(chart)) {
+                if (ShowAxisLines(chart)) c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+                DrawPngXAxisTitle(c, chart, plot, plot.Bottom + PngXAxisTitleOffset(chart, xLabels), PngXAxisTitleFontSize(chart));
+            }
+            if (ShowYAxis(chart)) {
+                if (ShowAxisLines(chart)) c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+                DrawYAxisTitle(c, chart, plot, PngAxisTitleFontSize(chart));
+            }
+            if (chart.Options.ShowAxes) {
                 if (secondaryMap != null && secondaryTicks != null) DrawSecondaryYAxis(c, chart, plot, secondaryMap, secondaryTicks);
-                DrawAxisTitles(c, chart, plot, xLabels);
             }
             for (var i = 0; i < chart.Series.Count; i++) DrawSeries(c, chart, i, plot, SeriesMap(chart.Series[i], map, secondaryMap));
             if (o.BarMode == ChartBarMode.Stacked && o.ShowStackTotals) DrawStackTotals(c, chart, plot, map);
@@ -207,14 +225,16 @@ public sealed partial class PngChartRenderer {
     private static void DrawHeader(RgbaCanvas c, Chart chart) {
         var theme = chart.Options.Theme;
         var maxWidth = Math.Max(24, chart.Options.Size.Width - 80);
-        var titleFontSize = TextFontSizeForEmphasizedWidth(chart.Title, maxWidth, theme.TitleFontSize);
+        var titleStyle = chart.Options.TitleStyle;
+        var titleFontSize = TextFontSizeForEmphasizedWidth(chart.Title, maxWidth, PngStyleFontSize(titleStyle, theme.TitleFontSize));
         var title = TrimReadablePngLabelToWidth(chart.Title, titleFontSize, maxWidth);
-        if (title.Length > 0) c.DrawTextEmphasized(40, 52 - titleFontSize + 1, title, theme.Text, titleFontSize);
+        if (title.Length > 0) DrawPngTextStyled(c, 40, 52 - titleFontSize + 1, title, titleStyle, theme.Text, titleFontSize, emphasized: true);
         if (!string.IsNullOrWhiteSpace(chart.Subtitle)) {
+            var subtitleStyle = chart.Options.SubtitleStyle;
             var subtitleMaxWidth = Math.Max(24, chart.Options.Size.Width - 84);
-            var subtitleFontSize = TextFontSizeForWidth(chart.Subtitle, subtitleMaxWidth, theme.SubtitleFontSize);
+            var subtitleFontSize = TextFontSizeForWidth(chart.Subtitle, subtitleMaxWidth, PngStyleFontSize(subtitleStyle, theme.SubtitleFontSize));
             var subtitle = TrimPngLabelToWidth(chart.Subtitle, subtitleFontSize, subtitleMaxWidth);
-            if (subtitle.Length > 0) c.DrawText(42, 79 - subtitleFontSize + 1, subtitle, theme.MutedText, subtitleFontSize);
+            if (subtitle.Length > 0) DrawPngTextStyled(c, 42, 79 - subtitleFontSize + 1, subtitle, subtitleStyle, theme.MutedText, subtitleFontSize, emphasized: false);
         }
     }
 
@@ -222,6 +242,19 @@ public sealed partial class PngChartRenderer {
         kind == ChartSeriesKind.Line || kind == ChartSeriesKind.StepLine || kind == ChartSeriesKind.Area || kind == ChartSeriesKind.StepArea || kind == ChartSeriesKind.StackedArea || kind == ChartSeriesKind.Slope || kind == ChartSeriesKind.RangeBand || kind == ChartSeriesKind.RangeArea || kind == ChartSeriesKind.Lollipop || kind == ChartSeriesKind.Dumbbell || kind == ChartSeriesKind.ErrorBar || kind == ChartSeriesKind.Radar || kind == ChartSeriesKind.TrendLine;
 
     private static bool ShouldDrawDataLabels(Chart chart, ChartSeries series) => series.ShowDataLabels ?? chart.Options.ShowDataLabels;
+
+    private static ChartColor SeriesColor(Chart chart, int index) => chart.Series[index].Color ?? chart.Options.Theme.Palette[index % chart.Options.Theme.Palette.Length];
+
+    private static ChartColor PointColor(Chart chart, ChartSeries series, int seriesIndex, int pointIndex) =>
+        pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue
+            ? series.PointColors[pointIndex]!.Value
+            : SeriesColor(chart, seriesIndex);
+
+    private static bool ShowXAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowXAxis;
+
+    private static bool ShowYAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowYAxis;
+
+    private static bool ShowAxisLines(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowAxisLines;
 
     private static bool HasHorizontalBarDataLabels(Chart chart) {
         foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.HorizontalBar && ShouldDrawDataLabels(chart, series)) return true;
@@ -314,25 +347,28 @@ public sealed partial class PngChartRenderer {
             var x = map.X(xTicks[i]);
             var label = xLabels[i];
             if (o.ShowGrid) c.DrawLine(x, plot.Top, x, plot.Bottom, ApplyOpacity(t.Grid, ChartVisualPrimitives.HorizontalBarValueGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
-            if (o.ShowAxes) DrawXAxisTickLabel(c, chart, plot, label, x, xLabels);
+            if (ShowXAxis(chart)) DrawXAxisTickLabel(c, chart, plot, label, x, xLabels);
         }
 
         foreach (var category in categories) {
             var y = map.Y(category);
             if (o.ShowGrid) c.DrawLine(plot.Left, y, plot.Right, y, ApplyOpacity(t.Grid, ChartVisualPrimitives.HorizontalBarCategoryGridOpacity), ChartVisualPrimitives.GridStrokeWidth);
-            if (o.ShowAxes) DrawHorizontalCategoryLabel(c, chart, plot, FormatX(chart, category), y);
+            if (ShowYAxis(chart)) DrawHorizontalCategoryLabel(c, chart, plot, FormatX(chart, category), y);
         }
 
-        if (o.ShowAxes) {
+        if (ShowXAxis(chart)) {
             var zeroX = map.X(0);
-            if (zeroX > plot.Left && zeroX < plot.Right) c.DrawLine(zeroX, plot.Top, zeroX, plot.Bottom, t.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
-            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
-            c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
-            DrawAxisTitles(c, chart, plot, xLabels);
+            if (ShowAxisLines(chart) && zeroX > plot.Left && zeroX < plot.Right) c.DrawLine(zeroX, plot.Top, zeroX, plot.Bottom, t.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
+            if (ShowAxisLines(chart)) c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+            DrawPngXAxisTitle(c, chart, plot, plot.Bottom + PngXAxisTitleOffset(chart, xLabels), PngXAxisTitleFontSize(chart));
+        }
+        if (ShowYAxis(chart)) {
+            if (ShowAxisLines(chart)) c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, t.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+            DrawYAxisTitle(c, chart, plot, PngAxisTitleFontSize(chart));
         }
     }
 
-    private static string FormatNumber(double v) => Math.Abs(v) >= 1000 ? (v / 1000).ToString("0.#", CultureInfo.InvariantCulture) + "K" : v.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string FormatNumber(double v) => ChartNumericFormatter.FormatCompact(v);
     private static string FormatValue(Chart chart, double value) {
         var formatter = chart.Options.ValueFormatter;
         if (formatter == null) return FormatNumber(value);
@@ -454,6 +490,11 @@ public sealed partial class PngChartRenderer {
     private static bool IsPieLike(Chart chart) => chart.Series.Count > 0 && (chart.Series[0].Kind == ChartSeriesKind.Pie || chart.Series[0].Kind == ChartSeriesKind.Donut);
     private static bool IsPolarAreaChart(Chart chart) {
         foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.PolarArea) return true;
+        return false;
+    }
+
+    private static bool IsProgressBarChart(Chart chart) {
+        foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.ProgressBar) return true;
         return false;
     }
 

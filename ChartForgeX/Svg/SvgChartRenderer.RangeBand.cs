@@ -30,13 +30,33 @@ public sealed partial class SvgChartRenderer {
             for (var pointIndex = 0; pointIndex + 1 < series.Points.Count; pointIndex += 2) {
                 var low = series.Points[pointIndex];
                 var high = series.Points[pointIndex + 1];
+                var item = pointIndex / 2;
                 var x = map.X(low.X);
-                var y = Math.Min(map.Y(low.Y), map.Y(high.Y)) - 10;
+                var yLow = map.Y(low.Y);
+                var yHigh = map.Y(high.Y);
                 var label = FormatValue(chart, low.Y) + "-" + FormatValue(chart, high.Y);
-                if (!ReserveSvgLabel(label, x, y, chart, plot, reservedLabels)) continue;
-                DrawDataLabel(sb, chart, label, x, y, plot);
+                DrawRangeIntervalLabel(sb, chart, series, item, plot, reservedLabels, label, x, yLow, yHigh);
             }
         }
+    }
+
+    private static void DrawRangeIntervalLabel(StringBuilder sb, Chart chart, ChartSeries series, int pointIndex, ChartRect plot, List<ChartLabelBounds> reservedLabels, string label, double x, double yLow, double yHigh) {
+        var placement = DataLabelPlacement(chart, series);
+        var top = Math.Min(yLow, yHigh);
+        var bottom = Math.Max(yLow, yHigh);
+        if (placement == ChartDataLabelPlacement.Left || placement == ChartDataLabelPlacement.Right) {
+            var anchor = placement == ChartDataLabelPlacement.Left ? "end" : "start";
+            var labelX = placement == ChartDataLabelPlacement.Left ? x - 8 : x + 8;
+            if (ReserveSvgHorizontalLabel(label, labelX, (top + bottom) / 2, anchor, chart, plot, reservedLabels)) DrawHorizontalValueLabel(sb, chart, label, labelX, (top + bottom) / 2, anchor, plot, series, pointIndex);
+            return;
+        }
+
+        var labelY = placement == ChartDataLabelPlacement.Below
+            ? bottom + 10
+            : placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside
+                ? (top + bottom) / 2
+                : top - 10;
+        if (ReserveSvgLabel(label, x, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, x, labelY, plot, series: series, pointIndex: pointIndex);
     }
 
     private static string BuildRangeBandPath(IReadOnlyList<ChartPoint> lower, IReadOnlyList<ChartPoint> upper) {

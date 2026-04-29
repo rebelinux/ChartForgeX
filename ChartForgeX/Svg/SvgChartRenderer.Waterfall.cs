@@ -45,8 +45,23 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine($"<rect data-cfx-role=\"waterfall-bar\" data-cfx-point=\"{i}\" data-cfx-label=\"{Escape(WaterfallLabel(chart, step))}\" data-cfx-start=\"{F(step.Start)}\" data-cfx-end=\"{F(step.End)}\" data-cfx-delta=\"{F(step.Delta)}\" data-cfx-status=\"{status}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(centerX - barWidth / 2)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" rx=\"6\" fill=\"{color.ToCss()}\"/>");
             if (ShouldDrawDataLabels(chart, series)) {
                 var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
-                var labelY = step.Delta >= 0 || step.IsTotal ? top - 11 : top + height + 13;
-                if (ReserveSvgLabel(label, centerX, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, centerX, labelY, plot);
+                var pointIndex = step.IsTotal ? -1 : i;
+                var placement = DataLabelPlacement(chart, series);
+                if (placement == ChartDataLabelPlacement.Left || placement == ChartDataLabelPlacement.Right || placement == ChartDataLabelPlacement.Outside) {
+                    var labelX = placement == ChartDataLabelPlacement.Left ? centerX - barWidth / 2 - 8 : centerX + barWidth / 2 + 8;
+                    var anchor = placement == ChartDataLabelPlacement.Left ? "end" : "start";
+                    if (ReserveSvgHorizontalLabel(label, labelX, top + height / 2, anchor, chart, plot, reservedLabels)) DrawHorizontalValueLabel(sb, chart, label, labelX, top + height / 2, anchor, plot, series, pointIndex);
+                } else {
+                    if ((placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Center) && height < t.DataLabelFontSize + 8) continue;
+                    var labelY = placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Center
+                        ? top + height / 2
+                        : placement == ChartDataLabelPlacement.Above
+                            ? top - 11
+                            : placement == ChartDataLabelPlacement.Below
+                                ? top + height + 13
+                                : step.Delta >= 0 || step.IsTotal ? top - 11 : top + height + 13;
+                    if (ReserveSvgLabel(label, centerX, labelY, chart, plot, reservedLabels)) DrawDataLabel(sb, chart, label, centerX, labelY, plot, series: series, pointIndex: pointIndex);
+                }
             }
 
             if (chart.Options.ShowAxes) DrawXAxisLabel(sb, chart, plot, WaterfallLabel(chart, step), centerX, plot.Bottom + XAxisLabelOffset(chart), Clamp(chart.Options.XAxisLabelAngle, -80, 80), "waterfall-x-axis-label");
@@ -65,10 +80,12 @@ public sealed partial class SvgChartRenderer {
         }
 
         var zeroY = WaterfallY(plot, bounds, 0);
-        if (chart.Options.ShowAxes && zeroY > plot.Top && zeroY < plot.Bottom) sb.AppendLine($"<line data-cfx-role=\"waterfall-zero-axis\" x1=\"{F(plot.Left)}\" y1=\"{F(zeroY)}\" x2=\"{F(plot.Right)}\" y2=\"{F(zeroY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.ZeroAxisStrokeWidth)}\"/>");
+        if (ShowAxisLines(chart) && zeroY > plot.Top && zeroY < plot.Bottom) sb.AppendLine($"<line data-cfx-role=\"waterfall-zero-axis\" x1=\"{F(plot.Left)}\" y1=\"{F(zeroY)}\" x2=\"{F(plot.Right)}\" y2=\"{F(zeroY)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.ZeroAxisStrokeWidth)}\"/>");
         if (!chart.Options.ShowAxes) return;
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
-        sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
+        if (ShowAxisLines(chart)) {
+            sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Bottom)}\" x2=\"{F(plot.Right)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
+            sb.AppendLine($"<line x1=\"{F(plot.Left)}\" y1=\"{F(plot.Top)}\" x2=\"{F(plot.Left)}\" y2=\"{F(plot.Bottom)}\" stroke=\"{t.Axis.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.AxisStrokeWidth)}\"/>");
+        }
         DrawSvgXAxisTitle(sb, chart, plot, plot.Bottom + XAxisTitleOffset(chart), "waterfall-x-axis-title");
         if (!string.IsNullOrWhiteSpace(chart.YAxisTitle)) {
             var widestTick = ticks.Max(tick => EstimateTextWidth(FormatValue(chart, tick), t.TickLabelFontSize));

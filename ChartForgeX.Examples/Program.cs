@@ -4,6 +4,7 @@ using ChartForgeX.Primitives;
 using ChartForgeX.Themes;
 
 var output = Path.Combine(AppContext.BaseDirectory, "output");
+if (Directory.Exists(output)) Directory.Delete(output, recursive: true);
 Directory.CreateDirectory(output);
 const ChartPngOutputScale DemoPngOutputScale = ChartPngOutputScale.Retina;
 
@@ -233,6 +234,9 @@ var sharedAxisGrid = ChartGrid.Create()
     .WithSharedAxes();
 
 SaveGrid(sharedAxisGrid, "shared-axis-coverage-grid");
+
+ExpressiveExamples.Write(output, DemoPngOutputScale);
+
 
 var funnel = Chart.Create()
     .WithTitle("Domain Remediation Funnel")

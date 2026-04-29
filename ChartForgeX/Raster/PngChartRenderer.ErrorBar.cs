@@ -9,7 +9,6 @@ namespace ChartForgeX.Raster;
 public sealed partial class PngChartRenderer {
     private static void DrawErrorBars(RgbaCanvas c, Chart chart, int index, ChartRect plot, ChartMapper map) {
         var series = chart.Series[index];
-        var color = series.Color ?? chart.Options.Theme.Palette[index % chart.Options.Theme.Palette.Length];
         var itemCount = Math.Max(1, series.Points.Count / 3);
         var capWidth = Math.Max(9, Math.Min(24, plot.Width / Math.Max(1, itemCount * 8.0)));
         var radius = Math.Max(ChartVisualPrimitives.ErrorBarMarkerMinRadius, chart.Options.Theme.MarkerRadius + ChartVisualPrimitives.ErrorBarMarkerRadiusExtra);
@@ -23,6 +22,8 @@ public sealed partial class PngChartRenderer {
             var y = map.Y(center.Y);
             var yLower = map.Y(lower.Y);
             var yUpper = map.Y(upper.Y);
+            var item = pointIndex / 3;
+            var color = PointColor(chart, series, index, item);
             var halo = PngStrokeHalo(color);
 
             c.DrawLine(x, yUpper, x, yLower, halo, ChartVisualPrimitives.ErrorBarPngHaloStrokeWidth);
@@ -34,13 +35,25 @@ public sealed partial class PngChartRenderer {
             DrawMarker(c, chart, x, y, radius, color);
             if (ShouldDrawDataLabels(chart, series)) {
                 var label = FormatValue(chart, center.Y);
-                var fontSize = chart.Options.Theme.DataLabelFontSize;
-                var labelX = x - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0;
-                var aboveY = y - radius - fontSize - 5;
-                var belowY = y + radius + 5;
-                var labelY = aboveY < plot.Top + 2 ? belowY : aboveY;
+                var fontSize = PngDataLabelFontSize(chart, series, item);
+                var labelWidth = EstimatePngEmphasizedTextWidth(label, fontSize);
+                var placement = DataLabelPlacement(chart, series);
+                var labelX = placement == ChartDataLabelPlacement.Left
+                    ? x - capWidth / 2.0 - labelWidth - 8
+                    : placement == ChartDataLabelPlacement.Right
+                        ? x + capWidth / 2.0 + 8
+                        : x - labelWidth / 2.0;
+                var top = Math.Min(yLower, yUpper);
+                var bottom = Math.Max(yLower, yUpper);
+                var aboveY = top - radius - fontSize - 5;
+                var belowY = bottom + radius + 5;
+                var labelY = placement == ChartDataLabelPlacement.Below
+                    ? belowY
+                    : placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Left || placement == ChartDataLabelPlacement.Right
+                        ? y - fontSize / 2.0
+                        : aboveY < plot.Top + 2 ? belowY : aboveY;
                 if (!ReservePngLabel(label, labelX, labelY, chart, plot, fontSize, reserved)) continue;
-                DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+                DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize, DataLabelStyle(chart, series, item));
             }
         }
     }

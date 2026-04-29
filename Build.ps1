@@ -15,7 +15,7 @@ function Assert-VisualComparisonHealth {
         [Parameter(Mandatory = $true)] [string] $ComparisonManifest
     )
 
-    $minimumChartPairs = 20
+    $minimumChartPairs = 50
     if ($Comparison.chartPairs -lt $minimumChartPairs) {
         throw "SVG/PNG comparison generated only $($Comparison.chartPairs) chart pair(s); expected at least $minimumChartPairs. See $ComparisonManifest."
     }
@@ -169,12 +169,12 @@ try {
     if (-not $SkipPack) {
         $packageRoot = Join-Path $root "ChartForgeX/bin/$Configuration"
         if (Test-Path $packageRoot) {
-            Get-ChildItem $packageRoot -Filter 'ChartForgeX.*.nupkg' -ErrorAction SilentlyContinue | Remove-Item -Force
-            Get-ChildItem $packageRoot -Filter 'ChartForgeX.*.snupkg' -ErrorAction SilentlyContinue | Remove-Item -Force
+            Get-ChildItem $packageRoot -Filter 'ChartForgeX*.nupkg' -ErrorAction SilentlyContinue | Remove-Item -Force
+            Get-ChildItem $packageRoot -Filter 'ChartForgeX*.snupkg' -ErrorAction SilentlyContinue | Remove-Item -Force
         }
 
         dotnet pack $library -c $Configuration --no-build
-        $packages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX.*.nupkg')
+        $packages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX*.nupkg' | Sort-Object Name)
         if ($packages.Count -ne 1) {
             throw "Expected exactly one package, found $($packages.Count)."
         }
@@ -182,7 +182,7 @@ try {
         if (-not $package) {
             throw 'Package was not created.'
         }
-        $symbolsPackages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX.*.snupkg')
+        $symbolsPackages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX*.snupkg' | Sort-Object Name)
         if ($symbolsPackages.Count -ne 1) {
             throw "Expected exactly one symbol package, found $($symbolsPackages.Count)."
         }

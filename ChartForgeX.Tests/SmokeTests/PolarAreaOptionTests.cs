@@ -15,6 +15,10 @@ internal static partial class SmokeTests {
         var defaultSvg = PolarAreaSample().ToSvg();
         Assert(defaultSvg.Contains("data-cfx-role=\"polar-area-ring\"", System.StringComparison.Ordinal), "Polar-area reference rings should render by default.");
         Assert(PolarAreaSample().WithGrid(false).ToPng().Length > 64, "Compact polar-area options should render valid PNG output.");
+        var positionedLegend = PolarAreaSample().WithLegendPosition(ChartLegendPosition.BottomRight);
+        var positionedSvg = positionedLegend.ToSvg();
+        Assert(positionedSvg.Contains("data-cfx-role=\"slice-legend\" data-cfx-position=\"BottomRight\"", System.StringComparison.Ordinal), "Polar-area slice legends should honor configured legend placement.");
+        Assert(positionedLegend.ToPng().Length > 64, "Polar-area positioned legends should render valid PNG output.");
     }
 
     private static Chart PolarAreaSample() => Chart.Create()

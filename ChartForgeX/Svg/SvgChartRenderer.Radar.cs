@@ -39,8 +39,8 @@ public sealed partial class SvgChartRenderer {
             for (var i = 0; i < points.Count; i++) {
                 sb.AppendLine($"<circle data-cfx-role=\"radar-point\" data-cfx-series=\"{item.index}\" data-cfx-point=\"{i}\" cx=\"{F(points[i].X)}\" cy=\"{F(points[i].Y)}\" r=\"{F(ChartVisualPrimitives.RadarPointRadius)}\" fill=\"{color.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-width=\"{F(ChartVisualPrimitives.RadarPointStrokeWidth)}\"/>");
                 if (ShouldDrawDataLabels(chart, item.series)) {
-                    var labelPoint = RadarDataLabelPoint(points[i], i, categories.Length, seriesOrder, seriesItems.Length);
-                    DrawDataLabel(sb, chart, FormatValue(chart, RadarValue(item.series, categories[i])), labelPoint.X, labelPoint.Y, plot);
+                    var labelPoint = RadarDataLabelPoint(chart, item.series, points[i], i, categories.Length, seriesOrder, seriesItems.Length);
+                    DrawDataLabel(sb, chart, FormatValue(chart, RadarValue(item.series, categories[i])), labelPoint.X, labelPoint.Y, plot, series: item.series, pointIndex: RadarPointIndex(item.series, categories[i]));
                 }
             }
         }
@@ -118,6 +118,11 @@ public sealed partial class SvgChartRenderer {
         return 0;
     }
 
+    private static int RadarPointIndex(ChartSeries series, double category) {
+        for (var i = 0; i < series.Points.Count; i++) if (Math.Abs(series.Points[i].X - category) < 0.000001) return i;
+        return -1;
+    }
+
     private static double RadarAngle(int index, int count) => -Math.PI / 2 + Math.PI * 2 * index / count;
 
     private static string BuildRadarSummary(Chart chart, ChartSeries series, IReadOnlyList<double> categories) {
@@ -131,8 +136,14 @@ public sealed partial class SvgChartRenderer {
         return sb.ToString();
     }
 
-    private static ChartPoint RadarDataLabelPoint(ChartPoint point, int categoryIndex, int categoryCount, int seriesOrder, int seriesCount) {
+    private static ChartPoint RadarDataLabelPoint(Chart chart, ChartSeries series, ChartPoint point, int categoryIndex, int categoryCount, int seriesOrder, int seriesCount) {
+        var placement = DataLabelPlacement(chart, series);
         var angle = RadarAngle(categoryIndex, categoryCount);
+        if (placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside) return point;
+        if (placement == ChartDataLabelPlacement.Left) return new ChartPoint(point.X - 20, point.Y);
+        if (placement == ChartDataLabelPlacement.Right || placement == ChartDataLabelPlacement.Outside) return new ChartPoint(point.X + 20, point.Y);
+        if (placement == ChartDataLabelPlacement.Above) return new ChartPoint(point.X, point.Y - 20);
+        if (placement == ChartDataLabelPlacement.Below) return new ChartPoint(point.X, point.Y + 20);
         var inward = 16.0;
         var spread = (seriesOrder - (seriesCount - 1) / 2.0) * 18.0;
         var x = point.X - Math.Cos(angle) * inward - Math.Sin(angle) * spread;

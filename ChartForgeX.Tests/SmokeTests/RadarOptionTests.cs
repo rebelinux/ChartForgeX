@@ -19,6 +19,9 @@ internal static partial class SmokeTests {
         Assert(!gridOff.Contains("data-cfx-role=\"radar-ring\"", System.StringComparison.Ordinal), "Radar rings should hide when grid is disabled.");
         Assert(!gridOff.Contains("data-cfx-role=\"radar-spoke\"", System.StringComparison.Ordinal), "Radar spokes should hide when grid is disabled.");
         Assert(RadarSample().WithAxes(false).WithGrid(false).ToPng().Length > 64, "Compact radar options should render valid PNG output.");
+        var positionedLegend = RadarSample().WithLegendPosition(ChartLegendPosition.Right);
+        Assert(positionedLegend.ToSvg().Contains("data-cfx-role=\"legend\" data-cfx-position=\"Right\"", System.StringComparison.Ordinal), "Radar charts should use the shared positioned legend.");
+        Assert(positionedLegend.ToPng().Length > 64, "Positioned radar legends should render valid PNG output.");
     }
 
     private static Chart RadarSample() => Chart.Create()

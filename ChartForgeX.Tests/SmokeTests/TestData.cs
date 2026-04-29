@@ -137,6 +137,30 @@ internal static partial class SmokeTests {
         return count;
     }
 
+    private static string[] ExtractAttributeValues(string value, string prefix) {
+        var values = new List<string>();
+        var index = 0;
+        while ((index = value.IndexOf(prefix, index, StringComparison.Ordinal)) >= 0) {
+            index += prefix.Length;
+            var end = value.IndexOf("\"", index, StringComparison.Ordinal);
+            if (end < 0) break;
+            values.Add(value.Substring(index, end - index));
+            index = end + 1;
+        }
+
+        return values.ToArray();
+    }
+
+    private static void AssertNoDuplicateIds(string markup, string context) {
+        var ids = ExtractAttributeValues(markup, "id=\"");
+        var duplicates = ids
+            .GroupBy(id => id, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+        Assert(duplicates.Length == 0, context + " should not contain duplicate id attributes: " + string.Join(", ", duplicates));
+    }
+
     private static int CountAlphaInRect(byte[] rgba, int width, int x, int y, int rectWidth, int rectHeight) {
         var count = 0;
         for (var yy = y; yy < y + rectHeight; yy++) for (var xx = x; xx < x + rectWidth; xx++) {

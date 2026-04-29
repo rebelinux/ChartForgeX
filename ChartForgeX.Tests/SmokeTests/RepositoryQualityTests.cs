@@ -53,6 +53,11 @@ internal static partial class SmokeTests {
         }
     }
 
+    private static void ExampleAppClearsGeneratedOutputBeforeWriting() {
+        var program = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "Program.cs"));
+        Assert(program.Contains("Directory.Delete(output, recursive: true)", StringComparison.Ordinal), "Example generation should wipe stale output before writing comparison artifacts.");
+    }
+
     private static void NuGetPackageMetadataStaysPublishReady() {
         var libraryProject = Path.Combine(FindRepositoryRoot(), "ChartForgeX", "ChartForgeX.csproj");
         Assert(HasXmlProperty(libraryProject, "PackageId", "ChartForgeX"), "PackageId should remain stable.");
@@ -64,6 +69,9 @@ internal static partial class SmokeTests {
         Assert(HasXmlProperty(libraryProject, "Deterministic", "true"), "Package builds should be deterministic.");
         Assert(HasXmlProperty(libraryProject, "IncludeSymbols", "true"), "Package should include symbol package generation.");
         Assert(HasXmlProperty(libraryProject, "SymbolPackageFormat", "snupkg"), "Package symbols should use snupkg format.");
+        var releaseNotes = GetXmlValue(libraryProject, "PackageReleaseNotes");
+        Assert(releaseNotes.Contains("SVG", StringComparison.OrdinalIgnoreCase) && releaseNotes.Contains("PNG", StringComparison.OrdinalIgnoreCase) && releaseNotes.Contains("validation", StringComparison.OrdinalIgnoreCase), "Package release notes should summarize renderer coverage and validation work.");
+        Assert(releaseNotes.Contains("brand kits", StringComparison.OrdinalIgnoreCase) && releaseNotes.Contains("pictorial", StringComparison.OrdinalIgnoreCase) && releaseNotes.Contains("word cloud", StringComparison.OrdinalIgnoreCase), "Package release notes should summarize the current chart and styling surface.");
         Assert(File.Exists(Path.Combine(FindRepositoryRoot(), "CHANGELOG.md")), "Repository should include a changelog.");
         Assert(File.Exists(Path.Combine(FindRepositoryRoot(), "CONTRIBUTING.md")), "Repository should include contribution guidance.");
         Assert(File.Exists(Path.Combine(FindRepositoryRoot(), "RELEASING.md")), "Repository should include release guidance.");
@@ -76,6 +84,26 @@ internal static partial class SmokeTests {
     private static void ReadmeDocumentsChartCatalog() {
         var readme = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "README.md"));
         Assert(readme.Contains("## Chart catalog", StringComparison.Ordinal), "README should include a chart catalog.");
+        Assert(readme.Contains("validates chart data before rendering", StringComparison.Ordinal), "README should document render-time validation behavior.");
+        Assert(readme.Contains("cyclic Sankey flows", StringComparison.Ordinal), "README should document Sankey cycle rejection.");
+        Assert(readme.Contains("`chart.ToSvg(\"panel-a\")`", StringComparison.Ordinal), "README should document scoped raw chart SVG embedding.");
+        Assert(readme.Contains("`grid.ToSvg(\"report-a\")`", StringComparison.Ordinal), "README should document scoped raw grid SVG embedding.");
+        Assert(readme.Contains("## Customization cookbook", StringComparison.Ordinal), "README should include a customization cookbook.");
+        Assert(readme.Contains("ChartTheme.Aurora()", StringComparison.Ordinal), "README should document expressive built-in themes.");
+        Assert(readme.Contains("ChartTheme.Colorblind()", StringComparison.Ordinal), "README should document accessible color themes.");
+        Assert(readme.Contains("ChartFontStacks", StringComparison.Ordinal), "README should document built-in font stacks.");
+        Assert(readme.Contains("ChartPalettes.Vivid", StringComparison.Ordinal), "README should document reusable palette presets.");
+        Assert(readme.Contains("ChartPictorialShape.Person", StringComparison.Ordinal), "README should document expanded pictorial symbols.");
+        Assert(readme.Contains("ChartSurfaceStyle.Glass", StringComparison.Ordinal), "README should document reusable surface presets.");
+        Assert(readme.Contains(".WithTheme(theme => theme", StringComparison.Ordinal), "README should document fluent theme customization callbacks.");
+        Assert(readme.Contains("WithPalette(", StringComparison.Ordinal), "README should document palette customization.");
+        Assert(readme.Contains("ChartBrandKit", StringComparison.Ordinal) && readme.Contains("WithBrandKit", StringComparison.Ordinal), "README should document reusable brand kits.");
+        Assert(readme.Contains("ChartBrandKit.Executive()", StringComparison.Ordinal) && readme.Contains("PeopleInfographic()", StringComparison.Ordinal) && readme.Contains("Accessible()", StringComparison.Ordinal), "README should document brand kit presets.");
+        Assert(readme.Contains("Report intent", StringComparison.Ordinal) && readme.Contains("Theme starting point", StringComparison.Ordinal) && readme.Contains("Brand kit starting point", StringComparison.Ordinal), "README should help users choose between themes and brand kits.");
+        Assert(readme.Contains("WithPanelSpan", StringComparison.Ordinal) && readme.Contains("columnSpan", StringComparison.Ordinal), "README should document grid panel spans.");
+        Assert(readme.Contains("ChartColor.FromHex", StringComparison.Ordinal) && readme.Contains("ChartPalettes.FromHex", StringComparison.Ordinal), "README should document pasted hex color customization.");
+        Assert(readme.Contains("WithSurfaceColors", StringComparison.Ordinal) && readme.Contains("WithSemanticColors", StringComparison.Ordinal) && readme.Contains("WithSurfaceStyle", StringComparison.Ordinal), "README should document theme color and surface customization helpers.");
+        Assert(readme.Contains("WithStrokeWidth", StringComparison.Ordinal) && readme.Contains("UseThemeColor", StringComparison.Ordinal), "README should document fluent series styling helpers.");
         foreach (var api in new[] {
             "AddLine",
             "AddSmoothLine",
@@ -121,6 +149,52 @@ internal static partial class SmokeTests {
             "AddPolarArea",
             "AddFunnel",
             "AddTreemap",
+            "AddPictorial",
+            "ChartPictorialItem",
+            "ChartPictorialShape",
+            "WithPictorialShape",
+            "WithPictorialColumns",
+            "WithPictorialMaximum",
+            "WithPictorialValuePerSymbol",
+            "WithPictorialValues",
+            "WithPictorialSymbolScale",
+            "WithPictorialEmptyOpacity",
+            "WithPictorialSvgPath",
+            "AddProgressBars",
+            "ChartProgressItem",
+            "WithProgressMaximum",
+            "WithProgressValues",
+            "WithProgressHandles",
+            "WithProgressBarThickness",
+            "WithProgressTrackOpacity",
+            "WithLegendPosition",
+            "WithPointLegend",
+            "ChartTextRole",
+            "ChartTextStyle",
+            "WithTextStyle",
+            "WithTitleStyle",
+            "WithSubtitleStyle",
+            "WithAxisTitleStyle",
+            "WithTickLabelStyle",
+            "WithLegendStyle",
+            "WithDataLabelStyle",
+            "WithDonutCenterLabel",
+            "WithDonutCenterText",
+            "WithDonutInnerRadiusRatio",
+            "WithRadialBarCenterLabel",
+            "WithCircleStatusLabel",
+            "WithCircleRadiusScale",
+            "WithCircleStrokeScale",
+            "WithRadialBarRadiusScale",
+            "WithRadialBarStrokeScale",
+            "ChartBrandKit",
+            "WithBrandKit",
+            "AddWordCloud",
+            "ChartWordCloudItem",
+            "WithWordCloudFontRange",
+            "WithWordCloudAngles",
+            "WithWordCloudMaximumTerms",
+            "WithWordCloudDensity",
             "AddTimelineItem",
             "AddTimelineRange",
             "AddGanttTask",
@@ -130,6 +204,7 @@ internal static partial class SmokeTests {
             "ChartSankeyLink",
             "AddTree",
             "ChartTreeLink",
+            "AddSunburst",
             "AddPie",
             "AddDonut"
         }) {

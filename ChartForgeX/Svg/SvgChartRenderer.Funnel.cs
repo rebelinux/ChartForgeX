@@ -9,7 +9,12 @@ namespace ChartForgeX.Svg;
 
 public sealed partial class SvgChartRenderer {
     private static void DrawFunnel(StringBuilder sb, Chart chart, ChartRect basePlot, string id) {
-        var series = chart.Series.FirstOrDefault(item => item.Kind == ChartSeriesKind.Funnel);
+        ChartSeries? series = null;
+        for (var i = 0; i < chart.Series.Count; i++) {
+            if (chart.Series[i].Kind != ChartSeriesKind.Funnel) continue;
+            series = chart.Series[i];
+            break;
+        }
         if (series == null) return;
         var values = series.Points.Where(point => point.Y > 0).ToArray();
         if (values.Length == 0) return;
@@ -25,6 +30,7 @@ public sealed partial class SvgChartRenderer {
         var gap = Math.Min(10, Math.Max(4, plot.Height / values.Length * 0.08));
         var segmentHeight = Math.Max(18, (plot.Height - gap * (values.Length - 1)) / values.Length);
         sb.AppendLine("<g data-cfx-role=\"funnel-chart\">");
+        DrawFunnelPointGradients(sb, id, series);
 
         for (var i = 0; i < values.Length; i++) {
             var y = plot.Top + i * (segmentHeight + gap);
@@ -35,8 +41,8 @@ public sealed partial class SvgChartRenderer {
             var topRight = topLeft + topWidth;
             var bottomLeft = plot.Left + (plot.Width - bottomWidth) / 2;
             var bottomRight = bottomLeft + bottomWidth;
-            var color = series.Color ?? chart.Options.Theme.Palette[i % chart.Options.Theme.Palette.Length];
-            var fill = series.Color.HasValue ? color.ToCss() : $"url(#{id}-sliceFill{i % chart.Options.Theme.Palette.Length})";
+            var color = FunnelSegmentColor(chart, series, i);
+            var fill = FunnelSegmentFill(chart, series, i, id);
             var label = FormatX(chart, values[i].X);
             var value = FormatValue(chart, values[i].Y);
             var retention = values[i].Y / values[0].Y;
@@ -69,6 +75,33 @@ public sealed partial class SvgChartRenderer {
     private static double FunnelWidth(double plotWidth, double value, double max) {
         var ratio = max <= 0 ? 1 : Clamp(value / max, 0.04, 1);
         return Math.Max(70, plotWidth * (0.22 + ratio * 0.74));
+    }
+
+    private static void DrawFunnelPointGradients(StringBuilder sb, string id, ChartSeries series) {
+        var wroteDefs = false;
+        for (var i = 0; i < series.PointColors.Count; i++) {
+            if (!series.PointColors[i].HasValue) continue;
+            if (!wroteDefs) {
+                sb.AppendLine("<defs>");
+                wroteDefs = true;
+            }
+
+            var color = series.PointColors[i]!.Value;
+            sb.AppendLine($"<linearGradient id=\"{id}-funnelPointFill{i}\" x1=\"0\" x2=\"1\" y1=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"{color.ToHex()}\" stop-opacity=\"1\"/><stop offset=\"100%\" stop-color=\"{color.ToHex()}\" stop-opacity=\"0.78\"/></linearGradient>");
+        }
+
+        if (wroteDefs) sb.AppendLine("</defs>");
+    }
+
+    private static ChartColor FunnelSegmentColor(Chart chart, ChartSeries series, int pointIndex) =>
+        pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue
+            ? series.PointColors[pointIndex]!.Value
+            : series.Color ?? chart.Options.Theme.Palette[pointIndex % chart.Options.Theme.Palette.Length];
+
+    private static string FunnelSegmentFill(Chart chart, ChartSeries series, int pointIndex, string id) {
+        if (pointIndex < series.PointColors.Count && series.PointColors[pointIndex].HasValue) return $"url(#{id}-funnelPointFill{pointIndex})";
+        if (series.Color.HasValue) return series.Color.Value.ToCss();
+        return $"url(#{id}-sliceFill{pointIndex % chart.Options.Theme.Palette.Length})";
     }
 
     private static ChartColor FunnelTextColor(ChartColor background) {

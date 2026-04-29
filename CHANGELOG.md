@@ -6,6 +6,46 @@
 - Added `dotnet test` support for the smoke suite.
 - Added public input validation for invalid chart sizes, padding, scales, ranges, and non-finite data points.
 - Added renderer compatibility checks for specialized chart types.
-- Fixed culture-sensitive CSS and PNG number formatting.
+- Added render-boundary guards for public mutable series, annotations, axis labels, and specialized chart payloads.
+- Added explicit SVG ID scope overloads for deterministic raw SVG embedding.
+- Added expressive built-in themes, CSS font stack presets, and fluent theme/palette customization helpers.
+- Added reusable brand kits and curated brand-kit presets for executive, product, people-infographic, editorial, and accessible report styles.
+- Added sunburst partition charts for nested hierarchy composition.
+- Added pictorial charts with built-in repeated symbol rows, configurable columns/max scale, true partial symbol fills, value-per-symbol Isotype scaling with wrapped icon rows, optional value labels, symbol scale/empty-opacity controls, per-item colors, and custom SVG path symbols with PNG fallback shapes.
+- Added slider-style progress-bar charts for infographic controls and compact survey scorecards, with handle visibility, thickness, and track-opacity controls.
+- Added donut center-text and inner-radius customization so donut charts can act as polished infographic rings without creating one-off chart variants.
+- Added circle and radial-bar radius/stroke scale controls for polished KPI rings across compact and wide report panels.
+- Added configurable legend positions with reserved plot lanes so SVG and PNG charts can keep long legend labels away from plot borders.
+- Improved radial-bar legends so ring labels and values honor configurable legend positions in SVG and PNG.
+- Improved PNG radar legends so radar charts reserve the shared configurable legend lanes instead of drawing legends over the plot.
+- Added independent axis-line visibility controls so infographic charts can keep labels while hiding axis rules and zero-lines.
+- Added role-based text styling for titles, subtitles, axis titles, tick labels, legends, and data labels, including color, size, font family, weight, italic, and underline controls where the renderer supports them.
+- Added grid title and subtitle text styling so composed report headers can match chart-level typography in SVG and PNG outputs.
+- Added per-series data-label style overrides for cartesian and specialized labels so highlighted series can use their own label color, size, weight, and decoration.
+- Added point-level data-label style overrides so individual bars, points, slices, cells, and waterfall deltas can be emphasized without creating variant chart types.
+- Added point-level colors for regular and horizontal bars so scorecards can mix intentional colors within one series.
+- Added point-level colors for funnel segments and treemap tiles in SVG and PNG output.
+- Improved treemap legends so they use the shared configurable legend lanes instead of a bottom-only internal reserve.
+- Added point-level colors for scatter markers, line markers, lollipop marks, bubbles, and error-bar marks in SVG and PNG output.
+- Added point-level colors for range-bar intervals, dumbbell comparisons, box-plot summaries, candlestick/OHLC windows, and slope endpoint markers in SVG and PNG output.
+- Added opt-in point legends for single-series charts so item-level colors can be explained with per-point legend keys.
+- Added independent x-axis and y-axis visibility controls for cleaner infographic scorecards.
+- Added configurable data-label placement for common cartesian and specialized marks, with chart-level and series-level placement controls, side-aware outside pie/donut label lanes, configurable connector color/opacity/stroke/style controls, configurable and custom-formatted pie/donut slice label content, outside pie/donut label distance controls, point-level pie/donut slice offsets, and subtle connector lines for outside pie/donut labels and side heatmap labels.
+- Extended data-label placement support to bubbles, error bars, range bands, range areas, range bars, dumbbells, box plots, candlesticks, and OHLC charts in SVG and PNG output.
+- Added slice-colored pie and donut callout connectors by default, with point-level slice colors honored by slices, legends, and callout connectors in SVG and PNG output.
+- Improved pie, donut, and polar-area slice legends so their percentage legends honor configurable legend positions in SVG and PNG.
+- Added optional heatmap scale and column labels for compact scorecard-style heatmaps.
+- Added deterministic word cloud charts for weighted terms with configurable font ranges, rotation patterns, maximum term counts, layout density, and per-term colors.
+- Added chart-grid panel spans for mosaic reports with wide or tall feature panels across SVG, PNG, and static HTML exports.
+- Added hex color parsing and pasted hex palette helpers for chart, theme, and brand-kit customization.
+- Added generated example gallery coverage for theme/font, brand-kit, palette swatch, pictorial symbol, pictorial Isotype, people-infographic, word-cloud control, sunburst, pictorial, and word-cloud outputs.
+- Rejected cyclic Sankey data so flow layout fails clearly instead of rendering arbitrary backward paths.
+- Fixed duplicate SVG IDs when repeated or identical charts are embedded in HTML fragments and grids.
+- Fixed root accessibility ID collisions when repeated SVG grid exports are embedded inline.
+- Hardened SVG ID hashing against input-boundary collisions.
+- Fixed culture-sensitive CSS and shared SVG/PNG compact number formatting.
+- Fixed standalone HTML pages for untitled charts to emit a useful browser title.
+- Tightened chart grid option behavior for direct `PanelSize` assignment and nullable theme clearing.
+- Tightened theme palette assignment so themes snapshot caller-owned color arrays.
 - Compressed PNG output with deflate.
 - Added deterministic package metadata and NuGet symbol package generation.

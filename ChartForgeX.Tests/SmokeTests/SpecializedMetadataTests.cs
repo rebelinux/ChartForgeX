@@ -22,6 +22,12 @@ internal static partial class SmokeTests {
             .AddRadialBar("Coverage", Points(92, 74, 66))
             .ToSvg();
         Assert(radial.Contains("data-cfx-role=\"radial-bar-ring\" data-cfx-point=\"0\" data-cfx-label=\"Identity\" data-cfx-value=\"92\" data-cfx-percent=\"0.92\"", System.StringComparison.Ordinal), "Radial bar rings should expose label, value, and percent metadata.");
+        var positionedRadial = Chart.Create()
+            .WithLegendPosition(ChartLegendPosition.TopRight)
+            .WithXLabels("Identity", "Device", "Network")
+            .AddRadialBar("Coverage", Points(92, 74, 66));
+        Assert(positionedRadial.ToSvg().Contains("data-cfx-role=\"radial-bar-legend\" data-cfx-position=\"TopRight\"", System.StringComparison.Ordinal), "Radial-bar legends should expose their configured position.");
+        Assert(positionedRadial.ToPng().Length > 64, "Positioned radial-bar legends should render PNG output.");
 
         var gauge = Chart.Create()
             .AddGauge("Score", 84, 0, 100)

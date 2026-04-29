@@ -38,9 +38,11 @@ public sealed partial class PngChartRenderer {
                 c.DrawCircle(points[i].X, points[i].Y, ChartVisualPrimitives.RadarPointRadius, color);
                 if (ShouldDrawDataLabels(chart, item.Series)) {
                     var label = FormatValue(chart, RadarValue(item.Series, categories[i]));
-                    var labelPoint = RadarDataLabelPoint(points[i], i, categories.Count, seriesOrder, series.Count);
-                    var fontSize = chart.Options.Theme.DataLabelFontSize;
-                    DrawReadablePngLabel(c, plot, labelPoint.X - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0, labelPoint.Y - fontSize / 2.0, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize);
+                    var labelPoint = RadarDataLabelPoint(chart, item.Series, points[i], i, categories.Count, seriesOrder, series.Count);
+                    var pointIndex = RadarPointIndex(item.Series, categories[i]);
+                    var style = DataLabelStyle(chart, item.Series, pointIndex);
+                    var fontSize = PngDataLabelFontSize(chart, item.Series, pointIndex);
+                    DrawReadablePngLabel(c, plot, labelPoint.X - EstimatePngEmphasizedTextWidth(label, fontSize) / 2.0, labelPoint.Y - fontSize / 2.0, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), fontSize, style);
                 }
             }
         }
@@ -128,10 +130,21 @@ public sealed partial class PngChartRenderer {
         return 0;
     }
 
+    private static int RadarPointIndex(ChartSeries series, double category) {
+        for (var i = 0; i < series.Points.Count; i++) if (Math.Abs(series.Points[i].X - category) < 0.000001) return i;
+        return -1;
+    }
+
     private static double RadarAngle(int index, int count) => -Math.PI / 2 + Math.PI * 2 * index / count;
 
-    private static ChartPoint RadarDataLabelPoint(ChartPoint point, int categoryIndex, int categoryCount, int seriesOrder, int seriesCount) {
+    private static ChartPoint RadarDataLabelPoint(Chart chart, ChartSeries series, ChartPoint point, int categoryIndex, int categoryCount, int seriesOrder, int seriesCount) {
+        var placement = DataLabelPlacement(chart, series);
         var angle = RadarAngle(categoryIndex, categoryCount);
+        if (placement == ChartDataLabelPlacement.Center || placement == ChartDataLabelPlacement.Inside) return point;
+        if (placement == ChartDataLabelPlacement.Left) return new ChartPoint(point.X - 20, point.Y);
+        if (placement == ChartDataLabelPlacement.Right || placement == ChartDataLabelPlacement.Outside) return new ChartPoint(point.X + 20, point.Y);
+        if (placement == ChartDataLabelPlacement.Above) return new ChartPoint(point.X, point.Y - 20);
+        if (placement == ChartDataLabelPlacement.Below) return new ChartPoint(point.X, point.Y + 20);
         var inward = 16.0;
         var spread = (seriesOrder - (seriesCount - 1) / 2.0) * 18.0;
         var x = point.X - Math.Cos(angle) * inward - Math.Sin(angle) * spread;

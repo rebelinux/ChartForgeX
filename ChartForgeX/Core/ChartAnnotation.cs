@@ -47,8 +47,16 @@ public sealed class ChartAnnotation {
     /// <param name="color">The annotation color.</param>
     /// <param name="opacity">The annotation opacity used for band fills.</param>
     public ChartAnnotation(ChartAnnotationKind kind, double value, double? endValue, string label, ChartColor color, double opacity) {
+        if (!Enum.IsDefined(typeof(ChartAnnotationKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown annotation kind.");
         ChartGuards.Finite(value, nameof(value));
         if (endValue.HasValue) ChartGuards.Finite(endValue.Value, nameof(endValue));
+        if (kind == ChartAnnotationKind.HorizontalBand || kind == ChartAnnotationKind.VerticalBand) {
+            if (!endValue.HasValue) throw new ArgumentException("Band annotations require an end value.", nameof(endValue));
+            if (Math.Abs(endValue.Value - value) < double.Epsilon) throw new ArgumentOutOfRangeException(nameof(endValue), endValue.Value, "Band annotation end value must differ from the start value.");
+        } else if (endValue.HasValue) {
+            throw new ArgumentException("Line annotations must not specify an end value.", nameof(endValue));
+        }
+
         ChartGuards.UnitInterval(opacity, nameof(opacity));
         Kind = kind;
         Value = value;

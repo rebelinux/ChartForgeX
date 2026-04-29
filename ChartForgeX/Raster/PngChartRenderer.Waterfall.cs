@@ -22,7 +22,6 @@ public sealed partial class PngChartRenderer {
         var ticks = ChartTicks.Generate(bounds.MinY, bounds.MaxY, chart.Options.TickCount);
         bounds.SetYBounds(ticks[0], ticks[ticks.Count - 1]);
         var tickFontSize = PngTickFontSize(chart);
-        var dataFontSize = chart.Options.Theme.DataLabelFontSize;
         var bottomReserve = chart.Options.ShowAxes ? (string.IsNullOrWhiteSpace(chart.XAxisTitle) ? 32.0 : 60.0) : 0.0;
         if (chart.Options.ShowLegend && chart.Series.Count > 0) bottomReserve += 18 + PngLegendRowCount(chart) * (PngLegendFontSize(chart) + 6);
         plot = new ChartRect(plot.X, plot.Y, plot.Width, Math.Max(1, plot.Height - bottomReserve));
@@ -47,13 +46,29 @@ public sealed partial class PngChartRenderer {
                 c.DrawDashedLine(centerX - slot + barWidth / 2, connectorY, centerX - barWidth / 2, connectorY, ApplyOpacity(chart.Options.Theme.Axis, ChartVisualPrimitives.WaterfallConnectorOpacity), ChartVisualPrimitives.WaterfallConnectorStrokeWidth, ChartVisualPrimitives.WaterfallConnectorDash, ChartVisualPrimitives.WaterfallConnectorGap);
             }
 
-            DrawGradientBar(c, centerX - barWidth / 2, top, barWidth, height, Math.Min(6, barWidth / 4), color);
-            if (ShouldDrawDataLabels(chart, series)) {
-                var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
-                var labelX = centerX - EstimatePngEmphasizedTextWidth(label, dataFontSize) / 2.0;
-                var labelY = step.Delta >= 0 || step.IsTotal ? top - 11 - dataFontSize : top + height + 13 - dataFontSize;
-                if (!ReservePngLabel(label, labelX, labelY, chart, plot, dataFontSize, reservedLabels)) continue;
-                DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), dataFontSize);
+                DrawGradientBar(c, centerX - barWidth / 2, top, barWidth, height, Math.Min(6, barWidth / 4), color);
+                if (ShouldDrawDataLabels(chart, series)) {
+                    var label = step.IsTotal ? FormatValue(chart, step.End) : FormatSignedValue(chart, step.Delta);
+                    var pointIndex = step.IsTotal ? -1 : i;
+                    var placement = DataLabelPlacement(chart, series);
+                    var dataStyle = DataLabelStyle(chart, series, pointIndex);
+                    var dataFontSize = PngDataLabelFontSize(chart, series, pointIndex);
+                    if ((placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Center) && height < dataFontSize + 8) continue;
+                    var labelWidth = EstimatePngEmphasizedTextWidth(label, dataFontSize);
+                    var labelX = placement == ChartDataLabelPlacement.Left
+                        ? centerX - barWidth / 2 - labelWidth - 8
+                        : placement == ChartDataLabelPlacement.Right || placement == ChartDataLabelPlacement.Outside
+                            ? centerX + barWidth / 2 + 8
+                            : centerX - labelWidth / 2.0;
+                    var labelY = placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Center
+                        ? top + height / 2 - dataFontSize / 2.0
+                        : placement == ChartDataLabelPlacement.Above
+                            ? top - 11 - dataFontSize
+                            : placement == ChartDataLabelPlacement.Below
+                                ? top + height + 13 - dataFontSize
+                                : step.Delta >= 0 || step.IsTotal ? top - 11 - dataFontSize : top + height + 13 - dataFontSize;
+                    if (!ReservePngLabel(label, labelX, labelY, chart, plot, dataFontSize, reservedLabels)) continue;
+                    DrawReadablePngLabel(c, plot, labelX, labelY, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), dataFontSize, dataStyle);
             }
 
             if (chart.Options.ShowAxes) {
@@ -77,10 +92,12 @@ public sealed partial class PngChartRenderer {
         }
 
         var zeroY = WaterfallY(plot, bounds, 0);
-        if (chart.Options.ShowAxes && zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, chart.Options.Theme.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
+        if (ShowAxisLines(chart) && zeroY > plot.Top && zeroY < plot.Bottom) c.DrawLine(plot.Left, zeroY, plot.Right, zeroY, chart.Options.Theme.Axis, ChartVisualPrimitives.ZeroAxisStrokeWidth);
         if (!chart.Options.ShowAxes) return;
-        c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
-        c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+        if (ShowAxisLines(chart)) {
+            c.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+            c.DrawLine(plot.Left, plot.Top, plot.Left, plot.Bottom, chart.Options.Theme.Axis, ChartVisualPrimitives.AxisStrokeWidth);
+        }
     }
 
     private static bool IsWaterfallChart(Chart chart) {
