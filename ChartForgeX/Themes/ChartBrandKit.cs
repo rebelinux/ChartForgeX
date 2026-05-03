@@ -95,9 +95,9 @@ public sealed class ChartBrandKit {
     public static ChartBrandKit PeopleInfographic() => Create()
         .WithPalette(ChartPalettes.PeopleInfographic)
         .WithFontFamily(ChartFontStacks.Geometric)
-        .WithSurfaceColors(ChartColor.Transparent, ChartColor.White, ChartColor.FromHex("#F8FDFF"), ChartColor.FromRgba(6, 182, 212, 56), ChartColor.FromRgba(219, 39, 119, 38))
-        .WithTextColors(ChartColor.FromHex("#123044"), ChartColor.FromHex("#64748B"))
-        .WithGuideColors(ChartColor.FromRgba(6, 182, 212, 72), ChartColor.FromRgba(15, 23, 42, 110))
+        .WithSurfaceColors(ChartColor.Transparent, ChartColor.White, ChartColor.FromHex("#F8FAFC"), ChartColor.FromRgba(15, 23, 42, 44), ChartColor.FromRgba(100, 116, 139, 46))
+        .WithTextColors(ChartColor.FromHex("#0F172A"), ChartColor.FromHex("#475569"))
+        .WithGuideColors(ChartColor.FromRgba(148, 163, 184, 86), ChartColor.FromRgba(51, 65, 85, 150))
         .WithSemanticColors(ChartColor.FromHex("#06B6D4"), ChartColor.FromHex("#FB923C"), ChartColor.FromHex("#DB2777"))
         .WithSurfaceStyle(ChartSurfaceStyle.Framed);
 

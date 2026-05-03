@@ -27,6 +27,7 @@ internal static partial class SmokeTests {
         var html = grid.ToHtmlPage();
         Assert(html.Contains("grid-column:span 2", StringComparison.Ordinal), "HTML grids should expose panel column spans.");
         Assert(html.Contains("grid-auto-rows:var(--cfx-grid-panel-height,auto)", StringComparison.Ordinal), "HTML grids should define stable rows for fixed-height spanned panels.");
+        Assert(html.Contains("@media(max-width:900px){body{padding:16px}.chartforgex-grid-body{grid-template-columns:1fr;grid-auto-rows:auto}.chartforgex-grid-panel{grid-column:auto!important;grid-row:auto!important;min-height:0}", StringComparison.Ordinal), "HTML grids should collapse fixed panel heights on narrow screens so wide panels do not leave large blank sections.");
         Assert(CountOccurrences(html, "<svg ") == 3, "Spanned HTML grids should still render every chart inline.");
 
         var svg = grid.ToSvg();

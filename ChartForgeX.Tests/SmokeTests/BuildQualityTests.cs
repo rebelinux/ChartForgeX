@@ -60,6 +60,10 @@ internal static partial class SmokeTests {
         Assert(names.Contains("control-partition-sunburst-aurora", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover sunburst hierarchy charts.");
         Assert(names.Contains("audience-pictorial-candy", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover pictorial charts.");
         Assert(names.Contains("support-themes-word-cloud-editorial", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover word cloud charts.");
+        Assert(names.Contains("developer-consistency-calendar-light", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover calendar heatmap charts.");
+        Assert(names.Contains("travel-dotted-map-dark", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover dotted map charts.");
+        Assert(names.Contains("revenue-us-state-geo-map-light", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover US state geographic map charts.");
+        Assert(names.Contains("revenue-us-state-tile-map-light", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover US state tile map charts.");
         Assert(names.Contains("theme-font-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover theme and font gallery output.");
         Assert(names.Contains("brand-kit-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover brand kit gallery output.");
         Assert(names.Contains("palette-swatch-showcase-grid", StringComparer.OrdinalIgnoreCase), "Visual baseline should cover palette gallery output.");

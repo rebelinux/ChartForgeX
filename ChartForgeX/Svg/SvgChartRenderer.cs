@@ -70,7 +70,7 @@ public sealed partial class SvgChartRenderer {
         sb.AppendLine($"<title id=\"{id}-title\">{Escape(string.IsNullOrWhiteSpace(chart.Title) ? "ChartForgeX chart" : chart.Title)}</title>");
         sb.AppendLine($"<desc id=\"{id}-desc\">{Escape(BuildDescription(chart))}</desc>");
         sb.AppendLine("<defs>");
-        sb.AppendLine($"<style>#{id} text{{font-synthesis:none}} #{id} .cfx-crisp-stroke{{vector-effect:non-scaling-stroke;shape-rendering:geometricPrecision}}</style>");
+        sb.AppendLine($"<style>#{id} text{{font-synthesis:none}} #{id} .cfx-crisp-stroke{{vector-effect:non-scaling-stroke;shape-rendering:geometricPrecision}} #{id} .cfx-interactive-region{{transition:opacity .12s ease,stroke-width .12s ease}} #{id} .cfx-interactive-region[data-cfx-role=\"dotted-map-connector\"]{{pointer-events:stroke}} #{id} .cfx-interactive-region:hover,#{id} .cfx-interactive-region:focus{{opacity:1;outline:none;stroke-width:var(--cfx-interactive-focus-stroke-width,2.2)}}</style>");
         sb.AppendLine($"<filter id=\"{id}-softShadow\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"14\" stdDeviation=\"18\" flood-opacity=\"{F(Clamp(t.ShadowOpacity, 0, 1))}\"/></filter>");
         sb.AppendLine($"<clipPath id=\"{id}-plotClip\"><rect x=\"{F(plot.X)}\" y=\"{F(plot.Y)}\" width=\"{F(plot.Width)}\" height=\"{F(plot.Height)}\" rx=\"{F(t.PlotCornerRadius)}\"/></clipPath>");
         for (var i = 0; i < chart.Series.Count; i++) {
@@ -187,6 +187,10 @@ public sealed partial class SvgChartRenderer {
             sb.AppendLine("</svg>");
             return sb.ToString();
         }
+        if (IsCalendarHeatmapChart(chart)) { DrawCalendarHeatmap(sb, chart, plot); sb.AppendLine("</g>"); sb.AppendLine("</svg>"); return sb.ToString(); }
+        if (IsDottedMapChart(chart)) { DrawDottedMap(sb, chart, plot, id); sb.AppendLine("</g>"); sb.AppendLine("</svg>"); return sb.ToString(); }
+        if (IsUsStateGeoMapChart(chart)) { DrawUsStateGeoMap(sb, chart, plot); sb.AppendLine("</g>"); sb.AppendLine("</svg>"); return sb.ToString(); }
+        if (IsUsStateTileMapChart(chart)) { DrawUsStateTileMap(sb, chart, plot); sb.AppendLine("</g>"); sb.AppendLine("</svg>"); return sb.ToString(); }
         if (IsTimelineChart(chart)) {
             DrawTimeline(sb, chart, plot, id);
             DrawLegend(sb, chart, w, h);
@@ -680,16 +684,16 @@ public sealed partial class SvgChartRenderer {
     }
 
     private static ChartRect PlotArea(Chart chart) {
-        var plot = ChartLayout.PlotArea(chart.Options);
+        var plot = IsSpatialMapChart(chart) ? SpatialMapPlotArea(chart) : ChartLayout.PlotArea(chart.Options);
         if (chart.Options.IsSparkline || IsPieLike(chart) || IsRadialBarChart(chart)) return plot;
 
-        if (chart.Options.ShowLegend && chart.Series.Count > 0 && IsTopLegend(chart.Options.LegendPosition)) {
+        if (ShouldDrawLegend(chart) && IsTopLegend(chart.Options.LegendPosition)) {
             var reserve = LegendBottomReserve(chart);
             plot = new ChartRect(plot.X, plot.Y + reserve, plot.Width, Math.Max(1, plot.Height - reserve));
-        } else if (chart.Options.ShowLegend && chart.Series.Count > 0 && IsLeftLegend(chart.Options.LegendPosition)) {
+        } else if (ShouldDrawLegend(chart) && IsLeftLegend(chart.Options.LegendPosition)) {
             var reserve = LegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             plot = new ChartRect(plot.X + reserve, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
-        } else if (chart.Options.ShowLegend && chart.Series.Count > 0 && IsRightLegend(chart.Options.LegendPosition)) {
+        } else if (ShouldDrawLegend(chart) && IsRightLegend(chart.Options.LegendPosition)) {
             var reserve = LegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             plot = new ChartRect(plot.X, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
         }
@@ -700,7 +704,7 @@ public sealed partial class SvgChartRenderer {
             if (string.IsNullOrWhiteSpace(chart.XAxisTitle)) bottomReserve -= 18;
         }
 
-        if (chart.Options.ShowLegend && IsBottomLegend(chart.Options.LegendPosition)) bottomReserve += LegendBottomReserve(chart);
+        if (ShouldDrawLegend(chart) && IsBottomLegend(chart.Options.LegendPosition)) bottomReserve += LegendBottomReserve(chart);
 
         var extraBottom = Math.Max(0, bottomReserve - chart.Options.Padding.Bottom);
         if (extraBottom <= 0) return plot;
@@ -724,7 +728,7 @@ public sealed partial class SvgChartRenderer {
         var labels = XAxisTickLabels(chart, xTicks, valueAxisOnly);
         var bottomReserve = XAxisTitleOffset(chart, labels) + chart.Options.Theme.AxisTitleFontSize + 4;
         if (string.IsNullOrWhiteSpace(chart.XAxisTitle)) bottomReserve -= 18;
-        if (chart.Options.ShowLegend && IsBottomLegend(chart.Options.LegendPosition)) bottomReserve += LegendBottomReserve(chart);
+        if (ShouldDrawLegend(chart) && IsBottomLegend(chart.Options.LegendPosition)) bottomReserve += LegendBottomReserve(chart);
 
         var maxBottom = Math.Max(plot.Top + 1, chart.Options.Size.Height - bottomReserve);
         if (plot.Bottom <= maxBottom) return plot;

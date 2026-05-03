@@ -361,6 +361,10 @@ public sealed class ChartGrid {
         if (chart.Series.Count == 0) return false;
         foreach (var series in chart.Series) {
             if (series.Kind == ChartSeriesKind.Heatmap ||
+                series.Kind == ChartSeriesKind.CalendarHeatmap ||
+                series.Kind == ChartSeriesKind.DottedMap ||
+                series.Kind == ChartSeriesKind.UsStateTileMap ||
+                series.Kind == ChartSeriesKind.UsStateGeoMap ||
                 series.Kind == ChartSeriesKind.Gauge ||
                 series.Kind == ChartSeriesKind.Circle ||
                 series.Kind == ChartSeriesKind.RadialBar ||
@@ -375,6 +379,7 @@ public sealed class ChartGrid {
                 series.Kind == ChartSeriesKind.Tree ||
                 series.Kind == ChartSeriesKind.Sunburst ||
                 series.Kind == ChartSeriesKind.Pictorial ||
+                series.Kind == ChartSeriesKind.ProgressBar ||
                 series.Kind == ChartSeriesKind.WordCloud ||
                 series.Kind == ChartSeriesKind.Pie ||
                 series.Kind == ChartSeriesKind.Donut ||
@@ -405,6 +410,10 @@ public sealed class ChartGrid {
     private static bool IsCartesianYAxisSeries(ChartSeries series) {
         return series.Kind != ChartSeriesKind.HorizontalBar &&
             series.Kind != ChartSeriesKind.Heatmap &&
+            series.Kind != ChartSeriesKind.CalendarHeatmap &&
+            series.Kind != ChartSeriesKind.DottedMap &&
+            series.Kind != ChartSeriesKind.UsStateTileMap &&
+            series.Kind != ChartSeriesKind.UsStateGeoMap &&
             series.Kind != ChartSeriesKind.Gauge &&
             series.Kind != ChartSeriesKind.Circle &&
             series.Kind != ChartSeriesKind.RadialBar &&
@@ -419,6 +428,7 @@ public sealed class ChartGrid {
             series.Kind != ChartSeriesKind.Tree &&
             series.Kind != ChartSeriesKind.Sunburst &&
             series.Kind != ChartSeriesKind.Pictorial &&
+            series.Kind != ChartSeriesKind.ProgressBar &&
             series.Kind != ChartSeriesKind.WordCloud &&
             series.Kind != ChartSeriesKind.Pie &&
             series.Kind != ChartSeriesKind.Donut &&

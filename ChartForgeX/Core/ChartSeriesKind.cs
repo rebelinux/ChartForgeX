@@ -90,6 +90,26 @@ public enum ChartSeriesKind {
     Heatmap,
 
     /// <summary>
+    /// Renders date-indexed values as a contribution-style calendar grid.
+    /// </summary>
+    CalendarHeatmap,
+
+    /// <summary>
+    /// Renders longitude/latitude points over a dotted world map.
+    /// </summary>
+    DottedMap,
+
+    /// <summary>
+    /// Renders United States regions as a value-colored tile map.
+    /// </summary>
+    UsStateTileMap,
+
+    /// <summary>
+    /// Renders United States regions as a simplified geographic choropleth map.
+    /// </summary>
+    UsStateGeoMap,
+
+    /// <summary>
     /// Renders a single-value radial gauge.
     /// </summary>
     Gauge,

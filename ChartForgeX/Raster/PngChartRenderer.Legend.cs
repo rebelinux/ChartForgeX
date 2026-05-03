@@ -6,7 +6,7 @@ namespace ChartForgeX.Raster;
 
 public sealed partial class PngChartRenderer {
     private static void DrawLegend(RgbaCanvas c, Chart chart) {
-        if (!chart.Options.ShowLegend || chart.Series.Count == 0) return;
+        if (!ShouldDrawLegend(chart)) return;
         var theme = chart.Options.Theme;
         var fontSize = PngLegendFontSize(chart);
         var symbolWidth = 18;
@@ -92,7 +92,7 @@ public sealed partial class PngChartRenderer {
         kind == ChartSeriesKind.Funnel || kind == ChartSeriesKind.Pictorial || kind == ChartSeriesKind.ProgressBar || kind == ChartSeriesKind.Treemap || kind == ChartSeriesKind.WordCloud;
 
     private static ChartRect ApplyPngLegendReserve(Chart chart, ChartRect plot) {
-        if (!chart.Options.ShowLegend || chart.Series.Count == 0) return plot;
+        if (!ShouldDrawLegend(chart)) return plot;
         if (PngIsBottomLegend(chart.Options.LegendPosition)) {
             var maxBottom = System.Math.Max(plot.Top + 1, chart.Options.Size.Height - PngLegendBottomReserve(chart));
             return plot.Bottom <= maxBottom ? plot : new ChartRect(plot.X, plot.Y, plot.Width, System.Math.Max(1, maxBottom - plot.Y));
@@ -115,6 +115,8 @@ public sealed partial class PngChartRenderer {
 
         return plot;
     }
+
+    private static bool ShouldDrawLegend(Chart chart) => chart.Options.ShowLegend && chart.Series.Count > 0 && !IsMapChart(chart);
 
     private static double PngLegendLabelMaxWidth(Chart chart) {
         var width = PngIsVerticalLegend(chart.Options.LegendPosition) ? 240 : chart.Options.Size.Width - 80;

@@ -11,7 +11,7 @@ namespace ChartForgeX.Svg;
 
 public sealed partial class SvgChartRenderer {
     private static void DrawLegend(StringBuilder sb, Chart chart, int w, int h) {
-        if (!chart.Options.ShowLegend) return;
+        if (!ShouldDrawLegend(chart)) return;
         var t = chart.Options.Theme;
         var area = LegendArea(chart, w, h);
         var rows = BuildLegendRows(chart, area.Width);
@@ -126,6 +126,8 @@ public sealed partial class SvgChartRenderer {
     }
 
     private static double LegendBottomReserve(Chart chart) => 18 + BuildLegendRows(chart, Math.Max(1, chart.Options.Size.Width - 80)).Count * LegendRowHeight + ChartVisualPrimitives.LegendPlotGap;
+
+    private static bool ShouldDrawLegend(Chart chart) => chart.Options.ShowLegend && chart.Series.Count > 0 && !IsMapChart(chart);
 
     private static double LegendSideReserve(Chart chart) {
         if (chart.Series.Count == 0) return 0;
@@ -405,11 +407,24 @@ public sealed partial class SvgChartRenderer {
             ? series.PointColors[pointIndex]!.Value.ToCss()
             : $"url(#{id}-seriesFill{seriesIndex})";
 
-    private static bool ShowXAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowXAxis;
+    private static bool ShowXAxis(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowXAxis;
 
-    private static bool ShowYAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowYAxis;
+    private static bool ShowYAxis(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowYAxis;
 
-    private static bool ShowAxisLines(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowAxisLines;
+    private static bool ShowAxisLines(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowAxisLines;
+
+    private static bool IsMapChart(Chart chart) => IsCalendarHeatmapChart(chart) || IsDottedMapChart(chart) || IsUsStateGeoMapChart(chart) || IsUsStateTileMapChart(chart);
+
+    private static bool IsSpatialMapChart(Chart chart) => IsDottedMapChart(chart) || IsUsStateGeoMapChart(chart) || IsUsStateTileMapChart(chart);
+
+    private static ChartRect SpatialMapPlotArea(Chart chart) {
+        var o = chart.Options;
+        var left = Math.Min(o.Padding.Left, 42);
+        var right = Math.Min(o.Padding.Right, 42);
+        var top = o.ShowHeader ? Math.Min(o.Padding.Top + 10, 88) : Math.Min(o.Padding.Top, 42);
+        var bottom = Math.Min(o.Padding.Bottom, 42);
+        return new ChartRect(left, top, Math.Max(1, o.Size.Width - left - right), Math.Max(1, o.Size.Height - top - bottom));
+    }
 
     private static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 
@@ -585,6 +600,32 @@ public sealed partial class SvgChartRenderer {
     private static string BuildDescription(Chart chart) {
         var title = string.IsNullOrWhiteSpace(chart.Title) ? "Chart" : chart.Title;
         if (chart.Series.Count == 0) return title + " with no data series.";
+        var calendar = chart.Series.FirstOrDefault(series => series.Kind == ChartSeriesKind.CalendarHeatmap);
+        if (calendar != null && calendar.Points.Count > 0) {
+            var minDate = calendar.Points.Min(point => DateTime.FromOADate(point.X).Date).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var maxDate = calendar.Points.Max(point => DateTime.FromOADate(point.X).Date).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return title + " calendar heatmap for " + calendar.Name + " from " + minDate + " to " + maxDate + " with " + calendar.Points.Count.ToString(CultureInfo.InvariantCulture) + " dated " + (calendar.Points.Count == 1 ? "value" : "values") + ".";
+        }
+
+        var dottedMap = chart.Series.FirstOrDefault(series => series.Kind == ChartSeriesKind.DottedMap);
+        if (dottedMap != null && dottedMap.Points.Count > 0) {
+            return title + " dotted world map for " + dottedMap.Name + " with " + dottedMap.Points.Count.ToString(CultureInfo.InvariantCulture) + " highlighted " + (dottedMap.Points.Count == 1 ? "point" : "points") + ".";
+        }
+
+        var stateGeoMap = chart.Series.FirstOrDefault(series => series.Kind == ChartSeriesKind.UsStateGeoMap);
+        if (stateGeoMap != null && stateGeoMap.Points.Count > 0) {
+            var data = UsStateMapValues(chart, stateGeoMap);
+            var missing = Math.Max(0, UsStateGeoShapes.Shapes.Length - data.Count);
+            return title + " US state geographic map for " + stateGeoMap.Name + " with " + data.Count.ToString(CultureInfo.InvariantCulture) + " filled regions and " + missing.ToString(CultureInfo.InvariantCulture) + " missing regions.";
+        }
+
+        var stateTileMap = chart.Series.FirstOrDefault(series => series.Kind == ChartSeriesKind.UsStateTileMap);
+        if (stateTileMap != null && stateTileMap.Points.Count > 0) {
+            var data = UsStateMapValues(chart, stateTileMap);
+            var missing = Math.Max(0, UsStateTiles.Length - data.Count);
+            return title + " US state tile map for " + stateTileMap.Name + " with " + data.Count.ToString(CultureInfo.InvariantCulture) + " filled regions and " + missing.ToString(CultureInfo.InvariantCulture) + " missing regions.";
+        }
+
         var names = string.Join(", ", chart.Series.Select(series => series.Name).ToArray());
         return title + " with " + chart.Series.Count.ToString(CultureInfo.InvariantCulture) + " data series: " + names + ".";
     }

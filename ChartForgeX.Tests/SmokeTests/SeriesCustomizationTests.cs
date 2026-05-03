@@ -268,6 +268,56 @@ internal static partial class SmokeTests {
         Assert(!chart.ToSvg().Contains("fill=\"#F97316\"", StringComparison.Ordinal), "Clearing a point color should restore the series fill.");
         AssertThrows<ArgumentOutOfRangeException>(() => chart.Series[0].WithPointColor(99, "#F97316"), "Point colors should reject missing point indexes.");
         AssertThrows<ArgumentOutOfRangeException>(() => chart.Series[0].UseSeriesColor(99), "Clearing point colors should reject missing point indexes.");
+        AssertThrows<ArgumentOutOfRangeException>(() => bubble.Series[0].WithPointColor(3, "#F97316"), "Tuple-backed point colors should reject indexes outside the logical item count.");
+        AssertThrows<ArgumentOutOfRangeException>(() => errorBar.Series[0].WithPointDataLabelStyle(2, _ => { }), "Tuple-backed point label styles should reject indexes outside the logical item count.");
+        AssertThrows<ArgumentOutOfRangeException>(() => candlestick.Series[0].WithPointSliceOffset(2, 0.1), "Tuple-backed slice offsets should reject indexes outside the logical item count.");
+    }
+
+    private static void MapPointColorsOverrideSeriesColor() {
+        var dotted = Chart.Create()
+            .WithSize(520, 320)
+            .AddDottedMap("Visited", new[] {
+                new ChartMapPoint("Spain", -3.7038, 40.4168),
+                new ChartMapPoint("Indonesia", 113.9213, -0.7893)
+            }, ChartColor.FromHex("#14B8A6"));
+        dotted.Series[0].WithPointColor(1, "#E11D48");
+        var dottedSvg = dotted.ToSvg();
+        Assert(dottedSvg.Contains("data-cfx-role=\"dotted-map-point\" data-cfx-point=\"1\"", StringComparison.Ordinal) && dottedSvg.Contains("fill=\"#E11D48\"", StringComparison.Ordinal), "Dotted map points should honor point-specific colors in SVG.");
+        Assert(dotted.ToPng().Length > 64, "Dotted map point colors should render PNG output.");
+
+        var calendar = Chart.Create()
+            .WithSize(520, 320)
+            .AddCalendarHeatmap("Commits", new[] {
+                new ChartCalendarHeatmapItem(new DateTime(2026, 1, 1), 0),
+                new ChartCalendarHeatmapItem(new DateTime(2026, 1, 2), 100)
+            }, ChartColor.FromHex("#14B8A6"));
+        calendar.Series[0].WithPointColor(1, "#7C3AED");
+        var calendarSvg = calendar.ToSvg();
+        Assert(calendarSvg.Contains("data-cfx-date=\"2026-01-02\"", StringComparison.Ordinal) && calendarSvg.Contains("fill=\"#7C3AED\"", StringComparison.Ordinal), "Calendar heatmap cells should honor point-specific colors in SVG.");
+        Assert(calendar.ToPng().Length > 64, "Calendar heatmap point colors should render PNG output.");
+
+        var tile = Chart.Create()
+            .WithSize(520, 320)
+            .AddUsStateTileMap("Revenue", new[] {
+                new ChartRegionMapItem("CA", 10),
+                new ChartRegionMapItem("NY", 100)
+            }, ChartColor.FromHex("#14B8A6"));
+        tile.Series[0].WithPointColor(1, "#F97316");
+        var tileSvg = tile.ToSvg();
+        Assert(tileSvg.Contains("data-cfx-region=\"NY\"", StringComparison.Ordinal) && tileSvg.Contains("fill=\"#F97316\"", StringComparison.Ordinal), "US state tile map regions should honor point-specific colors in SVG.");
+        Assert(tile.ToPng().Length > 64, "US state tile map point colors should render PNG output.");
+
+        var geo = Chart.Create()
+            .WithSize(520, 320)
+            .WithMapLabels(false)
+            .AddUsStateGeoMap("Revenue", new[] {
+                new ChartRegionMapItem("CA", 10),
+                new ChartRegionMapItem("NY", 100)
+            }, ChartColor.FromHex("#14B8A6"));
+        geo.Series[0].WithPointColor(1, "#0EA5E9");
+        var geoSvg = geo.ToSvg();
+        Assert(geoSvg.Contains("data-cfx-region=\"NY\"", StringComparison.Ordinal) && geoSvg.Contains("fill=\"#0EA5E9\"", StringComparison.Ordinal), "US state geographic map regions should honor point-specific colors in SVG.");
+        Assert(geo.ToPng().Length > 64, "US state geographic map point colors should render PNG output.");
     }
 
     private static void DataLabelPlacementCanBeConfigured() {

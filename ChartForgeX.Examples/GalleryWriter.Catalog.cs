@@ -64,6 +64,14 @@ public static partial class GalleryWriter {
             "control-readiness-lollipop-dark",
             "warnings-sparkline"),
         new(
+            "Maps and Geography",
+            "Dotted world maps, focused regional viewports, route overlays, and value-colored region maps.",
+            "travel-dotted-map-dark",
+            "map-viewport-showcase-grid",
+            "revenue-europe-country-map-light",
+            "revenue-us-state-geo-map-light",
+            "revenue-us-state-tile-map-light"),
+        new(
             "Visual Systems",
             "Themes, brand kits, palettes, fonts, and pictorial symbol picker outputs.",
             "theme-font-showcase-grid",
@@ -80,6 +88,7 @@ public static partial class GalleryWriter {
             "Matrices and Small Multiples",
             "Dense review surfaces for grids, heatmaps, and shared-axis panels.",
             "control-coverage-heatmap-dark",
+            "developer-consistency-calendar-light",
             "control-scorecards-grid",
             "shared-axis-coverage-grid",
             "domain-signal-mix-stacked-area-dark")
@@ -178,7 +187,7 @@ public static partial class GalleryWriter {
     private static string CatalogPreviewStyle(string svgPath) {
         var aspect = ReadSvgAspectRatio(svgPath);
         if (!aspect.HasValue) return string.Empty;
-        var boundedAspect = Math.Min(1.78, Math.Max(1.05, aspect.Value));
+        var boundedAspect = Math.Min(2.15, Math.Max(1.05, aspect.Value));
         return " style=\"--preview-aspect:" + boundedAspect.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "\"";
     }
 

@@ -13,7 +13,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1329,
+        "minDistinctColors": 1324,
         "maxEdgeInkPixels": 0
       }
     },
@@ -29,7 +29,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 786962,
-        "minDistinctColors": 1590,
+        "minDistinctColors": 1597,
         "maxEdgeInkPixels": 0
       }
     },
@@ -38,7 +38,7 @@
       "width": 914,
       "height": 670,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 104,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -70,7 +70,7 @@
       "width": 980,
       "height": 560,
       "svg": {
-        "minVisualNodes": 49,
+        "minVisualNodes": 45,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -93,7 +93,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1878,
+        "minDistinctColors": 1867,
         "maxEdgeInkPixels": 0
       }
     },
@@ -125,7 +125,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1285,
+        "minDistinctColors": 1304,
         "maxEdgeInkPixels": 0
       }
     },
@@ -157,7 +157,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1050,
+        "minDistinctColors": 1044,
         "maxEdgeInkPixels": 0
       }
     },
@@ -166,7 +166,7 @@
       "width": 1906,
       "height": 1262,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 108,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -189,7 +189,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 880216,
-        "minDistinctColors": 1333,
+        "minDistinctColors": 1326,
         "maxEdgeInkPixels": 0
       }
     },
@@ -205,7 +205,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 909016,
-        "minDistinctColors": 826,
+        "minDistinctColors": 803,
         "maxEdgeInkPixels": 0
       }
     },
@@ -221,7 +221,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 1413296,
-        "minDistinctColors": 1590,
+        "minDistinctColors": 1599,
         "maxEdgeInkPixels": 0
       }
     },
@@ -230,7 +230,7 @@
       "width": 668,
       "height": 782,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 31,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -253,7 +253,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1370,
+        "minDistinctColors": 1358,
         "maxEdgeInkPixels": 0
       }
     },
@@ -269,7 +269,23 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1016,
+        "minDistinctColors": 1002,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "developer-consistency-calendar-light",
+      "width": 980,
+      "height": 420,
+      "svg": {
+        "minVisualNodes": 205,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 748776,
+        "minDistinctColors": 1023,
         "maxEdgeInkPixels": 0
       }
     },
@@ -301,7 +317,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 951656,
-        "minDistinctColors": 1462,
+        "minDistinctColors": 1459,
         "maxEdgeInkPixels": 0
       }
     },
@@ -349,7 +365,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 1015616,
-        "minDistinctColors": 1370,
+        "minDistinctColors": 1364,
         "maxEdgeInkPixels": 0
       }
     },
@@ -397,7 +413,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1098,
+        "minDistinctColors": 1079,
         "maxEdgeInkPixels": 0
       }
     },
@@ -413,7 +429,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 900,
+        "minDistinctColors": 892,
         "maxEdgeInkPixels": 0
       }
     },
@@ -429,7 +445,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1281,
+        "minDistinctColors": 1241,
         "maxEdgeInkPixels": 0
       }
     },
@@ -445,7 +461,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 871,
+        "minDistinctColors": 843,
         "maxEdgeInkPixels": 0
       }
     },
@@ -461,7 +477,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 913,
+        "minDistinctColors": 916,
         "maxEdgeInkPixels": 0
       }
     },
@@ -509,7 +525,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1302,
+        "minDistinctColors": 1422,
         "maxEdgeInkPixels": 0
       }
     },
@@ -525,7 +541,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1542,
+        "minDistinctColors": 1533,
         "maxEdgeInkPixels": 0
       }
     },
@@ -557,7 +573,151 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1480,
+        "minDistinctColors": 1493,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-africa-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 257,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1598,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-asia-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 246,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1437,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-europe-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 285,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1336,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-north-america-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 218,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1509,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-oceania-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 106,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1102,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-poland-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 186,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1190,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-south-america-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 176,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 1434,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-viewport-showcase-grid",
+      "width": 1118,
+      "height": 1550,
+      "svg": {
+        "minVisualNodes": 2130,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 3465800,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "map-world-route-light",
+      "width": 760,
+      "height": 460,
+      "svg": {
+        "minVisualNodes": 653,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 634496,
+        "minDistinctColors": 951,
         "maxEdgeInkPixels": 0
       }
     },
@@ -589,7 +749,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1640,
+        "minDistinctColors": 1646,
         "maxEdgeInkPixels": 0
       }
     },
@@ -598,7 +758,7 @@
       "width": 914,
       "height": 948,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 88,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -611,16 +771,16 @@
     },
     {
       "name": "people-infographic-showcase-grid",
-      "width": 1232,
-      "height": 1266,
+      "width": 1352,
+      "height": 1466,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 339,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
-        "minVisiblePixels": 3119424,
+        "minVisiblePixels": 3964064,
         "minDistinctColors": 2048,
         "maxEdgeInkPixels": 0
       }
@@ -630,7 +790,7 @@
       "width": 934,
       "height": 412,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 237,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -646,7 +806,7 @@
       "width": 1104,
       "height": 1058,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 150,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -662,7 +822,7 @@
       "width": 934,
       "height": 1008,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 166,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -685,7 +845,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1672,
+        "minDistinctColors": 1622,
         "maxEdgeInkPixels": 0
       }
     },
@@ -701,7 +861,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 817,
+        "minDistinctColors": 820,
         "maxEdgeInkPixels": 0
       }
     },
@@ -717,7 +877,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 978,
+        "minDistinctColors": 989,
         "maxEdgeInkPixels": 0
       }
     },
@@ -733,7 +893,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 915936,
-        "minDistinctColors": 1285,
+        "minDistinctColors": 1284,
         "maxEdgeInkPixels": 0
       }
     },
@@ -749,7 +909,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 843,
+        "minDistinctColors": 826,
         "maxEdgeInkPixels": 0
       }
     },
@@ -765,7 +925,55 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 686456,
-        "minDistinctColors": 984,
+        "minDistinctColors": 983,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "revenue-europe-country-map-light",
+      "width": 980,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 292,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 1015616,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "revenue-us-state-geo-map-light",
+      "width": 980,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 58,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 1015616,
+        "minDistinctColors": 1799,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "revenue-us-state-tile-map-light",
+      "width": 980,
+      "height": 500,
+      "svg": {
+        "minVisualNodes": 63,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 901256,
+        "minDistinctColors": 1857,
         "maxEdgeInkPixels": 0
       }
     },
@@ -781,7 +989,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 951656,
-        "minDistinctColors": 1471,
+        "minDistinctColors": 1483,
         "maxEdgeInkPixels": 0
       }
     },
@@ -797,7 +1005,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1116,
+        "minDistinctColors": 1124,
         "maxEdgeInkPixels": 0
       }
     },
@@ -813,7 +1021,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 951656,
-        "minDistinctColors": 1623,
+        "minDistinctColors": 1587,
         "maxEdgeInkPixels": 0
       }
     },
@@ -822,7 +1030,7 @@
       "width": 1082,
       "height": 440,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 52,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -845,7 +1053,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1006,
+        "minDistinctColors": 1012,
         "maxEdgeInkPixels": 0
       }
     },
@@ -861,7 +1069,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 903,
+        "minDistinctColors": 905,
         "maxEdgeInkPixels": 0
       }
     },
@@ -877,7 +1085,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 787888,
-        "minDistinctColors": 1577,
+        "minDistinctColors": 1578,
         "maxEdgeInkPixels": 0
       }
     },
@@ -902,7 +1110,7 @@
       "width": 914,
       "height": 670,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 104,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -910,6 +1118,22 @@
         "outputScale": 2,
         "minVisiblePixels": 1224760,
         "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "travel-dotted-map-dark",
+      "width": 980,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 657,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 1015616,
+        "minDistinctColors": 1375,
         "maxEdgeInkPixels": 0
       }
     },
@@ -934,7 +1158,7 @@
       "width": 934,
       "height": 412,
       "svg": {
-        "minVisualNodes": 2,
+        "minVisualNodes": 24,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -957,7 +1181,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 686456,
-        "minDistinctColors": 951,
+        "minDistinctColors": 968,
         "maxEdgeInkPixels": 0
       }
     },
@@ -973,7 +1197,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 951656,
-        "minDistinctColors": 1779,
+        "minDistinctColors": 1810,
         "maxEdgeInkPixels": 0
       }
     },
@@ -989,7 +1213,7 @@
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 686456,
-        "minDistinctColors": 1260,
+        "minDistinctColors": 1274,
         "maxEdgeInkPixels": 0
       }
     }

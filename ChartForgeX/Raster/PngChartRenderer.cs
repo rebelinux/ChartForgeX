@@ -43,7 +43,7 @@ public sealed partial class PngChartRenderer {
             var c = new RgbaCanvas(o.Size.Width, o.Size.Height, o.PngSupersamplingScale, outlineFont, o.PngOutputScale);
             c.Clear(o.TransparentBackground ? ChartColor.Transparent : t.Background);
             if (o.ShowCard && t.UseCard) DrawCardSurface(c, o, t);
-            var plot = ChartLayout.PlotArea(o);
+            var plot = IsSpatialMapChart(chart) ? SpatialMapPlotArea(chart) : ChartLayout.PlotArea(o);
             if (o.ShowHeader) DrawHeader(c, chart);
             void DrawSpecialChart(Action<RgbaCanvas, Chart, ChartRect> draw) {
                 var legendPlot = ApplyPngLegendReserve(chart, plot);
@@ -110,6 +110,22 @@ public sealed partial class PngChartRenderer {
             }
             if (IsHeatmapChart(chart)) {
                 DrawSpecialChart(DrawHeatmap);
+                return c;
+            }
+            if (IsCalendarHeatmapChart(chart)) {
+                DrawSpecialChart(DrawCalendarHeatmap);
+                return c;
+            }
+            if (IsDottedMapChart(chart)) {
+                DrawSpecialChart(DrawDottedMap);
+                return c;
+            }
+            if (IsUsStateGeoMapChart(chart)) {
+                DrawSpecialChart(DrawUsStateGeoMap);
+                return c;
+            }
+            if (IsUsStateTileMapChart(chart)) {
+                DrawSpecialChart(DrawUsStateTileMap);
                 return c;
             }
             if (IsTimelineChart(chart)) {
@@ -250,11 +266,24 @@ public sealed partial class PngChartRenderer {
             ? series.PointColors[pointIndex]!.Value
             : SeriesColor(chart, seriesIndex);
 
-    private static bool ShowXAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowXAxis;
+    private static bool ShowXAxis(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowXAxis;
 
-    private static bool ShowYAxis(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowYAxis;
+    private static bool ShowYAxis(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowYAxis;
 
-    private static bool ShowAxisLines(Chart chart) => chart.Options.ShowAxes && chart.Options.ShowAxisLines;
+    private static bool ShowAxisLines(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowAxisLines;
+
+    private static bool IsMapChart(Chart chart) => IsCalendarHeatmapChart(chart) || IsDottedMapChart(chart) || IsUsStateGeoMapChart(chart) || IsUsStateTileMapChart(chart);
+
+    private static bool IsSpatialMapChart(Chart chart) => IsDottedMapChart(chart) || IsUsStateGeoMapChart(chart) || IsUsStateTileMapChart(chart);
+
+    private static ChartRect SpatialMapPlotArea(Chart chart) {
+        var o = chart.Options;
+        var left = Math.Min(o.Padding.Left, 42);
+        var right = Math.Min(o.Padding.Right, 42);
+        var top = o.ShowHeader ? Math.Min(o.Padding.Top + 10, 88) : Math.Min(o.Padding.Top, 42);
+        var bottom = Math.Min(o.Padding.Bottom, 42);
+        return new ChartRect(left, top, Math.Max(1, o.Size.Width - left - right), Math.Max(1, o.Size.Height - top - bottom));
+    }
 
     private static bool HasHorizontalBarDataLabels(Chart chart) {
         foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.HorizontalBar && ShouldDrawDataLabels(chart, series)) return true;

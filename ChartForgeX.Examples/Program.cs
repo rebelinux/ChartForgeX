@@ -101,6 +101,7 @@ var heatmap = Chart.Create()
     .WithYAxis("Domain group")
     .WithTheme(ChartTheme.ReportDark())
     .WithSize(980, 560)
+    .WithLegend(false)
     .WithDataLabels()
     .WithHeatmapScale(ChartHeatmapScale.Semantic)
     .WithValueFormatter(value => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%")
@@ -111,6 +112,7 @@ var heatmap = Chart.Create()
     .AddHeatmapRow("Acquired domains", Points(58, 43, 36, 28, 25, 52));
 
 SaveChart(heatmap, "control-coverage-heatmap-dark");
+MapExamples.Write(output, DemoPngOutputScale);
 
 var gauge = Chart.Create()
     .WithTitle("Security Posture Score")

@@ -37,7 +37,7 @@ Run the full local quality loop with:
 ./Build.ps1
 ```
 
-That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs the core library, creates a `.snupkg` symbol package, verifies package contents, verifies the package has no runtime NuGet dependencies, and installs the freshly packed package into a clean temporary console app. The generated demo entry points are `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/catalog.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`, and `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`. The catalog includes theme, brand-kit, palette-swatch, pictorial-symbol, pictorial-Isotype, point-color customization, and word-cloud-control picker pages so visual choices can be reviewed in HTML, SVG, and PNG.
+That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs the core library, creates a `.snupkg` symbol package, verifies package contents, verifies the package has no runtime NuGet dependencies, and installs the freshly packed package into a clean temporary console app. The generated demo entry points are `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/catalog.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`, and `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`. The catalog includes map/geography, theme, brand-kit, palette-swatch, pictorial-symbol, pictorial-Isotype, point-color customization, and word-cloud-control picker pages so visual choices can be reviewed in HTML, SVG, and PNG.
 
 The GitHub Actions workflow is configured for private repositories and requires a self-hosted runner with the labels `self-hosted` and `private`.
 
@@ -220,6 +220,10 @@ var observed = Chart.Create()
 | Box plot | `AddBoxPlot` | Quartiles, median, whiskers, raw sample summaries |
 | Horizontal bar | `AddHorizontalBar`, `WithStackedHorizontalBars` | Long category names and stacked composition across long categories |
 | Heatmap | `AddHeatmapRow` | Matrix values and coverage grids |
+| Calendar heatmap | `AddCalendarHeatmap`, `ChartCalendarHeatmapItem` | Contribution-style day grids for activity, uptime, and habit tracking |
+| Dotted map | `AddDottedMap`, `ChartMapPoint`, `ChartMapViewport`, `WithMapViewport`, `AddMapConnector`, `AddMapRoute`, `AddMapConnectorBetweenPoints`, `AddMapRouteBetweenPoints` | Travel-map and operations-map views with generated land-dot layers, focused regional viewports, highlighted points, and connector routes |
+| US state geographic map | `AddUsStateGeoMap`, `ChartRegionMapItem`, `WithMapLabels`, `WithMapScaleLegend` | Projected geographic choropleth maps for state-level dashboards |
+| US state tile map | `AddUsStateTileMap`, `ChartRegionMapItem`, `WithMapLabels`, `WithMapScaleLegend` | Dependency-free regional choropleth tile maps for equal-area state dashboards |
 | Gauge | `AddGauge` | Single score or KPI |
 | Circle | `AddCircle`, `WithCircleStatusLabel`, `WithCircleRadiusScale`, `WithCircleStrokeScale` | Compact single-value progress KPIs with tunable ring sizing |
 | Radial bar | `AddRadialBar`, `WithRadialBarCenterLabel`, `WithRadialBarRadiusScale`, `WithRadialBarStrokeScale` | Circular progress rings for multiple KPI percentages with tunable radius and stroke weight |
@@ -707,6 +711,82 @@ var matrix = Chart.Create()
 ```
 
 Use `WithHeatmapScaleLegend(false)` and `WithHeatmapColumnLabels(false)` for compact scorecard-style heatmaps when row labels and data labels already explain the scale.
+
+Calendar heatmaps render date-indexed values as contribution-style day grids. Duplicate dates are summed so callers can pass event-level data without pre-aggregation:
+
+```csharp
+var journey = Chart.Create()
+    .WithTitle("Consistency Journey")
+    .AddCalendarHeatmap("Commits", new[] {
+        new ChartCalendarHeatmapItem(new DateTime(2026, 1, 5), 1),
+        new ChartCalendarHeatmapItem(new DateTime(2026, 1, 6), 4),
+        new ChartCalendarHeatmapItem(new DateTime(2026, 2, 12), 7)
+    });
+```
+
+Calendar heatmap SVG output marks padded or missing days with `data-cfx-empty="true"` and `data-cfx-status="empty"` so consumers can distinguish no data from an explicit zero value. Calendar heatmap cells also expose `data-cfx-week-index` and `data-cfx-weekday-index` for downstream hover, selection, or export workflows. Calendar heatmap containers expose `data-cfx-label`, `data-cfx-start-date`, `data-cfx-end-date`, and filled/empty day counts; when missing days are present, the scale includes a separate no-data swatch before the real low-to-high value ramp.
+
+Dotted maps render a dependency-free dotted world land layer with highlighted longitude/latitude points:
+
+```csharp
+var travel = Chart.Create()
+    .WithTitle("Travel Map")
+    .WithMapViewport(ChartMapViewport.Europe())
+    .AddDottedMap("Visited", new[] {
+        new ChartMapPoint("Spain", -3.7038, 40.4168),
+        new ChartMapPoint("Poland", 21.0122, 52.2297),
+        new ChartMapPoint("Norway", 10.7522, 59.9139)
+    })
+    .AddMapRouteBetweenPoints("Spain to Poland", "Spain", "Poland");
+```
+
+Pass a non-negative value to `ChartMapPoint` when the same map should read as a market, country, or city revenue map. Weighted points scale their marker radius and expose both raw and formatted values in SVG metadata and hover titles:
+
+```csharp
+var markets = Chart.Create()
+    .WithTitle("Revenue by European Market")
+    .WithMapViewport(ChartMapViewport.Europe())
+    .WithValueFormatter(value => "$" + value.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "k")
+    .AddDottedMap("Revenue", new[] {
+        new ChartMapPoint("United Kingdom", -1.1743, 52.3555, 188),
+        new ChartMapPoint("Poland", 19.1451, 51.9194, 142),
+        new ChartMapPoint("Germany", 10.4515, 51.1657, 214)
+    })
+    .AddMapRouteBetweenPoints("United Kingdom to Poland", "United Kingdom", "Poland");
+```
+
+Use `ChartMapViewport.World()`, `Europe()`, `NorthAmerica()`, `SouthAmerica()`, `Africa()`, `Asia()`, `Oceania()`, `Poland()`, or `new ChartMapViewport(...)` to focus the dotted layer on a continent, country, or custom bounding box. Route and connector lines render on dotted maps when both endpoints are inside the selected viewport. Prefer `AddMapRouteBetweenPoints` or `AddMapConnectorBetweenPoints` when the line should target existing rendered markers; use coordinate-based `AddMapRoute` and `AddMapConnector` for arbitrary longitude/latitude overlays.
+
+US state geographic maps render projected state outlines with Alaska and Hawaii included:
+
+```csharp
+var states = Chart.Create()
+    .WithTitle("Revenue by state")
+    .WithMapLabels(false)
+    .AddUsStateGeoMap("Revenue", new[] {
+        new ChartRegionMapItem("California", 95),
+        new ChartRegionMapItem("New York", 82),
+        new ChartRegionMapItem("TX", 74),
+        new ChartRegionMapItem("FL", 61)
+    });
+```
+
+US state tile maps render state and DC values as a compact equal-area choropleth grid. This is a cartogram, not a geographic outline map:
+
+```csharp
+var states = Chart.Create()
+    .WithTitle("Revenue by state")
+    .AddUsStateTileMap("Revenue", new[] {
+        new ChartRegionMapItem("California", 95),
+        new ChartRegionMapItem("New York", 82),
+        new ChartRegionMapItem("TX", 74),
+        new ChartRegionMapItem("FL", 61)
+    });
+```
+
+US state maps accept two-letter state codes, full state names, and common District of Columbia aliases, normalizing all rendered metadata to canonical codes.
+Geographic state-map labels render only when a region has enough room for the two-letter code. Use `WithMapLabels(false)` or `WithMapScaleLegend(false)` when a map is embedded in a compact card and hover/focus titles can carry the region identity.
+Map SVG containers expose summary metadata such as `data-cfx-label`, `data-cfx-projection`, `data-cfx-map-kind`, `data-cfx-point-count`, `data-cfx-visible-point-count`, `data-cfx-valued-point-count`, `data-cfx-viewport`, region coverage counts, and `data-cfx-min-value`/`data-cfx-max-value` for value-colored maps, while highlighted points, connectors, and regions remain keyboard-focusable or hover-descriptive and include native hover titles.
 
 Gauges are available for single-value dashboard summaries:
 

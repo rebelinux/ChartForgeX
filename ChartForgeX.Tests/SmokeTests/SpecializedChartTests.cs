@@ -386,6 +386,7 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("fill=\"#F59E0B\"", StringComparison.Ordinal), "Semantic heatmap warning values should use the warning theme color.");
         Assert(svg.Contains("fill=\"#EF4444\"", StringComparison.Ordinal), "Semantic heatmap low values should use the negative theme color.");
         Assert(svg.Contains("role=\"img\" aria-label=\"Primary, SPF: 100%, positive\"", StringComparison.Ordinal), "Semantic heatmap cells should expose accessible summaries.");
+        Assert(svg.Contains("<title>Primary, SPF: 100%, positive</title>", StringComparison.Ordinal), "Heatmap cells should expose native SVG hover titles.");
         Assert(svg.Contains(">Primary</text>", StringComparison.Ordinal), "Heatmaps should render row labels.");
         Assert(svg.Contains(">DMARC</text>", StringComparison.Ordinal), "Heatmaps should render column labels.");
         Assert(svg.Contains(">100%</text>", StringComparison.Ordinal), "Heatmaps should render optional data labels.");

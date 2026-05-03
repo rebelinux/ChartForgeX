@@ -159,16 +159,16 @@ public sealed partial class PngChartRenderer {
             if (string.IsNullOrWhiteSpace(chart.XAxisTitle)) bottomReserve -= 16;
         }
 
-        if (chart.Options.ShowLegend && chart.Series.Count > 0 && PngIsBottomLegend(chart.Options.LegendPosition)) bottomReserve += PngLegendBottomReserve(chart);
+        if (ShouldDrawLegend(chart) && PngIsBottomLegend(chart.Options.LegendPosition)) bottomReserve += PngLegendBottomReserve(chart);
         var maxBottom = Math.Max(plot.Top + 1, chart.Options.Size.Height - bottomReserve);
         plot = plot.Bottom <= maxBottom ? plot : new ChartRect(plot.X, plot.Y, plot.Width, Math.Max(1, maxBottom - plot.Y));
-        if (chart.Options.ShowLegend && chart.Series.Count > 0 && PngIsTopLegend(chart.Options.LegendPosition)) {
+        if (ShouldDrawLegend(chart) && PngIsTopLegend(chart.Options.LegendPosition)) {
             var reserve = PngLegendBottomReserve(chart);
             plot = new ChartRect(plot.X, plot.Y + reserve, plot.Width, Math.Max(1, plot.Height - reserve));
-        } else if (chart.Options.ShowLegend && chart.Series.Count > 0 && PngIsLeftLegend(chart.Options.LegendPosition)) {
+        } else if (ShouldDrawLegend(chart) && PngIsLeftLegend(chart.Options.LegendPosition)) {
             var reserve = PngLegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             plot = new ChartRect(plot.X + reserve, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
-        } else if (chart.Options.ShowLegend && chart.Series.Count > 0 && PngIsRightLegend(chart.Options.LegendPosition)) {
+        } else if (ShouldDrawLegend(chart) && PngIsRightLegend(chart.Options.LegendPosition)) {
             var reserve = PngLegendSideReserve(chart) + ChartVisualPrimitives.SideLegendPlotGap;
             plot = new ChartRect(plot.X, plot.Y, Math.Max(1, plot.Width - reserve), plot.Height);
         }

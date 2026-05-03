@@ -8,6 +8,10 @@ namespace ChartForgeX.Core;
 internal static class ChartGuards {
     private static readonly ChartSeriesKind[] ExclusiveSeriesKinds = {
         ChartSeriesKind.Heatmap,
+        ChartSeriesKind.CalendarHeatmap,
+        ChartSeriesKind.DottedMap,
+        ChartSeriesKind.UsStateTileMap,
+        ChartSeriesKind.UsStateGeoMap,
         ChartSeriesKind.Gauge,
         ChartSeriesKind.Circle,
         ChartSeriesKind.RadialBar,
@@ -165,6 +169,10 @@ internal static class ChartGuards {
 
     private static bool RequiresSingleSeries(ChartSeriesKind kind) {
         return kind == ChartSeriesKind.Gauge ||
+            kind == ChartSeriesKind.CalendarHeatmap ||
+            kind == ChartSeriesKind.DottedMap ||
+            kind == ChartSeriesKind.UsStateTileMap ||
+            kind == ChartSeriesKind.UsStateGeoMap ||
             kind == ChartSeriesKind.Circle ||
             kind == ChartSeriesKind.RadialBar ||
             kind == ChartSeriesKind.Waterfall ||
@@ -194,6 +202,15 @@ internal static class ChartGuards {
 
     private static void ValidateSpecializedShape(Chart chart, ChartSeriesKind kind) {
         if (kind == ChartSeriesKind.Heatmap) ValidateMinimumPointCount(chart.Series, kind, 1);
+        else if (kind == ChartSeriesKind.CalendarHeatmap) {
+            ValidateMinimumPointCount(chart.Series, kind, 1);
+            ValidateNonNegativeValues(chart.Series[0], kind);
+        }
+        else if (kind == ChartSeriesKind.DottedMap) ValidateMinimumPointCount(chart.Series, kind, 1);
+        else if (kind == ChartSeriesKind.UsStateTileMap || kind == ChartSeriesKind.UsStateGeoMap) {
+            ValidateMinimumPointCount(chart.Series, kind, 1);
+            ValidateNonNegativeValues(chart.Series[0], kind);
+        }
         else if (kind == ChartSeriesKind.Gauge || kind == ChartSeriesKind.Circle) ValidateScalePair(chart.Series[0], kind.ToString());
         else if (kind == ChartSeriesKind.RadialBar) ValidateRadialBar(chart.Series[0]);
         else if (kind == ChartSeriesKind.Bullet) ValidateBullets(chart.Series);

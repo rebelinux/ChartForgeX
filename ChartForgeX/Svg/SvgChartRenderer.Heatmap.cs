@@ -49,7 +49,7 @@ public sealed partial class SvgChartRenderer {
                 var color = HeatmapColor(chart, series.Color, value, min, max);
                 var summary = series.Name + ", " + FormatX(chart, column) + ": " + FormatValue(chart, value);
                 if (chart.Options.HeatmapScale == ChartHeatmapScale.Semantic) summary += ", " + status;
-                sb.AppendLine($"<rect data-cfx-role=\"heatmap-cell\" data-cfx-row=\"{rowIndex}\" data-cfx-column=\"{columnIndex}\" data-cfx-status=\"{status}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(cellWidth)}\" height=\"{F(cellHeight)}\" rx=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.HeatmapCellBorderOpacity)}\" stroke-width=\"{F(ChartVisualPrimitives.HeatmapCellBorderStrokeWidth)}\"/>");
+                sb.AppendLine($"<rect class=\"cfx-interactive-region\" tabindex=\"0\" focusable=\"true\" data-cfx-role=\"heatmap-cell\" data-cfx-row=\"{rowIndex}\" data-cfx-column=\"{columnIndex}\" data-cfx-status=\"{status}\" role=\"img\" aria-label=\"{Escape(summary)}\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(cellWidth)}\" height=\"{F(cellHeight)}\" rx=\"{F(radius)}\" fill=\"{color.ToCss()}\" stroke=\"{t.CardBackground.ToCss()}\" stroke-opacity=\"{F(ChartVisualPrimitives.HeatmapCellBorderOpacity)}\" stroke-width=\"{F(ChartVisualPrimitives.HeatmapCellBorderStrokeWidth)}\"><title>{Escape(summary)}</title></rect>");
                 if (ShouldDrawDataLabels(chart, series) && cellWidth >= 34 && cellHeight >= 20) {
                     var label = FormatValue(chart, value);
                     var pointIndex = HeatmapPointIndex(series, column);

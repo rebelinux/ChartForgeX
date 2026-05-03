@@ -58,6 +58,15 @@ internal static partial class SmokeTests {
         Assert(program.Contains("Directory.Delete(output, recursive: true)", StringComparison.Ordinal), "Example generation should wipe stale output before writing comparison artifacts.");
     }
 
+    private static void EuropeRevenueMapRoutesTargetRenderedMarkers() {
+        var maps = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "MapExamples.cs"));
+        Assert(!maps.Contains("London to Warsaw", StringComparison.Ordinal) && !maps.Contains("Madrid to Berlin", StringComparison.Ordinal), "Europe revenue map routes should not use capital-city coordinates when the rendered markers are country market points.");
+        Assert(maps.Contains(".AddMapRouteBetweenPoints(\"United Kingdom to Poland\", \"United Kingdom\", \"Poland\"", StringComparison.Ordinal), "Europe revenue map should route from the United Kingdom marker to the Poland marker.");
+        Assert(maps.Contains(".AddMapRouteBetweenPoints(\"Spain to Germany\", \"Spain\", \"Germany\"", StringComparison.Ordinal), "Europe revenue map should route from the Spain marker to the Germany marker.");
+        Assert(!maps.Contains(".AddMapRoute(route.Label", StringComparison.Ordinal), "Viewport map examples should use point-bound route helpers instead of duplicating raw route coordinates.");
+        Assert(maps.Contains(".AddMapRouteBetweenPoints(route.Label, route.FromPointLabel, route.ToPointLabel", StringComparison.Ordinal), "Viewport map examples should bind route overlays to the rendered dotted-map markers.");
+    }
+
     private static void NuGetPackageMetadataStaysPublishReady() {
         var libraryProject = Path.Combine(FindRepositoryRoot(), "ChartForgeX", "ChartForgeX.csproj");
         Assert(HasXmlProperty(libraryProject, "PackageId", "ChartForgeX"), "PackageId should remain stable.");
@@ -94,6 +103,9 @@ internal static partial class SmokeTests {
         Assert(readme.Contains("ChartFontStacks", StringComparison.Ordinal), "README should document built-in font stacks.");
         Assert(readme.Contains("ChartPalettes.Vivid", StringComparison.Ordinal), "README should document reusable palette presets.");
         Assert(readme.Contains("ChartPictorialShape.Person", StringComparison.Ordinal), "README should document expanded pictorial symbols.");
+        Assert(readme.Contains("data-cfx-status=\"empty\"", StringComparison.Ordinal) && readme.Contains("explicit zero value", StringComparison.Ordinal), "README should document no-data versus low-value metadata for heatmap-style charts.");
+        Assert(readme.Contains("data-cfx-start-date", StringComparison.Ordinal) && readme.Contains("filled/empty day counts", StringComparison.Ordinal), "README should document calendar heatmap container metadata.");
+        Assert(readme.Contains("data-cfx-label", StringComparison.Ordinal) && readme.Contains("data-cfx-projection", StringComparison.Ordinal) && readme.Contains("data-cfx-map-kind", StringComparison.Ordinal) && readme.Contains("data-cfx-point-count", StringComparison.Ordinal), "README should document map SVG container metadata.");
         Assert(readme.Contains("ChartSurfaceStyle.Glass", StringComparison.Ordinal), "README should document reusable surface presets.");
         Assert(readme.Contains(".WithTheme(theme => theme", StringComparison.Ordinal), "README should document fluent theme customization callbacks.");
         Assert(readme.Contains("WithPalette(", StringComparison.Ordinal), "README should document palette customization.");
@@ -140,6 +152,21 @@ internal static partial class SmokeTests {
             "AddHorizontalBar",
             "WithStackedHorizontalBars",
             "AddHeatmapRow",
+            "AddCalendarHeatmap",
+            "ChartCalendarHeatmapItem",
+            "AddDottedMap",
+            "ChartMapPoint",
+            "ChartMapViewport",
+            "WithMapViewport",
+            "AddMapConnector",
+            "AddMapRoute",
+            "AddMapConnectorBetweenPoints",
+            "AddMapRouteBetweenPoints",
+            "AddUsStateGeoMap",
+            "AddUsStateTileMap",
+            "ChartRegionMapItem",
+            "WithMapLabels",
+            "WithMapScaleLegend",
             "AddGauge",
             "AddCircle",
             "AddRadialBar",

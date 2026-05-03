@@ -639,15 +639,16 @@ internal static partial class SmokeTests {
             File.WriteAllText(Path.Combine(output, "zeta.html"), "<!doctype html><title>Zeta</title><svg></svg>");
             File.WriteAllText(Path.Combine(output, "zeta.svg"), Chart.Create().WithSize(640, 360).WithTitle("Zeta").AddBar("Values", Points(1, 2, 3)).ToSvg());
             File.WriteAllBytes(Path.Combine(output, "zeta.png"), Chart.Create().WithSize(640, 360).WithTitle("Zeta").AddBar("Values", Points(1, 2, 3)).ToPng());
+            File.WriteAllText(Path.Combine(output, "travel-dotted-map-dark.html"), "<!doctype html><title>Travel Dotted Map</title><svg></svg>");
             File.WriteAllText(Path.Combine(output, "report.html"), "<!doctype html><title>Report</title><svg></svg>");
             File.WriteAllText(Path.Combine(output, "visual-baseline.json"), "{\"version\":1,\"charts\":[{\"name\":\"alpha\",\"width\":320,\"height\":180,\"svg\":{\"minVisualNodes\":2,\"maxClippedTextNodes\":0,\"maxNearEdgeTextNodes\":999},\"png\":{\"outputScale\":1,\"minVisiblePixels\":64,\"minDistinctColors\":8,\"maxEdgeInkPixels\":0}},{\"name\":\"zeta\",\"width\":640,\"height\":360,\"svg\":{\"minVisualNodes\":2,\"maxClippedTextNodes\":0,\"maxNearEdgeTextNodes\":999},\"png\":{\"outputScale\":1,\"minVisiblePixels\":64,\"minDistinctColors\":8,\"maxEdgeInkPixels\":0}}]}");
 
             GalleryWriter.Write(output);
             var gallery = File.ReadAllText(Path.Combine(output, "index.html"));
             Assert(gallery.Contains("<title>ChartForgeX Examples</title>", StringComparison.Ordinal), "Gallery should render a stable title.");
-            Assert(CountOccurrences(gallery, "<article class=\"card\">") == 3, "Gallery should render one card per generated chart page.");
+            Assert(CountOccurrences(gallery, "<article class=\"card\">") == 4, "Gallery should render one card per generated chart page.");
             Assert(CountOccurrences(gallery, "<img loading=\"lazy\"") == 2, "Gallery should preview generated SVG artifacts directly when they exist.");
-            Assert(CountOccurrences(gallery, "<iframe ") == 1, "Gallery should keep iframe previews only for HTML-only reports.");
+            Assert(CountOccurrences(gallery, "<iframe ") == 2, "Gallery should keep iframe previews only for HTML-only reports.");
             Assert(gallery.Contains("--preview-aspect:", StringComparison.Ordinal), "Gallery SVG previews should carry bounded per-chart aspect ratios.");
             Assert(gallery.Contains("align-items:start", StringComparison.Ordinal), "Gallery cards should avoid row stretching that creates empty card interiors.");
             Assert(!gallery.Contains("<script", StringComparison.OrdinalIgnoreCase), "Gallery should remain JavaScript-free.");
@@ -666,6 +667,8 @@ internal static partial class SmokeTests {
             var catalog = File.ReadAllText(Path.Combine(output, "catalog.html"));
             Assert(catalog.Contains("<title>ChartForgeX Chart Catalog</title>", StringComparison.Ordinal), "Catalog should render a stable title.");
             Assert(catalog.Contains("Additional Examples", StringComparison.Ordinal), "Catalog should include uncategorized generated outputs.");
+            Assert(catalog.Contains("Maps and Geography", StringComparison.Ordinal), "Catalog should expose maps as a named chart family.");
+            Assert(catalog.Contains("travel-dotted-map-dark.html", StringComparison.Ordinal), "Catalog should route map examples into the map family.");
             Assert(catalog.Contains("alpha.html", StringComparison.Ordinal), "Catalog should link chart HTML output.");
             Assert(catalog.Contains("alpha.svg", StringComparison.Ordinal), "Catalog should link chart SVG output.");
             Assert(catalog.Contains("alpha.png", StringComparison.Ordinal), "Catalog should link chart PNG output.");
@@ -675,7 +678,7 @@ internal static partial class SmokeTests {
             Assert(!catalog.Contains("report.png", StringComparison.Ordinal), "Catalog should not link missing PNG output for HTML-only reports.");
             Assert(catalog.Contains("svg-png-comparison.html", StringComparison.Ordinal), "Catalog should link the SVG/PNG comparison page.");
             Assert(catalog.Contains("quality-dashboard.html", StringComparison.Ordinal), "Catalog should link the artifact quality dashboard.");
-            Assert(CountOccurrences(catalog, "<article class=\"card\">") == 3, "Catalog should render one card per generated chart page.");
+            Assert(CountOccurrences(catalog, "<article class=\"card\">") == 4, "Catalog should render one card per generated chart page.");
             Assert(CountOccurrences(catalog, "<img loading=\"lazy\"") == 2, "Catalog should preview generated SVG artifacts directly when they exist.");
             Assert(catalog.Contains("--preview-aspect:", StringComparison.Ordinal), "Catalog SVG previews should carry bounded per-chart aspect ratios.");
             Assert(catalog.Contains("align-items:start", StringComparison.Ordinal), "Catalog cards should avoid row stretching that creates empty card interiors.");
@@ -707,9 +710,16 @@ internal static partial class SmokeTests {
             Assert(comparison.Contains("0 warnings", StringComparison.Ordinal), "Comparison page should summarize review warnings.");
             Assert(comparison.Contains("2 baseline passes", StringComparison.Ordinal), "Comparison page should summarize visual-baseline matches.");
             Assert(comparison.Contains("0 baseline warnings", StringComparison.Ordinal), "Comparison page should summarize visual-baseline warnings.");
+            Assert(comparison.Contains("Comparison families", StringComparison.Ordinal), "Comparison page should expose family jump navigation.");
+            Assert(comparison.Contains("Additional Visual Checks", StringComparison.Ordinal), "Comparison page should group uncategorized generated pairs.");
+            Assert(comparison.Contains("comparison-family-additional-visual-checks", StringComparison.Ordinal), "Comparison page family groups should expose stable anchors.");
+            Assert(comparison.Contains("Additional Visual Checks (2/2 clean)", StringComparison.Ordinal), "Comparison family navigation should summarize clean pair counts.");
+            Assert(comparison.Contains("2 pairs / 2 clean / 0 warnings", StringComparison.Ordinal), "Comparison family headers should summarize family health.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.svg\">SVG</a>", StringComparison.Ordinal), "Comparison page should link directly to SVG assets.");
             Assert(comparison.Contains("<a class=\"format\" href=\"alpha.png\">PNG</a>", StringComparison.Ordinal), "Comparison page should link directly to PNG assets.");
             Assert(comparison.Contains("<span class=\"format\">WIPE</span>", StringComparison.Ordinal), "Comparison page should include a center-wipe pane for SVG/PNG visual parity review.");
+            Assert(comparison.Contains("<figure class=\"wipe-figure\">", StringComparison.Ordinal), "Comparison page should promote wipe previews to a full-width primary review pane.");
+            Assert(comparison.Contains(".pair{display:grid;grid-template-columns:repeat(2", StringComparison.Ordinal), "Comparison page should avoid squeezing SVG, PNG, and wipe panes into three narrow columns.");
             Assert(comparison.Contains("href=\"catalog.html\"", StringComparison.Ordinal), "Comparison page should link the grouped catalog page.");
             Assert(comparison.Contains("href=\"quality-dashboard.html\"", StringComparison.Ordinal), "Comparison page should link the artifact quality dashboard.");
             Assert(comparison.Contains("href=\"svg-png-comparison.json\"", StringComparison.Ordinal), "Comparison page should link its parity manifest.");

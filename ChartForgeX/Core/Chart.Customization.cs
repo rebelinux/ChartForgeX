@@ -102,6 +102,102 @@ public sealed partial class Chart {
     public Chart WithHeatmapColumnLabels(bool visible = true) { Options.ShowHeatmapColumnLabels = visible; return this; }
 
     /// <summary>
+    /// Sets whether region labels should be rendered on map charts.
+    /// </summary>
+    /// <param name="visible">True to render map region labels; otherwise false.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithMapLabels(bool visible = true) { Options.ShowMapLabels = visible; return this; }
+
+    /// <summary>
+    /// Sets whether map scale legends should be rendered.
+    /// </summary>
+    /// <param name="visible">True to render map scale legends; otherwise false.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithMapScaleLegend(bool visible = true) { Options.ShowMapScaleLegend = visible; return this; }
+
+    /// <summary>
+    /// Sets the longitude/latitude viewport used by dotted map charts.
+    /// </summary>
+    /// <param name="viewport">The map viewport to render.</param>
+    /// <returns>The current chart.</returns>
+    public Chart WithMapViewport(ChartMapViewport viewport) { Options.MapViewport = viewport; return this; }
+
+    /// <summary>
+    /// Adds a connector line between two longitude/latitude points on capable map charts.
+    /// </summary>
+    /// <param name="label">The connector label.</param>
+    /// <param name="fromLongitude">The source longitude in degrees.</param>
+    /// <param name="fromLatitude">The source latitude in degrees.</param>
+    /// <param name="toLongitude">The target longitude in degrees.</param>
+    /// <param name="toLatitude">The target latitude in degrees.</param>
+    /// <param name="color">An optional connector color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddMapConnector(string label, double fromLongitude, double fromLatitude, double toLongitude, double toLatitude, ChartColor? color = null) {
+        Options.MapConnectors.Add(new ChartMapConnector(label, fromLongitude, fromLatitude, toLongitude, toLatitude, color));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a route line between two longitude/latitude points on capable map charts.
+    /// </summary>
+    /// <param name="label">The route label.</param>
+    /// <param name="fromLongitude">The source longitude in degrees.</param>
+    /// <param name="fromLatitude">The source latitude in degrees.</param>
+    /// <param name="toLongitude">The target longitude in degrees.</param>
+    /// <param name="toLatitude">The target latitude in degrees.</param>
+    /// <param name="color">An optional route color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddMapRoute(string label, double fromLongitude, double fromLatitude, double toLongitude, double toLatitude, ChartColor? color = null) {
+        return AddMapConnector(label, fromLongitude, fromLatitude, toLongitude, toLatitude, color);
+    }
+
+    /// <summary>
+    /// Adds a connector line between two existing dotted-map point labels.
+    /// </summary>
+    /// <param name="label">The connector label.</param>
+    /// <param name="fromPointLabel">The source dotted-map point label.</param>
+    /// <param name="toPointLabel">The target dotted-map point label.</param>
+    /// <param name="color">An optional connector color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddMapConnectorBetweenPoints(string label, string fromPointLabel, string toPointLabel, ChartColor? color = null) {
+        var from = ResolveDottedMapPoint(fromPointLabel, nameof(fromPointLabel));
+        var to = ResolveDottedMapPoint(toPointLabel, nameof(toPointLabel));
+        return AddMapConnector(label, from.X, from.Y, to.X, to.Y, color);
+    }
+
+    /// <summary>
+    /// Adds a route line between two existing dotted-map point labels.
+    /// </summary>
+    /// <param name="label">The route label.</param>
+    /// <param name="fromPointLabel">The source dotted-map point label.</param>
+    /// <param name="toPointLabel">The target dotted-map point label.</param>
+    /// <param name="color">An optional route color.</param>
+    /// <returns>The current chart.</returns>
+    public Chart AddMapRouteBetweenPoints(string label, string fromPointLabel, string toPointLabel, ChartColor? color = null) {
+        return AddMapConnectorBetweenPoints(label, fromPointLabel, toPointLabel, color);
+    }
+
+    private ChartPoint ResolveDottedMapPoint(string pointLabel, string parameterName) {
+        if (string.IsNullOrWhiteSpace(pointLabel)) throw new System.ArgumentException("Map point labels must not be empty.", parameterName);
+        ChartSeries? dottedMap = null;
+        foreach (var series in Series) {
+            if (series.Kind == ChartSeriesKind.DottedMap) {
+                dottedMap = series;
+                break;
+            }
+        }
+
+        if (dottedMap == null) throw new System.InvalidOperationException("Map routes between points require AddDottedMap to be called before the route is added.");
+        var trimmed = pointLabel.Trim();
+        var count = System.Math.Min(dottedMap.Points.Count, Options.XAxisLabels.Count);
+        for (var i = 0; i < count; i++) {
+            if (string.Equals(Options.XAxisLabels[i].Text, trimmed, System.StringComparison.OrdinalIgnoreCase)) return dottedMap.Points[i];
+        }
+
+        throw new System.ArgumentException("Map point label was not found in the current dotted map: " + trimmed + ".", parameterName);
+    }
+
+    /// <summary>
     /// Sets the built-in pictorial symbol shape and clears any custom SVG path.
     /// </summary>
     /// <param name="shape">The built-in shape used by SVG and PNG output.</param>

@@ -38,6 +38,11 @@ public sealed class ChartSeries {
     public List<ChartColor?> PointColors { get; } = new();
 
     /// <summary>
+    /// Gets optional point-level numeric values for specialized renderers that need per-point metadata.
+    /// </summary>
+    public List<double?> PointValues { get; } = new();
+
+    /// <summary>
     /// Gets optional point-level data-label styles. Null entries fall back to the series or chart data-label style.
     /// </summary>
     public List<ChartTextStyle?> PointDataLabelStyles { get; } = new();
@@ -122,7 +127,7 @@ public sealed class ChartSeries {
     /// <param name="color">The point color, or null to use the series color.</param>
     /// <returns>The current series.</returns>
     public ChartSeries WithPointColor(int pointIndex, ChartColor? color) {
-        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ValidatePointIndex(pointIndex);
         while (PointColors.Count <= pointIndex) PointColors.Add(null);
         PointColors[pointIndex] = color;
         return this;
@@ -142,7 +147,7 @@ public sealed class ChartSeries {
     /// <param name="pointIndex">The zero-based point index.</param>
     /// <returns>The current series.</returns>
     public ChartSeries UseSeriesColor(int pointIndex) {
-        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ValidatePointIndex(pointIndex);
         if (pointIndex < PointColors.Count) PointColors[pointIndex] = null;
         return this;
     }
@@ -223,7 +228,7 @@ public sealed class ChartSeries {
     /// <param name="configure">The style configuration callback.</param>
     /// <returns>The current series.</returns>
     public ChartSeries WithPointDataLabelStyle(int pointIndex, Action<ChartTextStyle> configure) {
-        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ValidatePointIndex(pointIndex);
         if (configure == null) throw new ArgumentNullException(nameof(configure));
         while (PointDataLabelStyles.Count <= pointIndex) PointDataLabelStyles.Add(null);
         var style = PointDataLabelStyles[pointIndex] ?? new ChartTextStyle();
@@ -238,7 +243,7 @@ public sealed class ChartSeries {
     /// <param name="pointIndex">The zero-based point index.</param>
     /// <returns>The current series.</returns>
     public ChartSeries UseSeriesDataLabelStyle(int pointIndex) {
-        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ValidatePointIndex(pointIndex);
         if (pointIndex < PointDataLabelStyles.Count) PointDataLabelStyles[pointIndex] = null;
         return this;
     }
@@ -250,7 +255,7 @@ public sealed class ChartSeries {
     /// <param name="ratio">The offset ratio from zero to 0.35 of the outer radius.</param>
     /// <returns>The current series.</returns>
     public ChartSeries WithPointSliceOffset(int pointIndex, double ratio) {
-        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ValidatePointIndex(pointIndex);
         ChartGuards.Finite(ratio, nameof(ratio));
         if (ratio < 0 || ratio > 0.35) throw new ArgumentOutOfRangeException(nameof(ratio), ratio, "Slice offset ratio must be between zero and 0.35.");
         while (PointSliceOffsets.Count <= pointIndex) PointSliceOffsets.Add(0);
@@ -264,7 +269,7 @@ public sealed class ChartSeries {
     /// <param name="pointIndex">The zero-based point index.</param>
     /// <returns>The current series.</returns>
     public ChartSeries UseDefaultSliceOffset(int pointIndex) {
-        if (pointIndex < 0 || pointIndex >= Points.Count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+        ValidatePointIndex(pointIndex);
         if (pointIndex < PointSliceOffsets.Count) PointSliceOffsets[pointIndex] = 0;
         return this;
     }
@@ -298,5 +303,29 @@ public sealed class ChartSeries {
         if (!Enum.IsDefined(typeof(ChartSeriesKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown series kind.");
         Kind = kind;
         Points.AddRange(ChartGuards.Points(points, nameof(points)));
+    }
+
+    private void ValidatePointIndex(int pointIndex) {
+        var count = LogicalPointCount;
+        if (pointIndex < 0 || pointIndex >= count) throw new ArgumentOutOfRangeException(nameof(pointIndex), pointIndex, "Point index must refer to an existing point.");
+    }
+
+    private int LogicalPointCount {
+        get {
+            var tupleSize = Kind == ChartSeriesKind.Bubble ||
+                Kind == ChartSeriesKind.RangeBand ||
+                Kind == ChartSeriesKind.RangeArea ||
+                Kind == ChartSeriesKind.RangeBar ||
+                Kind == ChartSeriesKind.Dumbbell
+                    ? 2
+                    : Kind == ChartSeriesKind.ErrorBar
+                        ? 3
+                        : Kind == ChartSeriesKind.Candlestick || Kind == ChartSeriesKind.Ohlc
+                            ? 4
+                            : Kind == ChartSeriesKind.BoxPlot
+                                ? 5
+                                : 1;
+            return Points.Count / tupleSize;
+        }
     }
 }

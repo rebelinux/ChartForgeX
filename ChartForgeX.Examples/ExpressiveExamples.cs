@@ -258,15 +258,15 @@ internal static class ExpressiveExamples {
 
     private static ChartGrid CreatePeopleInfographicShowcaseGrid() {
         var brand = ChartBrandKit.PeopleInfographic();
-        const int panelWidth = 380;
-        const int panelHeight = 270;
+        const int panelWidth = 420;
+        const int panelHeight = 320;
         const int gap = 18;
         const int widePanelWidth = panelWidth * 2 + gap;
         return ChartGrid.Create()
             .WithTitle("People Infographic Showcase")
             .WithSubtitle("Demographic panels using pictorial people, donut split, rings, horizontal bars, and trend lines")
-            .WithTitleStyle(style => style.WithColor("#0891b2").WithWeight("900").WithUnderline())
-            .WithSubtitleStyle(style => style.WithColor("#db2777").WithItalic())
+            .WithTitleStyle(style => style.WithColor("#0F172A").WithWeight("900"))
+            .WithSubtitleStyle(style => style.WithColor("#475569"))
             .WithBrandKit(brand)
             .WithColumns(3)
             .WithPadding(28)
@@ -290,7 +290,7 @@ internal static class ExpressiveExamples {
         .WithLegend(false)
         .WithDonutCenterText("60.5%", "Male")
         .WithDonutInnerRadiusRatio(0.68)
-        .WithSize(380, 270)
+        .WithSize(420, 300)
         .WithPadding(34, 34, 34, 24)
         .WithPlotBackground(false)
         .WithValueFormatter(Percent)
@@ -302,10 +302,11 @@ internal static class ExpressiveExamples {
         .WithSubtitle("Each icon represents 5%")
         .WithTheme(ChartTheme.PeopleInfographic())
         .WithSize(width, height)
-        .WithPictorialColumns(12)
+        .WithLegend(false)
+        .WithPictorialColumns(10)
         .WithPictorialValuePerSymbol(5)
         .WithPictorialValues(true)
-        .WithPictorialSymbolScale(1.15)
+        .WithPictorialSymbolScale(1.0)
         .WithPictorialEmptyOpacity(0.12)
         .WithValueFormatter(Percent)
         .AddPictorial("Audience", new[] {
@@ -320,10 +321,11 @@ internal static class ExpressiveExamples {
         .WithSubtitle("One icon equals one respondent")
         .WithTheme(ChartTheme.PeopleInfographic())
         .WithSize(width, height)
-        .WithPictorialColumns(25)
+        .WithLegend(false)
+        .WithPictorialColumns(20)
         .WithPictorialValuePerSymbol(1)
         .WithPictorialValues(false)
-        .WithPictorialSymbolScale(1.12)
+        .WithPictorialSymbolScale(0.96)
         .WithPictorialEmptyOpacity(0.08)
         .AddPictorial("Rows", new[] {
             new ChartPictorialItem("50/100", 50, ChartColor.FromRgb(6, 182, 212)),
@@ -358,7 +360,7 @@ internal static class ExpressiveExamples {
         .WithTheme(ChartTheme.PeopleInfographic())
         .WithLegend(false)
         .WithCircleStatusLabel(false)
-        .WithSize(380, 270)
+        .WithSize(420, 300)
         .WithPadding(34, 34, 34, 24)
         .WithPlotBackground(false)
         .WithCircleRadiusScale(1.18)
@@ -370,7 +372,8 @@ internal static class ExpressiveExamples {
         .WithTitle("Preference Sliders")
         .WithSubtitle("Slider-style progress controls")
         .WithTheme(ChartTheme.PeopleInfographic())
-        .WithSize(380, 270)
+        .WithSize(420, 300)
+        .WithLegend(false)
         .WithProgressBarThickness(0.28)
         .WithProgressTrackOpacity(0.20)
         .WithValueFormatter(Percent)
@@ -383,11 +386,12 @@ internal static class ExpressiveExamples {
         .WithTitle("Dress Icons")
         .WithSubtitle("Alternate built-in person silhouette")
         .WithTheme(ChartTheme.PeopleInfographic())
-        .WithSize(380, 270)
-        .WithPictorialColumns(14)
+        .WithSize(420, 300)
+        .WithLegend(false)
+        .WithPictorialColumns(12)
         .WithPictorialValuePerSymbol(5)
         .WithPictorialValues(true)
-        .WithPictorialSymbolScale(1.12)
+        .WithPictorialSymbolScale(1.0)
         .WithPictorialEmptyOpacity(0.10)
         .WithValueFormatter(Percent)
         .AddPictorial("Audience", new[] {
@@ -399,7 +403,8 @@ internal static class ExpressiveExamples {
         .WithTitle("Completion Bars")
         .WithSubtitle("Compact progress rows")
         .WithTheme(ChartTheme.PeopleInfographic())
-        .WithSize(380, 270)
+        .WithSize(420, 300)
+        .WithLegend(false)
         .WithProgressHandles(false)
         .WithProgressBarThickness(0.46)
         .WithProgressTrackOpacity(0.14)

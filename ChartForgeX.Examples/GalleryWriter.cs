@@ -111,6 +111,7 @@ public static partial class GalleryWriter {
         var healthyPngs = pairs.Count(pair => pair.PngHealth.IsHealthy);
         var warningCount = pairs.Sum(pair => pair.Warnings.Length);
         var baseline = ReadBaselineSummary(output, pairs);
+        var groups = BuildComparisonGroups(pairs);
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<!doctype html>");
         sb.AppendLine("<html lang=\"en\">");
@@ -121,8 +122,8 @@ public static partial class GalleryWriter {
         sb.AppendLine("<style>");
         sb.AppendLine(":root{color-scheme:dark;--bg:#0f172a;--panel:#111827;--frame:#020617;--line:#334155;--text:#e5e7eb;--muted:#94a3b8;--ok:#86efac;--warn:#fbbf24;--accent:#38bdf8}");
         sb.AppendLine("*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial,sans-serif}");
-        sb.AppendLine("header{max-width:1500px;margin:0 auto 24px}h1{margin:0 0 6px;font-size:24px;line-height:1.15}p{margin:0;color:var(--muted)}.summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:#cbd5e1;font-size:12px;font-weight:700;text-decoration:none}.pill.ok{border-color:rgba(134,239,172,.45);color:var(--ok)}.pill.warn{border-color:rgba(251,191,36,.55);color:var(--warn)}a.pill:hover{border-color:rgba(56,189,248,.55);color:var(--accent)}main{display:grid;gap:24px;max-width:1500px;margin:0 auto}");
-        sb.AppendLine("section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}section.mismatch{border-color:rgba(251,191,36,.6)}h2{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;font-size:14px;color:#cbd5e1}.status{border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800}.status.ok{color:var(--ok);border-color:rgba(134,239,172,.45)}.status.warn{color:var(--warn);border-color:rgba(251,191,36,.55)}.pair{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}");
+        sb.AppendLine("header{max-width:1500px;margin:0 auto 24px}h1{margin:0 0 6px;font-size:24px;line-height:1.15}p{margin:0;color:var(--muted)}.summary,.family-nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.pill,.family-nav a{border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:#cbd5e1;font-size:12px;font-weight:700;text-decoration:none}.pill.ok,.family-nav a.ok{border-color:rgba(134,239,172,.45);color:var(--ok)}.pill.warn,.family-nav a.warn{border-color:rgba(251,191,36,.55);color:var(--warn)}a.pill:hover,.family-nav a:hover{border-color:rgba(56,189,248,.55);color:var(--accent)}main{display:grid;gap:34px;max-width:1500px;margin:0 auto}");
+        sb.AppendLine(".family{display:grid;gap:16px}.family-head{display:flex;align-items:end;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px}.family-title{margin:0 0 5px;font-size:19px;line-height:1.15;color:#f8fafc}.family-desc{font-size:13px}.family-count{flex:0 0 auto;border:1px solid rgba(56,189,248,.42);border-radius:999px;color:var(--accent);font-size:12px;font-weight:800;padding:6px 10px}.family-count.ok{border-color:rgba(134,239,172,.45);color:var(--ok)}.family-count.warn{border-color:rgba(251,191,36,.55);color:var(--warn)}section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;scroll-margin-top:18px}section.mismatch{border-color:rgba(251,191,36,.6)}h2{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;font-size:14px;color:#cbd5e1}.status{border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800}.status.ok{color:var(--ok);border-color:rgba(134,239,172,.45)}.status.warn{color:var(--warn);border-color:rgba(251,191,36,.55)}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}section.large .pair{grid-template-columns:1fr}.wipe-figure{grid-column:1/-1;order:-1}.wipe-figure .media{min-height:360px}section.large .wipe-figure .media{min-height:min(68vh,820px)}section.large figure:not(.wipe-figure) .media{min-height:min(62vh,720px)}");
         sb.AppendLine("figure{margin:0;background:var(--frame);border:1px solid #1f2937;border-radius:8px;padding:10px;min-width:0}.caption{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;margin-bottom:8px}.dims{font-variant-numeric:tabular-nums;color:#cbd5e1}.format{color:var(--accent);font-weight:800;text-decoration:none}.format:hover{text-decoration:underline}.media{width:100%;min-height:140px;background-color:#020617;background-image:linear-gradient(45deg,#0b1120 25%,transparent 25%),linear-gradient(-45deg,#0b1120 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#0b1120 75%),linear-gradient(-45deg,transparent 75%,#0b1120 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;overflow:hidden}.media.wipe{position:relative}.media.wipe img,.media.wipe object{position:absolute;inset:0}.media.wipe object{clip-path:inset(0 50% 0 0)}.media.wipe:before{content:\"\";position:absolute;z-index:3;top:0;bottom:0;left:50%;border-left:2px solid rgba(56,189,248,.9);box-shadow:0 0 0 1px rgba(2,6,23,.85)}.media.wipe:after{content:\"SVG | PNG\";position:absolute;z-index:4;left:50%;top:8px;transform:translateX(-50%);border:1px solid rgba(56,189,248,.4);border-radius:999px;background:rgba(2,6,23,.82);color:#e5e7eb;font-size:10px;font-weight:800;letter-spacing:.08em;padding:4px 8px}object,img{display:block;width:100%;height:100%;object-fit:contain;background:transparent}");
         sb.AppendLine("@media(max-width:1200px){.pair{grid-template-columns:1fr}}@media(max-width:900px){body{padding:16px}}");
         sb.AppendLine("</style>");
@@ -132,11 +133,12 @@ public static partial class GalleryWriter {
         sb.AppendLine("<h1>ChartForgeX SVG/PNG visual comparison</h1>");
         sb.AppendLine("<p>Generated from current example exports. SVG is left, PNG is right; high-density PNGs are shown at their logical SVG size.</p>");
         sb.AppendLine("<div class=\"summary\"><span class=\"pill\">" + pairs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " chart pairs</span><span class=\"pill " + (matchingPairs == pairs.Length ? "ok" : "warn") + "\">" + matchingPairs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " dimension matches</span><span class=\"pill " + (healthySvgs == pairs.Length ? "ok" : "warn") + "\">" + healthySvgs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " healthy SVGs</span><span class=\"pill " + (healthyPngs == pairs.Length ? "ok" : "warn") + "\">" + healthyPngs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " healthy PNGs</span><span class=\"pill " + (warningCount == 0 ? "ok" : "warn") + "\">" + warningCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " warnings</span>" + FormatBaselinePill(baseline) + "<a class=\"pill\" href=\"" + CatalogFileName + "\">grouped catalog</a><a class=\"pill\" href=\"" + QualityDashboardFileName + "\">quality dashboard</a><a class=\"pill\" href=\"" + ComparisonManifestFileName + "\">manifest JSON</a></div>");
+        AppendComparisonFamilyNav(sb, groups);
         sb.AppendLine("</header>");
         sb.AppendLine("<main>");
 
-        foreach (var pair in pairs) {
-            AppendComparisonCard(sb, pair);
+        foreach (var group in groups) {
+            AppendComparisonGroup(sb, group);
         }
 
         sb.AppendLine("</main>");
@@ -145,6 +147,47 @@ public static partial class GalleryWriter {
         File.WriteAllText(Path.Combine(output, ComparisonFileName), sb.ToString());
         WriteQualityDashboard(output, pairs, matchingPairs, baseline);
         WriteComparisonManifest(output, pairs, matchingPairs, baseline);
+    }
+
+    private static ComparisonGroup[] BuildComparisonGroups(ComparisonAsset[] pairs) {
+        var assigned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var groups = new List<ComparisonGroup>();
+        foreach (var catalogGroup in CatalogGroups) {
+            var groupPairs = pairs.Where(pair => catalogGroup.Contains(pair.Name)).ToArray();
+            if (groupPairs.Length == 0) continue;
+            foreach (var pair in groupPairs) assigned.Add(pair.Name);
+            groups.Add(new ComparisonGroup(catalogGroup.Name, catalogGroup.Description, groupPairs));
+        }
+
+        var remaining = pairs.Where(pair => !assigned.Contains(pair.Name)).ToArray();
+        if (remaining.Length > 0) {
+            groups.Add(new ComparisonGroup(
+                "Additional Visual Checks",
+                "Generated SVG/PNG pairs not yet assigned to a named catalog family.",
+                remaining));
+        }
+
+        return groups.ToArray();
+    }
+
+    private static void AppendComparisonFamilyNav(System.Text.StringBuilder sb, ComparisonGroup[] groups) {
+        if (groups.Length == 0) return;
+        sb.AppendLine("<div class=\"family-nav\" aria-label=\"Comparison families\">");
+        foreach (var group in groups) {
+            sb.AppendLine("<a class=\"" + (group.IsClean ? "ok" : "warn") + "\" href=\"#comparison-family-" + EscapeHtml(Slugify(group.Name)) + "\">" + EscapeHtml(group.Name) + " (" + group.CleanPairs.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/" + group.Pairs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " clean)</a>");
+        }
+
+        sb.AppendLine("</div>");
+    }
+
+    private static void AppendComparisonGroup(System.Text.StringBuilder sb, ComparisonGroup group) {
+        sb.AppendLine("<div class=\"family\" id=\"comparison-family-" + EscapeHtml(Slugify(group.Name)) + "\">");
+        sb.AppendLine("<div class=\"family-head\"><div><h2 class=\"family-title\">" + EscapeHtml(group.Name) + "</h2><p class=\"family-desc\">" + EscapeHtml(group.Description) + "</p></div><span class=\"family-count " + (group.IsClean ? "ok" : "warn") + "\">" + group.Pairs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " pairs / " + group.CleanPairs.ToString(System.Globalization.CultureInfo.InvariantCulture) + " clean / " + group.WarningCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " warnings</span></div>");
+        foreach (var pair in group.Pairs) {
+            AppendComparisonCard(sb, pair);
+        }
+
+        sb.AppendLine("</div>");
     }
 
     private static ComparisonAsset ReadComparisonAsset(string output, string name) {
@@ -341,12 +384,13 @@ public static partial class GalleryWriter {
         var svgInfo = FormatDimensions(svg) + " / " + FormatBytes(pair.SvgBytes) + " / " + pair.SvgHealth.VisualNodes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visual nodes / min text " + FormatSvgTextSize(pair.SvgHealth.MinimumTextFontSize) + " / min stroke " + FormatSvgStrokeWidth(pair.SvgHealth.MinimumStrokeWidth) + " / min marker " + FormatSvgMarkerRadius(pair.SvgHealth.MinimumMarkerRadius);
         var scaleLabel = pair.PngScale > 1 ? " @" + pair.PngScale.ToString(System.Globalization.CultureInfo.InvariantCulture) + "x" : string.Empty;
         var pngInfo = FormatDimensions(png) + scaleLabel + " / " + FormatBytes(pair.PngBytes) + " / " + pair.PngHealth.VisiblePixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " visible px / " + pair.PngHealth.ForegroundPixels.ToString(System.Globalization.CultureInfo.InvariantCulture) + " foreground px";
-        sb.AppendLine("<section id=\"" + EscapeHtml(name) + "\" class=\"" + (pair.HasMatchingDimensions ? "match" : "mismatch") + "\">");
+        var largeClass = aspectWidth >= 1200 || aspectHeight >= 900 ? " large" : string.Empty;
+        sb.AppendLine("<section id=\"" + EscapeHtml(name) + "\" class=\"" + (pair.HasMatchingDimensions ? "match" : "mismatch") + largeClass + "\">");
         sb.AppendLine("<h2><span>" + EscapeHtml(name) + "</span><span class=\"status " + statusClass + "\">" + statusText + "</span></h2>");
         sb.AppendLine("<div class=\"pair\">");
+        sb.AppendLine("<figure class=\"wipe-figure\"><figcaption class=\"caption\"><span class=\"format\">WIPE</span><span class=\"dims\">" + EscapeHtml(FormatDimensions(svg)) + "</span></figcaption><div class=\"media wipe\"" + ratioStyle + "><img src=\"" + EscapeHtml(name) + ".png\" alt=\"" + EscapeHtml(name) + " PNG wipe right\"><object data=\"" + EscapeHtml(name) + ".svg\" type=\"image/svg+xml\" aria-label=\"" + EscapeHtml(name) + " SVG wipe left\"></object></div></figure>");
         sb.AppendLine("<figure><figcaption class=\"caption\"><a class=\"format\" href=\"" + EscapeHtml(name) + ".svg\">SVG</a><span class=\"dims\">" + EscapeHtml(svgInfo) + "</span></figcaption><div class=\"media\"" + ratioStyle + "><object data=\"" + EscapeHtml(name) + ".svg\" type=\"image/svg+xml\"></object></div></figure>");
         sb.AppendLine("<figure><figcaption class=\"caption\"><a class=\"format\" href=\"" + EscapeHtml(name) + ".png\">PNG</a><span class=\"dims\">" + EscapeHtml(pngInfo) + "</span></figcaption><div class=\"media\"" + ratioStyle + "><img src=\"" + EscapeHtml(name) + ".png\" alt=\"" + EscapeHtml(name) + " PNG\"></div></figure>");
-        sb.AppendLine("<figure><figcaption class=\"caption\"><span class=\"format\">WIPE</span><span class=\"dims\">" + EscapeHtml(FormatDimensions(svg)) + "</span></figcaption><div class=\"media wipe\"" + ratioStyle + "><img src=\"" + EscapeHtml(name) + ".png\" alt=\"" + EscapeHtml(name) + " PNG wipe right\"><object data=\"" + EscapeHtml(name) + ".svg\" type=\"image/svg+xml\" aria-label=\"" + EscapeHtml(name) + " SVG wipe left\"></object></div></figure>");
         sb.AppendLine("</div>");
         sb.AppendLine("</section>");
     }
@@ -616,178 +660,4 @@ public static partial class GalleryWriter {
     }
 
     private static string EscapeHtml(string value) => System.Net.WebUtility.HtmlEncode(value);
-
-    private readonly struct AssetDimensions {
-        public AssetDimensions(int width, int height) {
-            Width = width;
-            Height = height;
-        }
-
-        public int Width { get; }
-
-        public int Height { get; }
-    }
-
-    private readonly struct ComparisonAsset {
-        public ComparisonAsset(string name, AssetDimensions svgDimensions, AssetDimensions pngDimensions, long svgBytes, long pngBytes, SvgHealth svgHealth, PngHealth pngHealth) {
-            Name = name;
-            SvgDimensions = svgDimensions;
-            PngDimensions = pngDimensions;
-            SvgBytes = svgBytes;
-            PngBytes = pngBytes;
-            SvgHealth = svgHealth;
-            PngHealth = pngHealth;
-        }
-
-        public string Name { get; }
-
-        public AssetDimensions SvgDimensions { get; }
-
-        public AssetDimensions PngDimensions { get; }
-
-        public long SvgBytes { get; }
-
-        public long PngBytes { get; }
-
-        public SvgHealth SvgHealth { get; }
-
-        public PngHealth PngHealth { get; }
-
-        public int PngScale {
-            get {
-                if (SvgDimensions.Width <= 0 || SvgDimensions.Height <= 0 || PngDimensions.Width <= 0 || PngDimensions.Height <= 0) return 0;
-                if (PngDimensions.Width % SvgDimensions.Width != 0 || PngDimensions.Height % SvgDimensions.Height != 0) return 0;
-                var widthScale = PngDimensions.Width / SvgDimensions.Width;
-                var heightScale = PngDimensions.Height / SvgDimensions.Height;
-                return widthScale == heightScale ? widthScale : 0;
-            }
-        }
-
-        public bool HasMatchingDimensions =>
-            SvgDimensions.Width > 0 &&
-            SvgDimensions.Height > 0 &&
-            PngScale >= 1;
-
-        public string[] Warnings {
-            get {
-                var warnings = new List<string>();
-                if (!HasMatchingDimensions) warnings.Add("dimension mismatch");
-                if (!SvgHealth.IsHealthy) warnings.Add("SVG health warning");
-                if (SvgHealth.TinyTextNodes > 0) warnings.Add("SVG tiny text warning");
-                if (SvgHealth.TinyStrokeNodes > 0) warnings.Add("SVG tiny stroke warning");
-                if (SvgHealth.TinyMarkerNodes > 0) warnings.Add("SVG tiny marker warning");
-                if (SvgHealth.ClippedTextNodes > 0) warnings.Add("SVG text bounds warning");
-                if (!PngHealth.IsHealthy) warnings.Add("PNG health warning");
-                if (PngHealth.EdgeInkPixels > MaximumHealthyPngEdgeInkPixels) warnings.Add("PNG edge pressure warning");
-                return warnings.ToArray();
-            }
-        }
-    }
-
-    private readonly struct SvgHealth {
-        public SvgHealth(int visualNodes, int textNodes, double minimumTextFontSize, int tinyTextNodes, int strokedNodes, double minimumStrokeWidth, int tinyStrokeNodes, int markerNodes, double minimumMarkerRadius, int tinyMarkerNodes, int clippedTextNodes, int nearEdgeTextNodes) {
-            VisualNodes = visualNodes;
-            TextNodes = textNodes;
-            MinimumTextFontSize = minimumTextFontSize;
-            TinyTextNodes = tinyTextNodes;
-            StrokedNodes = strokedNodes;
-            MinimumStrokeWidth = minimumStrokeWidth;
-            TinyStrokeNodes = tinyStrokeNodes;
-            MarkerNodes = markerNodes;
-            MinimumMarkerRadius = minimumMarkerRadius;
-            TinyMarkerNodes = tinyMarkerNodes;
-            ClippedTextNodes = clippedTextNodes;
-            NearEdgeTextNodes = nearEdgeTextNodes;
-        }
-
-        public int VisualNodes { get; }
-
-        public int TextNodes { get; }
-
-        public double MinimumTextFontSize { get; }
-
-        public int TinyTextNodes { get; }
-
-        public int StrokedNodes { get; }
-
-        public double MinimumStrokeWidth { get; }
-
-        public int TinyStrokeNodes { get; }
-
-        public int MarkerNodes { get; }
-
-        public double MinimumMarkerRadius { get; }
-
-        public int TinyMarkerNodes { get; }
-
-        public int ClippedTextNodes { get; }
-
-        public int NearEdgeTextNodes { get; }
-
-        public bool IsHealthy => VisualNodes >= MinimumHealthySvgVisualNodes && TinyTextNodes == 0 && TinyStrokeNodes == 0 && TinyMarkerNodes == 0;
-    }
-
-    private readonly struct PngHealth {
-        public PngHealth(long visiblePixels, long foregroundPixels, PngContentBounds contentBounds, int distinctColors, long edgeInkPixels, long edgeBandPixels) {
-            VisiblePixels = visiblePixels;
-            ForegroundPixels = foregroundPixels;
-            ContentBounds = contentBounds;
-            DistinctColors = distinctColors;
-            EdgeInkPixels = edgeInkPixels;
-            EdgeBandPixels = edgeBandPixels;
-        }
-
-        public long VisiblePixels { get; }
-
-        public long ForegroundPixels { get; }
-
-        public PngContentBounds ContentBounds { get; }
-
-        public int DistinctColors { get; }
-
-        public long EdgeInkPixels { get; }
-
-        public long EdgeBandPixels { get; }
-
-        public bool IsHealthy => VisiblePixels >= MinimumHealthyPngVisiblePixels && ForegroundPixels >= MinimumHealthyPngVisiblePixels && DistinctColors >= MinimumHealthyPngDistinctColors && EdgeInkPixels <= MaximumHealthyPngEdgeInkPixels;
-    }
-
-    private readonly struct PngContentBounds {
-        public PngContentBounds(int left, int top, int right, int bottom) {
-            Left = left;
-            Top = top;
-            Right = right;
-            Bottom = bottom;
-        }
-
-        public int Left { get; }
-
-        public int Top { get; }
-
-        public int Right { get; }
-
-        public int Bottom { get; }
-
-        public int Width => IsEmpty ? 0 : Right - Left + 1;
-
-        public int Height => IsEmpty ? 0 : Bottom - Top + 1;
-
-        public bool IsEmpty => Right < Left || Bottom < Top;
-    }
-
-    private readonly struct BaselineSummary {
-        public BaselineSummary(bool isPresent, int chartMatches, int warnings) {
-            IsPresent = isPresent;
-            ChartMatches = chartMatches;
-            Warnings = warnings;
-        }
-
-        public bool IsPresent { get; }
-
-        public int ChartMatches { get; }
-
-        public int Warnings { get; }
-
-        public bool IsClean => IsPresent && Warnings == 0;
-    }
 }

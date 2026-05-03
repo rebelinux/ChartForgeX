@@ -47,10 +47,10 @@ public sealed class SvgChartGridRenderer {
             if (grid.Subtitle.Length > 0) sb.AppendLine("<text data-cfx-role=\"grid-subtitle\" x=\"" + (grid.Padding + 2).ToString(CultureInfo.InvariantCulture) + "\" y=\"" + (grid.Padding + titleFontSize + subtitleFontSize).ToString(CultureInfo.InvariantCulture) + "\" fill=\"" + StyleColor(grid.SubtitleStyle, theme.MutedText).ToCss() + "\" font-family=\"" + Escape(StyleFontFamily(grid.SubtitleStyle, theme.FontFamily)) + "\" font-size=\"" + subtitleFontSize.ToString(CultureInfo.InvariantCulture) + "\" font-weight=\"" + Escape(StyleWeight(grid.SubtitleStyle, "400")) + "\"" + SvgTextStyleAttributes(grid.SubtitleStyle) + ">" + Escape(FitText(grid.Subtitle, subtitleFontSize, headerWidth)) + "</text>");
         }
 
-        foreach (var cell in layout.Cells) {
-            var childSvg = _chartRenderer.Render(cell.Chart);
-            var data = Convert.ToBase64String(Encoding.UTF8.GetBytes(childSvg));
-            sb.AppendLine("<image x=\"" + cell.X.ToString(CultureInfo.InvariantCulture) + "\" y=\"" + cell.Y.ToString(CultureInfo.InvariantCulture) + "\" width=\"" + cell.Width.ToString(CultureInfo.InvariantCulture) + "\" height=\"" + cell.Height.ToString(CultureInfo.InvariantCulture) + "\" href=\"data:image/svg+xml;base64," + data + "\"/>");
+        for (var i = 0; i < layout.Cells.Count; i++) {
+            var cell = layout.Cells[i];
+            var childSvg = _chartRenderer.Render(cell.Chart, id + "-cell-" + i.ToString(CultureInfo.InvariantCulture));
+            sb.AppendLine(PositionChildSvg(childSvg, cell.X, cell.Y, cell.Width, cell.Height));
         }
 
         sb.AppendLine("</svg>");
@@ -72,6 +72,28 @@ public sealed class SvgChartGridRenderer {
         if (style.Italic) value += " font-style=\"italic\"";
         if (style.Underline) value += " text-decoration=\"underline\"";
         return value;
+    }
+
+    private static string PositionChildSvg(string svg, double x, double y, double width, double height) {
+        var tagEnd = svg.IndexOf('>');
+        if (tagEnd < 0) return svg;
+        var open = svg.Substring(0, tagEnd);
+        open = SetSvgAttribute(open, "x", x.ToString(CultureInfo.InvariantCulture));
+        open = SetSvgAttribute(open, "y", y.ToString(CultureInfo.InvariantCulture));
+        open = SetSvgAttribute(open, "width", width.ToString(CultureInfo.InvariantCulture));
+        open = SetSvgAttribute(open, "height", height.ToString(CultureInfo.InvariantCulture));
+        open = SetSvgAttribute(open, "data-cfx-role", "grid-panel");
+        return open + svg.Substring(tagEnd);
+    }
+
+    private static string SetSvgAttribute(string openTag, string name, string value) {
+        var attribute = " " + name + "=\"";
+        var start = openTag.IndexOf(attribute, StringComparison.Ordinal);
+        if (start < 0) return openTag + attribute + Escape(value) + "\"";
+        var valueStart = start + attribute.Length;
+        var valueEnd = openTag.IndexOf('"', valueStart);
+        if (valueEnd < 0) return openTag;
+        return openTag.Substring(0, valueStart) + Escape(value) + openTag.Substring(valueEnd);
     }
 
     private static string NextScope() {
