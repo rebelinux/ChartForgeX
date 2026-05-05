@@ -8,7 +8,7 @@ internal static partial class SmokeTests {
     private static void SourceFilesStayUnderArchitectureLineBudget() {
         const int lineBudget = 800;
         var root = FindRepositoryRoot();
-        var oversized = new[] { "ChartForgeX", "ChartForgeX.Examples", "ChartForgeX.Tests" }
+        var oversized = new[] { "ChartForgeX", "ChartForgeX.Interactivity", "ChartForgeX.Interactivity.Html", "ChartForgeX.Examples", "ChartForgeX.Tests" }
             .Where(sourceRoot => Directory.Exists(Path.Combine(root, sourceRoot)))
             .SelectMany(sourceRoot => Directory.EnumerateFiles(Path.Combine(root, sourceRoot), "*.cs", SearchOption.AllDirectories))
             .Where(file => !IsGeneratedPath(file))
@@ -56,6 +56,9 @@ internal static partial class SmokeTests {
     private static void ExampleAppClearsGeneratedOutputBeforeWriting() {
         var program = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "Program.cs"));
         Assert(program.Contains("Directory.Delete(output, recursive: true)", StringComparison.Ordinal), "Example generation should wipe stale output before writing comparison artifacts.");
+        Assert(program.Contains("SaveInteractiveHtml", StringComparison.Ordinal), "Example generation should include a visible interactive HTML adapter demo.");
+        Assert(program.Contains("SaveInteractiveHtmlDashboard", StringComparison.Ordinal), "Example generation should include a visible synchronized dashboard adapter demo.");
+        Assert(program.Contains("ChartInteractionFeatures.Zoom | ChartInteractionFeatures.Pan | ChartInteractionFeatures.Brush | ChartInteractionFeatures.Export | ChartInteractionFeatures.SynchronizedCharts", StringComparison.Ordinal), "Interactive example should exercise the competitive review toolbar features.");
     }
 
     private static void EuropeRevenueMapRoutesTargetRenderedMarkers() {
@@ -249,9 +252,10 @@ internal static partial class SmokeTests {
         foreach (var workflow in workflows) {
             var text = File.ReadAllText(workflow);
             Assert(text.Contains("self-hosted", StringComparison.OrdinalIgnoreCase), "GitHub Actions workflows should use self-hosted private runners: " + Path.GetFileName(workflow));
-            Assert(text.Contains("private", StringComparison.OrdinalIgnoreCase), "GitHub Actions workflows should require the private runner label: " + Path.GetFileName(workflow));
+            Assert(text.Contains("Linux", StringComparison.OrdinalIgnoreCase) && text.Contains("X64", StringComparison.OrdinalIgnoreCase), "GitHub Actions workflows should require labels available on the self-hosted Linux runners: " + Path.GetFileName(workflow));
             Assert(text.Contains("actions/setup-dotnet", StringComparison.OrdinalIgnoreCase), "GitHub Actions workflows should install the expected .NET SDK: " + Path.GetFileName(workflow));
             Assert(text.Contains("actions/upload-artifact", StringComparison.OrdinalIgnoreCase), "GitHub Actions workflows should preserve packages and gallery output: " + Path.GetFileName(workflow));
+            Assert(text.Contains("artifacts/packages/Release", StringComparison.OrdinalIgnoreCase), "GitHub Actions workflows should upload packages from Build.ps1 artifact output: " + Path.GetFileName(workflow));
             Assert(!ContainsAny(text, "ubuntu-latest", "windows-latest", "macos-latest"), "GitHub Actions workflows should not use public hosted runner labels: " + Path.GetFileName(workflow));
         }
     }

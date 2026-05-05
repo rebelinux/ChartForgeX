@@ -6,7 +6,13 @@ param(
 
     [switch] $SkipPack,
 
-    [switch] $UpdateVisualBaseline
+    [switch] $UpdateVisualBaseline,
+
+    [ValidateRange(1, 86400)]
+    [int] $DotNetCommandTimeoutSeconds = 900,
+
+    [ValidateRange(1, 3600)]
+    [int] $PackageConsumerTimeoutSeconds = 180
 )
 
 function Assert-VisualComparisonHealth {
@@ -130,6 +136,56 @@ function Assert-VisualBaseline {
     }
 }
 
+function Invoke-DotNetCommand {
+    param(
+        [Parameter(Mandatory = $true)] [string[]] $Arguments,
+        [Parameter(Mandatory = $true)] [string] $Description,
+        [Parameter(Mandatory = $true)] [int] $TimeoutSeconds,
+        [switch] $Quiet
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = 'dotnet'
+    $startInfo.WorkingDirectory = (Get-Location).ProviderPath
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = [bool]$Quiet
+    $startInfo.RedirectStandardError = [bool]$Quiet
+    foreach ($argument in $Arguments) {
+        [void] $startInfo.ArgumentList.Add($argument)
+    }
+
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $standardOutput = $null
+    $standardError = $null
+    if ($Quiet) {
+        $standardOutput = $process.StandardOutput.ReadToEndAsync()
+        $standardError = $process.StandardError.ReadToEndAsync()
+    }
+
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        try {
+            $process.Kill($true)
+        } catch {
+            $process.Kill()
+        }
+
+        throw "$Description timed out after $TimeoutSeconds second(s): dotnet $($Arguments -join ' ')"
+    }
+
+    if ($process.ExitCode -ne 0) {
+        if ($Quiet) {
+            $output = $standardOutput.GetAwaiter().GetResult()
+            $errorOutput = $standardError.GetAwaiter().GetResult()
+            $tail = (($output, $errorOutput) -join [Environment]::NewLine).Trim()
+            if ($tail.Length -gt 0) {
+                throw "$Description failed with exit code $($process.ExitCode): $tail"
+            }
+        }
+
+        throw "$Description failed with exit code $($process.ExitCode)."
+    }
+}
+
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ge 7) {
     $PSNativeCommandUseErrorActionPreference = $true
@@ -141,16 +197,18 @@ try {
     $tests = Join-Path $root 'ChartForgeX.Tests/ChartForgeX.Tests.csproj'
     $examples = Join-Path $root 'ChartForgeX.Examples/ChartForgeX.Examples.csproj'
     $library = Join-Path $root 'ChartForgeX/ChartForgeX.csproj'
+    $interactivityLibrary = Join-Path $root 'ChartForgeX.Interactivity/ChartForgeX.Interactivity.csproj'
+    $htmlInteractivityLibrary = Join-Path $root 'ChartForgeX.Interactivity.Html/ChartForgeX.Interactivity.Html.csproj'
     if ($SkipExamples -and $UpdateVisualBaseline) {
         throw 'Visual baseline updates require examples to run. Remove -SkipExamples.'
     }
 
-    dotnet restore .\ChartForgeX.sln
-    dotnet build $solution -c $Configuration --no-restore
-    dotnet test $tests -c $Configuration --no-build --no-restore
+    Invoke-DotNetCommand -Arguments @('restore', '.\ChartForgeX.sln') -Description 'Solution restore' -TimeoutSeconds $DotNetCommandTimeoutSeconds
+    Invoke-DotNetCommand -Arguments @('build', $solution, '-c', $Configuration, '--no-restore') -Description 'Solution build' -TimeoutSeconds $DotNetCommandTimeoutSeconds
+    Invoke-DotNetCommand -Arguments @('test', $tests, '-c', $Configuration, '--no-build', '--no-restore') -Description 'Test run' -TimeoutSeconds $DotNetCommandTimeoutSeconds
 
     if (-not $SkipExamples) {
-        dotnet run --project $examples -c $Configuration --no-build
+        Invoke-DotNetCommand -Arguments @('run', '--project', $examples, '-c', $Configuration, '--no-build') -Description 'Example generation' -TimeoutSeconds $DotNetCommandTimeoutSeconds
         $comparisonManifest = Join-Path $root "ChartForgeX.Examples/bin/$Configuration/net8.0/output/svg-png-comparison.json"
         if (-not (Test-Path $comparisonManifest)) {
             throw "SVG/PNG comparison manifest was not generated: $comparisonManifest"
@@ -167,84 +225,118 @@ try {
     }
 
     if (-not $SkipPack) {
-        $packageRoot = Join-Path $root "ChartForgeX/bin/$Configuration"
+        $packageRoot = Join-Path $root "artifacts/packages/$Configuration"
         if (Test-Path $packageRoot) {
             Get-ChildItem $packageRoot -Filter 'ChartForgeX*.nupkg' -ErrorAction SilentlyContinue | Remove-Item -Force
             Get-ChildItem $packageRoot -Filter 'ChartForgeX*.snupkg' -ErrorAction SilentlyContinue | Remove-Item -Force
+        } else {
+            New-Item -ItemType Directory -Path $packageRoot | Out-Null
         }
 
-        dotnet pack $library -c $Configuration --no-build
-        $packages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX*.nupkg' | Sort-Object Name)
-        if ($packages.Count -ne 1) {
-            throw "Expected exactly one package, found $($packages.Count)."
+        $packageProjects = @(
+            [ordered]@{ Id = 'ChartForgeX'; Project = $library; Assembly = 'ChartForgeX'; Nuspec = 'ChartForgeX.nuspec'; DependencyIds = @(); RequiresDependencyFreeNuspec = $true },
+            [ordered]@{ Id = 'ChartForgeX.Interactivity'; Project = $interactivityLibrary; Assembly = 'ChartForgeX.Interactivity'; Nuspec = 'ChartForgeX.Interactivity.nuspec'; DependencyIds = @(); RequiresDependencyFreeNuspec = $true },
+            [ordered]@{ Id = 'ChartForgeX.Interactivity.Html'; Project = $htmlInteractivityLibrary; Assembly = 'ChartForgeX.Interactivity.Html'; Nuspec = 'ChartForgeX.Interactivity.Html.nuspec'; DependencyIds = @('ChartForgeX', 'ChartForgeX.Interactivity'); RequiresDependencyFreeNuspec = $false }
+        )
+
+        foreach ($packageProject in $packageProjects) {
+            Invoke-DotNetCommand -Arguments @('pack', $packageProject.Project, '-c', $Configuration, '--no-build', '--output', $packageRoot) -Description "$($packageProject.Id) package creation" -TimeoutSeconds $DotNetCommandTimeoutSeconds
         }
-        $package = $packages[0]
-        if (-not $package) {
-            throw 'Package was not created.'
+
+        $packages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX*.nupkg' | Sort-Object Name)
+        if ($packages.Count -ne $packageProjects.Count) {
+            throw "Expected $($packageProjects.Count) packages, found $($packages.Count)."
         }
         $symbolsPackages = @(Get-ChildItem $packageRoot -Filter 'ChartForgeX*.snupkg' | Sort-Object Name)
-        if ($symbolsPackages.Count -ne 1) {
-            throw "Expected exactly one symbol package, found $($symbolsPackages.Count)."
-        }
-        $symbolsPackage = $symbolsPackages[0]
-        if (-not $symbolsPackage) {
-            throw 'Symbol package was not created.'
+        if ($symbolsPackages.Count -ne $packageProjects.Count) {
+            throw "Expected $($packageProjects.Count) symbol packages, found $($symbolsPackages.Count)."
         }
 
         Add-Type -AssemblyName System.IO.Compression.FileSystem
-        $archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
-        try {
-            $nuspecEntry = $archive.Entries | Where-Object { $_.FullName -eq 'ChartForgeX.nuspec' } | Select-Object -First 1
-            if (-not $nuspecEntry) {
-                throw 'Package is missing ChartForgeX.nuspec.'
+        $htmlPackageVersion = $null
+        foreach ($packageProject in $packageProjects) {
+            [xml] $projectXml = Get-Content -Path $packageProject.Project
+            $packageVersion = [string] $projectXml.Project.PropertyGroup.Version
+            if ([string]::IsNullOrWhiteSpace($packageVersion)) {
+                throw "Package version is missing for $($packageProject.Project)."
             }
-            foreach ($requiredEntry in @('README.md', 'CHANGELOG.md')) {
-                if (-not ($archive.Entries | Where-Object { $_.FullName -eq $requiredEntry } | Select-Object -First 1)) {
-                    throw "Package is missing $requiredEntry."
+
+            $package = Get-Item (Join-Path $packageRoot "$($packageProject.Id).$packageVersion.nupkg")
+            $symbolsPackage = Get-Item (Join-Path $packageRoot "$($packageProject.Id).$packageVersion.snupkg")
+            if (-not $package) {
+                throw "Package was not created for $($packageProject.Id)."
+            }
+            if (-not $symbolsPackage) {
+                throw "Symbol package was not created for $($packageProject.Id)."
+            }
+
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+            try {
+                $nuspecEntry = $archive.Entries | Where-Object { $_.FullName -eq $packageProject.Nuspec } | Select-Object -First 1
+                if (-not $nuspecEntry) {
+                    throw "Package is missing $($packageProject.Nuspec)."
                 }
-            }
-            foreach ($framework in @('net472', 'netstandard2.0', 'net8.0', 'net10.0')) {
-                foreach ($extension in @('dll', 'xml')) {
-                    $requiredEntry = "lib/$framework/ChartForgeX.$extension"
+                foreach ($requiredEntry in @('README.md', 'CHANGELOG.md')) {
                     if (-not ($archive.Entries | Where-Object { $_.FullName -eq $requiredEntry } | Select-Object -First 1)) {
-                        throw "Package is missing $requiredEntry."
+                        throw "$($packageProject.Id) package is missing $requiredEntry."
                     }
                 }
-            }
+                foreach ($framework in @('net472', 'netstandard2.0', 'net8.0', 'net10.0')) {
+                    foreach ($extension in @('dll', 'xml')) {
+                        $requiredEntry = "lib/$framework/$($packageProject.Assembly).$extension"
+                        if (-not ($archive.Entries | Where-Object { $_.FullName -eq $requiredEntry } | Select-Object -First 1)) {
+                            throw "$($packageProject.Id) package is missing $requiredEntry."
+                        }
+                    }
+                }
 
-            $reader = [System.IO.StreamReader]::new($nuspecEntry.Open())
-            try {
-                $nuspec = $reader.ReadToEnd()
+                $reader = [System.IO.StreamReader]::new($nuspecEntry.Open())
+                try {
+                    $nuspec = $reader.ReadToEnd()
+                } finally {
+                    $reader.Dispose()
+                }
+
+                if ($packageProject.RequiresDependencyFreeNuspec -and $nuspec -match '<dependency\s') {
+                    throw "$($packageProject.Id) package must not contain runtime NuGet dependencies."
+                }
+                foreach ($dependencyId in $packageProject.DependencyIds) {
+                    if ($nuspec -notmatch ('<dependency\s+id="' + [Regex]::Escape($dependencyId) + '"')) {
+                        throw "$($packageProject.Id) package is missing dependency on $dependencyId."
+                    }
+                }
             } finally {
-                $reader.Dispose()
+                $archive.Dispose()
             }
 
-            if ($nuspec -match '<dependency\s') {
-                throw 'Core package must not contain runtime NuGet dependencies.'
+            if ($packageProject.Id -eq 'ChartForgeX.Interactivity.Html') {
+                $htmlPackageVersion = $packageVersion
             }
-        } finally {
-            $archive.Dispose()
         }
 
-        $packageVersion = [System.IO.Path]::GetFileNameWithoutExtension($package.Name).Substring('ChartForgeX.'.Length)
         $consumerRoot = Join-Path ([System.IO.Path]::GetTempPath()) "ChartForgeX-package-consumer-$([Guid]::NewGuid().ToString('N'))"
         try {
             New-Item -ItemType Directory -Path $consumerRoot | Out-Null
             Push-Location $consumerRoot
             try {
-                dotnet new console --framework net8.0 --no-restore | Out-Null
+                Invoke-DotNetCommand -Arguments @('new', 'console', '--framework', 'net8.0', '--no-restore') -Description 'Package consumer project creation' -TimeoutSeconds $DotNetCommandTimeoutSeconds -Quiet
                 @"
 <configuration>
+  <config>
+    <add key="globalPackagesFolder" value="$consumerRoot\.nuget-packages" />
+  </config>
   <packageSources>
     <clear />
     <add key="local-chartforgex" value="$packageRoot" />
   </packageSources>
 </configuration>
 "@ | Set-Content -Path (Join-Path $consumerRoot 'NuGet.config') -Encoding UTF8
-                dotnet add package ChartForgeX --version $packageVersion --source $packageRoot | Out-Null
+                Invoke-DotNetCommand -Arguments @('add', 'package', 'ChartForgeX.Interactivity.Html', '--version', $htmlPackageVersion, '--source', $packageRoot) -Description 'Package consumer dependency restore' -TimeoutSeconds $DotNetCommandTimeoutSeconds -Quiet
                 @"
 using ChartForgeX;
 using ChartForgeX.Core;
+using ChartForgeX.Interactivity;
+using ChartForgeX.Interactivity.Html;
 using ChartForgeX.Primitives;
 
 var chart = Chart.Create()
@@ -255,8 +347,21 @@ var chart = Chart.Create()
 if (!chart.ToSvg().Contains("<svg", StringComparison.Ordinal)) throw new InvalidOperationException("SVG render failed.");
 if (!chart.ToHtmlFragment().Contains("<svg", StringComparison.Ordinal)) throw new InvalidOperationException("HTML render failed.");
 if (chart.ToPng().Length <= 64) throw new InvalidOperationException("PNG render failed.");
+var html = chart.ToInteractiveHtmlPage(options => options.Interaction.Enable(ChartInteractionFeatures.Zoom | ChartInteractionFeatures.Pan | ChartInteractionFeatures.Brush | ChartInteractionFeatures.Export | ChartInteractionFeatures.SynchronizedCharts));
+if (!html.Contains("data-cfx-zoom=\"in\"", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive HTML zoom controls missing.");
+if (!html.Contains("data-cfx-mode-button=\"brush\"", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive HTML brush controls missing.");
+if (!html.Contains("data-cfx-export=\"svg\"", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive HTML export controls missing.");
+if (!html.Contains("data-cfx-export=\"png\"", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive HTML PNG export controls missing.");
+if (!html.Contains("new CustomEvent('cfxsync'", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive HTML sync events missing.");
+var dashboard = new[] { chart, chart }.ToInteractiveHtmlDashboardPage(options => {
+    options.IdScope = "package-dashboard";
+    options.Interaction.GroupName = "package-group";
+    options.Interaction.Enable(ChartInteractionFeatures.Zoom | ChartInteractionFeatures.SynchronizedCharts);
+});
+if (!dashboard.Contains("class=\"cfx-dashboard\"", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive dashboard surface missing.");
+if (!dashboard.Contains("data-cfx-chart-id=\"package-dashboard-2\"", StringComparison.Ordinal)) throw new InvalidOperationException("Interactive dashboard child chart IDs missing.");
 "@ | Set-Content -Path (Join-Path $consumerRoot 'Program.cs') -Encoding UTF8
-                dotnet run -c Release --no-restore | Out-Null
+                Invoke-DotNetCommand -Arguments @('run', '-c', 'Release', '--no-restore') -Description 'Package consumer validation' -TimeoutSeconds $PackageConsumerTimeoutSeconds -Quiet
             } finally {
                 Pop-Location
             }

@@ -11,13 +11,26 @@ internal static partial class SmokeTests {
         var script = File.ReadAllText(buildScript);
         Assert(script.Contains("ChartForgeX*.nupkg", StringComparison.Ordinal), "Build script should verify NuGet package creation and clean copy-suffixed package artifacts.");
         Assert(script.Contains("ChartForgeX*.snupkg", StringComparison.Ordinal), "Build script should verify symbol package creation and clean copy-suffixed symbol artifacts.");
-        Assert(script.Contains("Expected exactly one package", StringComparison.Ordinal), "Build script should reject stale or duplicate packages.");
+        Assert(script.Contains("artifacts/packages/$Configuration", StringComparison.Ordinal), "Build script should put all release packages in a shared ignored artifact folder.");
+        Assert(script.Contains("$packages.Count -ne $packageProjects.Count", StringComparison.Ordinal), "Build script should reject stale or duplicate packages.");
+        Assert(script.Contains("ChartForgeX.Interactivity.Html", StringComparison.Ordinal), "Build script should package the HTML interactivity adapter.");
+        Assert(script.Contains("DependencyIds = @('ChartForgeX', 'ChartForgeX.Interactivity')", StringComparison.Ordinal), "Build script should verify adapter package dependencies.");
         Assert(script.Contains("README.md", StringComparison.Ordinal), "Build script should verify README package inclusion.");
         Assert(script.Contains("CHANGELOG.md", StringComparison.Ordinal), "Build script should verify changelog package inclusion.");
-        Assert(script.Contains("lib/$framework/ChartForgeX.$extension", StringComparison.Ordinal), "Build script should verify package framework assets.");
+        Assert(script.Contains("lib/$framework/$($packageProject.Assembly).$extension", StringComparison.Ordinal), "Build script should verify package framework assets.");
         Assert(script.Contains("ChartForgeX-package-consumer", StringComparison.Ordinal), "Build script should verify package consumption from a clean project.");
-        Assert(script.Contains("dotnet add package ChartForgeX", StringComparison.Ordinal), "Build script should install the freshly packed package in the consumer smoke test.");
-        Assert(script.Contains("<dependency\\s", StringComparison.Ordinal), "Build script should verify the core package has no runtime dependencies.");
+        Assert(script.Contains("globalPackagesFolder", StringComparison.Ordinal), "Build script should isolate the package consumer cache so same-version local packages are retested.");
+        Assert(script.Contains("DotNetCommandTimeoutSeconds", StringComparison.Ordinal), "Build script should time-limit all dotnet validation commands.");
+        Assert(script.Contains("Invoke-DotNetCommand", StringComparison.Ordinal), "Build script should route dotnet calls through one timeout-aware command runner.");
+        Assert(script.Contains("$startInfo.WorkingDirectory = (Get-Location).ProviderPath", StringComparison.Ordinal), "Build script should run wrapped dotnet commands from the active PowerShell location.");
+        Assert(script.Contains("timed out after $TimeoutSeconds", StringComparison.Ordinal), "Build script should fail loudly when a dotnet validation step hangs.");
+        Assert(script.Contains("PackageConsumerTimeoutSeconds", StringComparison.Ordinal), "Build script should time-limit package consumer validation.");
+        Assert(script.Contains("Package consumer validation", StringComparison.Ordinal), "Build script should name package consumer validation errors.");
+        Assert(script.Contains("TimeoutSeconds $PackageConsumerTimeoutSeconds", StringComparison.Ordinal), "Build script should use the shorter package consumer timeout for the final smoke run.");
+        Assert(script.Contains("'add', 'package', 'ChartForgeX.Interactivity.Html'", StringComparison.Ordinal), "Build script should install the freshest adapter package in the consumer smoke test.");
+        Assert(script.Contains("ToInteractiveHtmlPage", StringComparison.Ordinal), "Build script should verify interactive HTML package consumption from a clean project.");
+        Assert(script.Contains("ToInteractiveHtmlDashboardPage", StringComparison.Ordinal), "Build script should verify interactive dashboard package consumption from a clean project.");
+        Assert(script.Contains("<dependency\\s", StringComparison.Ordinal), "Build script should verify dependency-free package invariants.");
         Assert(script.Contains("svg-png-comparison.json", StringComparison.Ordinal), "Build script should verify generated SVG/PNG comparison health.");
         Assert(script.Contains("function Assert-VisualComparisonHealth", StringComparison.Ordinal), "Build script should keep visual comparison health checks isolated.");
         Assert(script.Contains("function New-VisualBaseline", StringComparison.Ordinal), "Build script should keep visual-baseline generation isolated.");
@@ -93,6 +106,8 @@ internal static partial class SmokeTests {
         }
 
         var releaseGuide = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "RELEASING.md"));
+        Assert(releaseGuide.Contains("DotNetCommandTimeoutSeconds", StringComparison.Ordinal) && releaseGuide.Contains("PackageConsumerTimeoutSeconds", StringComparison.Ordinal), "Release guidance should document build timeout controls.");
+        Assert(releaseGuide.Contains("fails with a named timeout", StringComparison.Ordinal), "Release guidance should explain timeout failures as actionable build signals.");
         Assert(releaseGuide.Contains("-UpdateVisualBaseline", StringComparison.Ordinal), "Release guidance should explain intentional visual-baseline refreshes.");
         Assert(releaseGuide.Contains("clipped SVG text", StringComparison.Ordinal) && releaseGuide.Contains("PNG edge pressure", StringComparison.Ordinal), "Release guidance should explain the visual-baseline quality gates.");
     }
