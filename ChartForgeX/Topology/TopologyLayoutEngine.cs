@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using ChartForgeX.Primitives;
 using static ChartForgeX.Topology.TopologyRenderPrimitives;
 
 namespace ChartForgeX.Topology;
@@ -30,6 +31,9 @@ internal static class TopologyLayoutEngine {
                 break;
             case TopologyLayoutMode.DenseGrouped:
                 ApplyDenseGrouped(copy);
+                break;
+            case TopologyLayoutMode.Geographic:
+                ApplyGeographic(copy);
                 break;
         }
 
@@ -316,6 +320,52 @@ internal static class TopologyLayoutEngine {
         ApplyDenseGroupEdgeDefaults(chart);
     }
 
+    private static void ApplyGeographic(TopologyChart chart) {
+        var map = TopologyMapProjection.MapRect(chart);
+        foreach (var group in chart.Groups) {
+            if (!group.Longitude.HasValue || !group.Latitude.HasValue) continue;
+            if (group.Width <= 0) group.Width = 140;
+            if (group.Height <= 0) group.Height = 76;
+            var projected = TopologyMapProjection.Project(map, chart.MapViewport, group.Longitude.Value, group.Latitude.Value);
+            group.X = projected.X - group.Width / 2;
+            group.Y = projected.Y - group.Height / 2;
+            group.Metadata["longitude"] = group.Longitude.Value.ToString("0.######", CultureInfo.InvariantCulture);
+            group.Metadata["latitude"] = group.Latitude.Value.ToString("0.######", CultureInfo.InvariantCulture);
+            group.Metadata["geoVisible"] = projected.IsInsideViewport ? "true" : "false";
+        }
+
+        foreach (var node in chart.Nodes) {
+            if (!node.Longitude.HasValue || !node.Latitude.HasValue) continue;
+            var projected = TopologyMapProjection.Project(map, chart.MapViewport, node.Longitude.Value, node.Latitude.Value);
+            node.X = projected.X - node.Width / 2;
+            node.Y = projected.Y - node.Height / 2;
+            node.Metadata["longitude"] = node.Longitude.Value.ToString("0.######", CultureInfo.InvariantCulture);
+            node.Metadata["latitude"] = node.Latitude.Value.ToString("0.######", CultureInfo.InvariantCulture);
+            node.Metadata["geoVisible"] = projected.IsInsideViewport ? "true" : "false";
+        }
+
+        PlaceGeographicFallbackNodes(chart, map);
+    }
+
+    private static void PlaceGeographicFallbackNodes(TopologyChart chart, ChartRect map) {
+        var fallback = chart.Nodes
+            .Where(node => (!node.Longitude.HasValue || !node.Latitude.HasValue) && IsUnset(node.X) && IsUnset(node.Y))
+            .OrderBy(node => node.Id, StringComparer.Ordinal)
+            .ToList();
+        if (fallback.Count == 0) return;
+        var columns = Math.Max(1, Math.Min(4, fallback.Count));
+        var cellW = map.Width / columns;
+        var y = Math.Min(map.Bottom + 18, chart.Viewport.Height - chart.Viewport.Padding - TopologyRenderPrimitives.LegendReservedHeight(chart.Legend) - 52);
+        for (var i = 0; i < fallback.Count; i++) {
+            var node = fallback[i];
+            var col = i % columns;
+            var row = i / columns;
+            node.X = map.Left + col * cellW + (cellW - node.Width) / 2;
+            node.Y = y + row * (node.Height + 18);
+            node.Metadata["geoVisible"] = "false";
+        }
+    }
+
     private static void PlaceNodesInGroup(IList<TopologyNode> nodes, TopologyGroup group) {
         if (nodes.Count == 0) return;
         var columns = Math.Max(1, Math.Min(3, nodes.Count));
@@ -556,6 +606,7 @@ internal static class TopologyLayoutEngine {
             LayoutMode = chart.LayoutMode,
             LayoutDirection = chart.LayoutDirection,
             Viewport = new TopologyViewport { Width = chart.Viewport.Width, Height = chart.Viewport.Height, Padding = chart.Viewport.Padding },
+            MapViewport = chart.MapViewport,
             Legend = chart.Legend,
             Theme = chart.Theme
         };
@@ -573,6 +624,8 @@ internal static class TopologyLayoutEngine {
             Status = group.Status,
             X = group.X,
             Y = group.Y,
+            Longitude = group.Longitude,
+            Latitude = group.Latitude,
             Width = group.Width,
             Height = group.Height,
             Href = group.Href,
@@ -600,6 +653,8 @@ internal static class TopologyLayoutEngine {
             GroupId = node.GroupId,
             X = node.X,
             Y = node.Y,
+            Longitude = node.Longitude,
+            Latitude = node.Latitude,
             Width = node.Width,
             Height = node.Height,
             Href = node.Href,

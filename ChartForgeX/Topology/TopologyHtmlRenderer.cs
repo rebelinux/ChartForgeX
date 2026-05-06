@@ -139,7 +139,10 @@ public sealed class TopologyHtmlRenderer {
           groupId: attr(element, 'data-group-id'),
           displayMode: attr(element, 'data-node-display-mode'),
           badge: attr(element, 'data-node-badge'),
-          color: attr(element, 'data-node-color')
+          color: attr(element, 'data-node-color'),
+          longitude: attr(element, 'data-node-longitude'),
+          latitude: attr(element, 'data-node-latitude'),
+          geoVisible: attr(element, 'data-node-geo-visible')
         };
       }
       if (role === 'topology-edge') {
@@ -179,6 +182,9 @@ public sealed class TopologyHtmlRenderer {
           id: attr(element, 'data-group-id'),
           symbol: attr(element, 'data-group-symbol'),
           color: attr(element, 'data-group-color'),
+          longitude: attr(element, 'data-group-longitude'),
+          latitude: attr(element, 'data-group-latitude'),
+          geoVisible: attr(element, 'data-group-geo-visible'),
           layoutPolicy: attr(element, 'data-group-layout-policy'),
           appliedLayoutPolicy: attr(element, 'data-group-applied-layout-policy')
         };

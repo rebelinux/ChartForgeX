@@ -26,6 +26,9 @@ public sealed partial class TopologySvgRenderer {
                     .Attribute("data-node-display-mode", displayMode.ToString())
                     .Attribute("data-cfx-status", node.Status.ToString())
                     .Attribute("data-cfx-selected", selected);
+                if (node.Longitude.HasValue) element.Attribute("data-node-longitude", F(node.Longitude.Value));
+                if (node.Latitude.HasValue) element.Attribute("data-node-latitude", F(node.Latitude.Value));
+                if (node.Metadata.TryGetValue("geoVisible", out var nodeGeoVisible)) element.Attribute("data-node-geo-visible", nodeGeoVisible);
                 if (!string.IsNullOrWhiteSpace(node.GroupId)) element.Attribute("data-group-id", node.GroupId!);
                 if (!string.IsNullOrWhiteSpace(node.Badge)) element.Attribute("data-node-badge", NodeBadge(node));
                 if (!string.IsNullOrWhiteSpace(node.Color)) element.Attribute("data-node-color", color);

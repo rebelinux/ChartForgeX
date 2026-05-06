@@ -33,6 +33,7 @@ public sealed class TopologyPngRenderer {
         var canvas = new RgbaCanvas(width, height, Math.Max(1, options.PngSupersamplingScale), null, Math.Max(1, options.PngOutputScale));
         canvas.Clear(Color(theme.Background));
         if (options.IncludeTitle) DrawHeader(canvas, prepared, theme);
+        if (prepared.LayoutMode == TopologyLayoutMode.Geographic) DrawGeographicFrame(canvas, prepared, theme);
         if (options.IncludeGroups) DrawGroups(canvas, prepared, theme, options, highlight);
         DrawEdges(canvas, prepared, theme, options, highlight);
         if (options.IncludeEdgeLabels) DrawEdgeLabels(canvas, prepared, theme, options, highlight);
@@ -40,6 +41,23 @@ public sealed class TopologyPngRenderer {
         if (options.IncludeStatusBadges) DrawStatusBadges(canvas, prepared, theme, options, highlight);
         if (options.IncludeLegend && prepared.Legend != null) DrawLegend(canvas, prepared, theme);
         return PngWriter.WriteRgba(canvas.OutputWidth, canvas.OutputHeight, canvas.ToOutputPixels());
+    }
+
+    private static void DrawGeographicFrame(RgbaCanvas canvas, TopologyChart chart, TopologyTheme theme) {
+        var map = TopologyMapProjection.MapRect(chart);
+        canvas.FillRoundedRect(map.Left, map.Top, map.Width, map.Height, 16, Color(StatusFill(theme.Accent, theme.Background)));
+        canvas.StrokeRoundedRect(map.Left, map.Top, map.Width, map.Height, 16, Color(theme.Border), 1);
+        for (var i = 1; i < 4; i++) {
+            var longitude = chart.MapViewport.MinimumLongitude + (chart.MapViewport.MaximumLongitude - chart.MapViewport.MinimumLongitude) * i / 4.0;
+            var x = TopologyMapProjection.Project(map, chart.MapViewport, longitude, chart.MapViewport.MinimumLatitude).X;
+            canvas.DrawLine(x, map.Top, x, map.Bottom, WithAlpha(Color(theme.Border), 110), 0.8);
+        }
+
+        for (var i = 1; i < 3; i++) {
+            var latitude = chart.MapViewport.MinimumLatitude + (chart.MapViewport.MaximumLatitude - chart.MapViewport.MinimumLatitude) * i / 3.0;
+            var y = TopologyMapProjection.Project(map, chart.MapViewport, chart.MapViewport.MinimumLongitude, latitude).Y;
+            canvas.DrawLine(map.Left, y, map.Right, y, WithAlpha(Color(theme.Border), 88), 0.8);
+        }
     }
 
     private static void DrawHeader(RgbaCanvas canvas, TopologyChart chart, TopologyTheme theme) {

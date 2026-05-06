@@ -17,7 +17,9 @@ public enum TopologyLayoutMode {
     /// <summary>Place nodes in a deterministic matrix.</summary>
     Matrix,
     /// <summary>Place groups in dense deterministic panels and pack each group's hub/branch nodes inside the panel.</summary>
-    DenseGrouped
+    DenseGrouped,
+    /// <summary>Project nodes and groups from longitude/latitude coordinates into the topology viewport.</summary>
+    Geographic
 }
 
 /// <summary>

@@ -57,6 +57,12 @@ public sealed partial class TopologySvgRenderer {
                 .Attribute("data-layout-mode", prepared.LayoutMode.ToString())
                 .Attribute("data-layout-direction", prepared.LayoutDirection.ToString())
                 .Attribute("data-node-display-mode", options.NodeDisplayMode.ToString())
+                .Attribute("data-cfx-projection", prepared.LayoutMode == TopologyLayoutMode.Geographic ? TopologyMapProjection.ProjectionName : null)
+                .Attribute("data-cfx-viewport", prepared.LayoutMode == TopologyLayoutMode.Geographic ? prepared.MapViewport.Name : null)
+                .Attribute("data-cfx-viewport-min-longitude", prepared.LayoutMode == TopologyLayoutMode.Geographic ? F(prepared.MapViewport.MinimumLongitude) : null)
+                .Attribute("data-cfx-viewport-max-longitude", prepared.LayoutMode == TopologyLayoutMode.Geographic ? F(prepared.MapViewport.MaximumLongitude) : null)
+                .Attribute("data-cfx-viewport-min-latitude", prepared.LayoutMode == TopologyLayoutMode.Geographic ? F(prepared.MapViewport.MinimumLatitude) : null)
+                .Attribute("data-cfx-viewport-max-latitude", prepared.LayoutMode == TopologyLayoutMode.Geographic ? F(prepared.MapViewport.MaximumLatitude) : null)
                 .Raw(BuildBodyMarkup(prepared, prefix, theme, options, id, highlight));
         });
 
@@ -71,6 +77,7 @@ public sealed partial class TopologySvgRenderer {
             .Attribute("height", "100%")
             .Attribute("fill", theme.Background)));
         if (options.IncludeTitle) DrawHeader(sb, chart, prefix, theme);
+        if (chart.LayoutMode == TopologyLayoutMode.Geographic) DrawGeographicFrame(sb, chart, prefix, theme);
         if (options.IncludeGroups) DrawGroups(sb, chart, prefix, theme, options, highlight);
         DrawEdges(sb, chart, prefix, theme, options, id, highlight);
         DrawEdgeLabels(sb, chart, prefix, theme, options, highlight);
@@ -78,6 +85,61 @@ public sealed partial class TopologySvgRenderer {
         if (options.IncludeStatusBadges) DrawNodeStatuses(sb, chart, prefix, theme, options, highlight);
         if (options.IncludeLegend && chart.Legend != null) DrawLegend(sb, chart, prefix, theme);
         return sb.ToString();
+    }
+
+    private static void DrawGeographicFrame(StringBuilder sb, TopologyChart chart, string prefix, TopologyTheme theme) {
+        var map = TopologyMapProjection.MapRect(chart);
+        var layer = new SvgElement("g")
+            .Class(prefix + "__geo-frame")
+            .Attribute("data-cfx-role", "topology-geographic-frame")
+            .Attribute("data-cfx-projection", TopologyMapProjection.ProjectionName)
+            .Attribute("data-cfx-viewport", chart.MapViewport.Name)
+            .Attribute("data-cfx-viewport-min-longitude", F(chart.MapViewport.MinimumLongitude))
+            .Attribute("data-cfx-viewport-max-longitude", F(chart.MapViewport.MaximumLongitude))
+            .Attribute("data-cfx-viewport-min-latitude", F(chart.MapViewport.MinimumLatitude))
+            .Attribute("data-cfx-viewport-max-latitude", F(chart.MapViewport.MaximumLatitude));
+        layer.Element("rect", rect => rect
+            .Attribute("x", map.Left)
+            .Attribute("y", map.Top)
+            .Attribute("width", map.Width)
+            .Attribute("height", map.Height)
+            .Attribute("rx", 16)
+            .Attribute("fill", StatusFill(theme.Accent, theme.Background))
+            .Attribute("stroke", theme.Border)
+            .Attribute("stroke-width", 1));
+        for (var i = 1; i < 4; i++) {
+            var longitude = chart.MapViewport.MinimumLongitude + (chart.MapViewport.MaximumLongitude - chart.MapViewport.MinimumLongitude) * i / 4.0;
+            var x = TopologyMapProjection.Project(map, chart.MapViewport, longitude, chart.MapViewport.MinimumLatitude).X;
+            layer.Element("line", line => line
+                .Attribute("data-cfx-role", "topology-geographic-graticule")
+                .Attribute("data-cfx-axis", "longitude")
+                .Attribute("data-cfx-longitude", F(longitude))
+                .Attribute("x1", x)
+                .Attribute("y1", map.Top)
+                .Attribute("x2", x)
+                .Attribute("y2", map.Bottom)
+                .Attribute("stroke", theme.Border)
+                .Attribute("stroke-opacity", 0.42)
+                .Attribute("stroke-width", 0.8));
+        }
+
+        for (var i = 1; i < 3; i++) {
+            var latitude = chart.MapViewport.MinimumLatitude + (chart.MapViewport.MaximumLatitude - chart.MapViewport.MinimumLatitude) * i / 3.0;
+            var y = TopologyMapProjection.Project(map, chart.MapViewport, chart.MapViewport.MinimumLongitude, latitude).Y;
+            layer.Element("line", line => line
+                .Attribute("data-cfx-role", "topology-geographic-graticule")
+                .Attribute("data-cfx-axis", "latitude")
+                .Attribute("data-cfx-latitude", F(latitude))
+                .Attribute("x1", map.Left)
+                .Attribute("y1", y)
+                .Attribute("x2", map.Right)
+                .Attribute("y2", y)
+                .Attribute("stroke", theme.Border)
+                .Attribute("stroke-opacity", 0.34)
+                .Attribute("stroke-width", 0.8));
+        }
+
+        sb.Append(ElementMarkup(layer));
     }
 
     private static SvgElement BuildDefs(string id, string prefix, TopologyTheme theme, TopologyRenderOptions options) {
@@ -184,6 +246,9 @@ public sealed partial class TopologySvgRenderer {
                     .Attribute("data-group-applied-layout-policy", group.AppliedLayoutPolicy.ToString())
                     .Attribute("data-cfx-status", group.Status.ToString())
                     .Attribute("data-cfx-selected", selected);
+                if (group.Longitude.HasValue) element.Attribute("data-group-longitude", F(group.Longitude.Value));
+                if (group.Latitude.HasValue) element.Attribute("data-group-latitude", F(group.Latitude.Value));
+                if (group.Metadata.TryGetValue("geoVisible", out var groupGeoVisible)) element.Attribute("data-group-geo-visible", groupGeoVisible);
                 if (!string.IsNullOrWhiteSpace(group.Symbol)) element.Attribute("data-group-symbol", TrimTo(group.Symbol!.Trim(), 12));
                 if (!string.IsNullOrWhiteSpace(group.Color)) element.Attribute("data-group-color", accent);
                 AddTopologyDataAttributes(element, "data-cfx-meta-", group.Metadata, options.IncludeDataAttributes);

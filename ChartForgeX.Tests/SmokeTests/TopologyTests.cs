@@ -115,7 +115,8 @@ internal static partial class SmokeTests {
             CreateSampleTopologyChart(TopologyLayoutMode.HubAndSpoke),
             CreateSampleTopologyChart(TopologyLayoutMode.Layered),
             CreateSampleTopologyChart(TopologyLayoutMode.Matrix),
-            CreateSampleTopologyChart(TopologyLayoutMode.DenseGrouped)
+            CreateSampleTopologyChart(TopologyLayoutMode.DenseGrouped),
+            CreateSampleTopologyChart(TopologyLayoutMode.Geographic)
         }) {
             var svg = chart.ToSvg();
             Assert(svg.Contains("data-cfx-role=\"topology-node\"", StringComparison.Ordinal), "Topology layout should render nodes: " + chart.LayoutMode + ".");

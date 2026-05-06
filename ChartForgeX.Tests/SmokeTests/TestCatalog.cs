@@ -172,6 +172,7 @@ internal static partial class SmokeTests {
         ("Topology dense grouped layout packs groups and nodes", TopologyDenseGroupedLayoutPacksGroupsAndNodes),
         ("Topology dense grouped layout supports group policies", TopologyDenseGroupedLayoutSupportsGroupPolicies),
         ("Topology dense grouped layout assigns inter-group edge defaults", TopologyDenseGroupedLayoutAssignsInterGroupEdgeDefaults),
+        ("Topology geographic layout projects coordinates", TopologyGeographicLayoutProjectsCoordinates),
         ("Topology escapes text and skips unsafe href", TopologyEscapesTextAndSkipsUnsafeHref),
         ("Topology emits safe CSS and data hooks", TopologyEmitsSafeCssAndDataHooks),
         ("Topology HTML pages expose selection interactions", TopologyHtmlPagesExposeSelectionInteractions),

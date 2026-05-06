@@ -88,17 +88,18 @@ Suggested PR: `Add dense grouped topology layout`.
 
 ### 4. Geographic Topology Rendering
 
-The geographic demos currently use the dotted-map chart family. That covers map-style visuals, weighted markers, labels, and routes, but it is not a first-class topology geo layout and currently advertises an equirectangular projection.
+The geographic demos can still use the dotted-map chart family for full map-style land-dot visuals, weighted markers, labels, and routes. Topology now also has a first-class `Geographic` layout mode that projects typed node/group longitude and latitude through `ChartMapViewport`, emits a topology-native geographic frame and graticule, and keeps node/edge/group topology semantics intact for SVG, HTML, and PNG output.
 
 Next work:
 
-- decide whether geographic topology remains a dotted-map host pattern or becomes `TopologyLayoutMode.Geographic`
-- if it becomes topology-native, add latitude/longitude metadata or typed coordinates on nodes
-- reuse existing map projection and viewport logic where possible, but make topology nodes/edges render on the projected coordinates
+- decide whether geographic topology remains a dotted-map host pattern or becomes `TopologyLayoutMode.Geographic` - done with a topology-native layout while keeping dotted maps available for full map visuals
+- if it becomes topology-native, add latitude/longitude metadata or typed coordinates on nodes - done for nodes and groups
+- reuse existing map projection and viewport logic where possible, but make topology nodes/edges render on the projected coordinates - done with `ChartMapViewport` and equirectangular projection
 - improve route arcs, endpoint trimming, clustering, label placement, and region callouts for TestimoX-like regional views
 - consider additional projection modes only if the static output gains a visible benefit
+- optionally reuse or expose the dotted-map land layer behind topology nodes when a full world/region silhouette is needed
 
-Suggested PR: `Add topology geographic layout or map adapter`.
+Suggested follow-up: `Polish topology geographic map visuals`.
 
 ### 5. Dashboard-Level Composition
 

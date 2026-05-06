@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 
 namespace ChartForgeX.Topology;
@@ -30,6 +31,9 @@ public sealed class TopologyChart {
 
     /// <summary>Gets the viewport used by renderers.</summary>
     public TopologyViewport Viewport { get; set; } = new();
+
+    /// <summary>Gets or sets the longitude/latitude window used by geographic topology layouts.</summary>
+    public ChartMapViewport MapViewport { get; set; } = ChartMapViewport.World();
 
     /// <summary>Gets the topology groups.</summary>
     public List<TopologyGroup> Groups { get; } = new();
@@ -82,6 +86,12 @@ public sealed class TopologyGroup {
 
     /// <summary>Gets or sets the group y-coordinate.</summary>
     public double Y { get; set; }
+
+    /// <summary>Gets or sets the optional group longitude in degrees.</summary>
+    public double? Longitude { get; set; }
+
+    /// <summary>Gets or sets the optional group latitude in degrees.</summary>
+    public double? Latitude { get; set; }
 
     /// <summary>Gets or sets the group width.</summary>
     public double Width { get; set; }
@@ -150,6 +160,12 @@ public sealed class TopologyNode {
 
     /// <summary>Gets or sets the node y-coordinate.</summary>
     public double Y { get; set; }
+
+    /// <summary>Gets or sets the optional node longitude in degrees.</summary>
+    public double? Longitude { get; set; }
+
+    /// <summary>Gets or sets the optional node latitude in degrees.</summary>
+    public double? Latitude { get; set; }
 
     /// <summary>Gets or sets the node width.</summary>
     public double Width { get; set; } = 120;
