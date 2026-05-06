@@ -88,7 +88,7 @@ Suggested PR: `Add dense grouped topology layout`.
 
 ### 4. Geographic Topology Rendering
 
-The geographic demos can still use the dotted-map chart family for full map-style land-dot visuals, weighted markers, labels, and routes. Topology now also has a first-class `Geographic` layout mode that projects typed node/group longitude and latitude through `ChartMapViewport`, emits a topology-native geographic frame and graticule, and keeps node/edge/group topology semantics intact for SVG, HTML, and PNG output.
+The geographic demos can still use the dotted-map chart family for full map-style weighted markers, labels, and routes. Topology now also has a first-class `Geographic` layout mode that projects typed node/group longitude and latitude through `ChartMapViewport`, emits a topology-native geographic frame, graticule, generated land-dot background, and regional boundary/land-area geometry, and keeps node/edge/group topology semantics intact for SVG, HTML, and PNG output.
 
 Next work:
 
@@ -97,7 +97,7 @@ Next work:
 - reuse existing map projection and viewport logic where possible, but make topology nodes/edges render on the projected coordinates - done with `ChartMapViewport` and equirectangular projection
 - improve route arcs, endpoint trimming, clustering, label placement, and region callouts for TestimoX-like regional views
 - consider additional projection modes only if the static output gains a visible benefit
-- optionally reuse or expose the dotted-map land layer behind topology nodes when a full world/region silhouette is needed
+- reuse or expose the dotted-map land layer behind topology nodes when a full world/region silhouette is needed - done for generated land dots and regional boundaries in SVG/PNG
 
 Suggested follow-up: `Polish topology geographic map visuals`.
 

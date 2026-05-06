@@ -36,6 +36,7 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("data-cfx-viewport=\"World\"", StringComparison.Ordinal), "Geographic topology should expose the map viewport.");
         Assert(svg.Contains("data-cfx-role=\"topology-geographic-frame\"", StringComparison.Ordinal), "Geographic topology should render a map frame.");
         Assert(svg.Contains("data-cfx-role=\"topology-geographic-graticule\"", StringComparison.Ordinal), "Geographic topology should render graticule lines.");
+        Assert(svg.Contains("data-cfx-role=\"topology-geographic-land-dot\"", StringComparison.Ordinal), "Geographic topology should render a land-dot background layer.");
         Assert(svg.Contains("data-node-id=\"nyc\" data-node-kind=\"Location\" data-node-display-mode=\"Tile\" data-cfx-status=\"Healthy\" data-cfx-selected=\"false\" data-node-longitude=\"-74.006\" data-node-latitude=\"40.713\" data-node-geo-visible=\"true\"", StringComparison.Ordinal), "Geographic topology should expose projected node coordinates.");
         Assert(svg.Contains("data-node-id=\"south\"", StringComparison.Ordinal) && svg.Contains("data-node-geo-visible=\"false\"", StringComparison.Ordinal), "Geographic topology should mark clamped out-of-viewport coordinates.");
         Assert(svg.Contains("data-group-id=\"amer\" data-group-layout-policy=\"Auto\" data-group-applied-layout-policy=\"Auto\" data-cfx-status=\"Healthy\" data-cfx-selected=\"false\" data-group-longitude=\"-98.58\" data-group-latitude=\"39.828\" data-group-geo-visible=\"true\"", StringComparison.Ordinal), "Geographic topology should expose group coordinates.");
@@ -45,6 +46,18 @@ internal static partial class SmokeTests {
         Assert(html.Contains("longitude: attr(element, 'data-node-longitude')", StringComparison.Ordinal), "Topology HTML selection details should expose node longitude.");
         Assert(html.Contains("geoVisible: attr(element, 'data-group-geo-visible')", StringComparison.Ordinal), "Topology HTML selection details should expose group geographic visibility.");
         Assert(chart.ToPng(options).Length > 64, "Geographic topology should render as PNG.");
+
+        var europe = TopologyChart.Create()
+            .WithId("geo-europe")
+            .WithViewport(520, 320, 24)
+            .WithLegend(null)
+            .WithLayout(TopologyLayoutMode.Geographic)
+            .WithMapViewport(ChartMapViewport.Europe())
+            .AddNode("warsaw", "Warsaw", 0, 0, TopologyNodeKind.Location, TopologyHealthStatus.Healthy, width: 54, height: 40)
+            .WithNodeCoordinates("warsaw", 21.0122, 52.2297);
+        var europeSvg = europe.ToSvg(options);
+        Assert(europeSvg.Contains("data-cfx-role=\"topology-geographic-land-area\"", StringComparison.Ordinal), "Regional geographic topology should render filled land areas.");
+        Assert(europeSvg.Contains("data-cfx-role=\"topology-geographic-boundary\"", StringComparison.Ordinal), "Regional geographic topology should render boundary outlines.");
 
         var invalid = TopologyChart.Create()
             .AddNode("partial", "Partial", 0, 0);

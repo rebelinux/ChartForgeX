@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 using ChartForgeX.Svg;
 using static ChartForgeX.Topology.TopologyRenderPrimitives;
@@ -107,6 +108,7 @@ public sealed partial class TopologySvgRenderer {
             .Attribute("fill", StatusFill(theme.Accent, theme.Background))
             .Attribute("stroke", theme.Border)
             .Attribute("stroke-width", 1));
+        DrawGeographicLandLayer(layer, chart, map, theme);
         for (var i = 1; i < 4; i++) {
             var longitude = chart.MapViewport.MinimumLongitude + (chart.MapViewport.MaximumLongitude - chart.MapViewport.MinimumLongitude) * i / 4.0;
             var x = TopologyMapProjection.Project(map, chart.MapViewport, longitude, chart.MapViewport.MinimumLatitude).X;
@@ -140,6 +142,59 @@ public sealed partial class TopologySvgRenderer {
         }
 
         sb.Append(ElementMarkup(layer));
+    }
+
+    private static void DrawGeographicLandLayer(SvgElement layer, TopologyChart chart, ChartRect map, TopologyTheme theme) {
+        var landFill = theme.MutedForeground;
+        foreach (var boundary in TopologyMapProjection.BoundaryLines(chart.MapViewport)) {
+            var path = GeographicBoundaryPath(boundary, map, chart.MapViewport);
+            if (TopologyMapProjection.CanFillBoundary(boundary)) {
+                layer.Element("path", element => element
+                    .Attribute("data-cfx-role", "topology-geographic-land-area")
+                    .Attribute("d", path)
+                    .Attribute("fill", landFill)
+                    .Attribute("fill-opacity", 0.075)
+                    .Attribute("stroke", "none"));
+            }
+
+            layer.Element("path", element => element
+                .Attribute("data-cfx-role", "topology-geographic-boundary")
+                .Attribute("d", path)
+                .Attribute("fill", "none")
+                .Attribute("stroke", landFill)
+                .Attribute("stroke-opacity", 0.22)
+                .Attribute("stroke-width", 0.75)
+                .Attribute("stroke-linejoin", "round")
+                .Attribute("stroke-linecap", "round"));
+        }
+
+        var radius = TopologyMapProjection.LandDotRadius(map, chart.MapViewport);
+        foreach (var land in TopologyMapProjection.LandDots(chart.MapViewport)) {
+            foreach (var offset in TopologyMapProjection.LandOffsets(chart.MapViewport)) {
+                var longitude = land.X + offset.X;
+                var latitude = land.Y + offset.Y;
+                if (!TopologyMapProjection.IsVisible(chart.MapViewport, longitude, latitude)) continue;
+                var point = TopologyMapProjection.Project(map, chart.MapViewport, longitude, latitude);
+                layer.Element("circle", circle => circle
+                    .Attribute("data-cfx-role", "topology-geographic-land-dot")
+                    .Attribute("cx", point.X)
+                    .Attribute("cy", point.Y)
+                    .Attribute("r", radius)
+                    .Attribute("fill", landFill)
+                    .Attribute("opacity", 0.105));
+            }
+        }
+    }
+
+    private static string GeographicBoundaryPath(ChartPoint[] boundary, ChartRect map, ChartMapViewport viewport) {
+        var path = new SvgPathDataBuilder();
+        for (var i = 0; i < boundary.Length; i++) {
+            var point = TopologyMapProjection.Project(map, viewport, boundary[i].X, boundary[i].Y);
+            if (i == 0) path.MoveTo(point.X, point.Y);
+            else path.LineTo(point.X, point.Y);
+        }
+
+        return path.ToString();
     }
 
     private static SvgElement BuildDefs(string id, string prefix, TopologyTheme theme, TopologyRenderOptions options) {

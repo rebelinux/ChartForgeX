@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 using ChartForgeX.Raster;
 using static ChartForgeX.Topology.TopologyRenderPrimitives;
@@ -47,6 +48,7 @@ public sealed class TopologyPngRenderer {
         var map = TopologyMapProjection.MapRect(chart);
         canvas.FillRoundedRect(map.Left, map.Top, map.Width, map.Height, 16, Color(StatusFill(theme.Accent, theme.Background)));
         canvas.StrokeRoundedRect(map.Left, map.Top, map.Width, map.Height, 16, Color(theme.Border), 1);
+        DrawGeographicLandLayer(canvas, chart, map, theme);
         for (var i = 1; i < 4; i++) {
             var longitude = chart.MapViewport.MinimumLongitude + (chart.MapViewport.MaximumLongitude - chart.MapViewport.MinimumLongitude) * i / 4.0;
             var x = TopologyMapProjection.Project(map, chart.MapViewport, longitude, chart.MapViewport.MinimumLatitude).X;
@@ -58,6 +60,38 @@ public sealed class TopologyPngRenderer {
             var y = TopologyMapProjection.Project(map, chart.MapViewport, chart.MapViewport.MinimumLongitude, latitude).Y;
             canvas.DrawLine(map.Left, y, map.Right, y, WithAlpha(Color(theme.Border), 88), 0.8);
         }
+    }
+
+    private static void DrawGeographicLandLayer(RgbaCanvas canvas, TopologyChart chart, ChartRect map, TopologyTheme theme) {
+        var land = WithAlpha(Color(theme.MutedForeground), 28);
+        var boundaryColor = WithAlpha(Color(theme.MutedForeground), 56);
+        foreach (var boundary in TopologyMapProjection.BoundaryLines(chart.MapViewport)) {
+            var points = ProjectBoundary(boundary, map, chart.MapViewport);
+            if (TopologyMapProjection.CanFillBoundary(boundary)) canvas.FillPolygon(points, land);
+            for (var i = 1; i < points.Count; i++) canvas.DrawLine(points[i - 1].X, points[i - 1].Y, points[i].X, points[i].Y, boundaryColor, 0.75);
+        }
+
+        var dotColor = WithAlpha(Color(theme.MutedForeground), 27);
+        var radius = TopologyMapProjection.LandDotRadius(map, chart.MapViewport);
+        foreach (var point in TopologyMapProjection.LandDots(chart.MapViewport)) {
+            foreach (var offset in TopologyMapProjection.LandOffsets(chart.MapViewport)) {
+                var longitude = point.X + offset.X;
+                var latitude = point.Y + offset.Y;
+                if (!TopologyMapProjection.IsVisible(chart.MapViewport, longitude, latitude)) continue;
+                var projected = TopologyMapProjection.Project(map, chart.MapViewport, longitude, latitude);
+                canvas.DrawCircle(projected.X, projected.Y, radius, dotColor);
+            }
+        }
+    }
+
+    private static List<ChartPoint> ProjectBoundary(ChartPoint[] boundary, ChartRect map, ChartMapViewport viewport) {
+        var points = new List<ChartPoint>(boundary.Length);
+        foreach (var item in boundary) {
+            var projected = TopologyMapProjection.Project(map, viewport, item.X, item.Y);
+            points.Add(new ChartPoint(projected.X, projected.Y));
+        }
+
+        return points;
     }
 
     private static void DrawHeader(RgbaCanvas canvas, TopologyChart chart, TopologyTheme theme) {
