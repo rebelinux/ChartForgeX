@@ -104,6 +104,12 @@ public sealed class TopologyGroup {
     /// <summary>Gets or sets an optional group accent color. When set, this colors the group shell independently from health status.</summary>
     public string? Color { get; set; }
 
+    /// <summary>Gets or sets the preferred node arrangement policy for dense grouped layouts.</summary>
+    public TopologyGroupLayoutPolicy LayoutPolicy { get; set; } = TopologyGroupLayoutPolicy.Auto;
+
+    /// <summary>Gets or sets the resolved node arrangement policy applied by layout preparation.</summary>
+    public TopologyGroupLayoutPolicy AppliedLayoutPolicy { get; set; } = TopologyGroupLayoutPolicy.Auto;
+
     /// <summary>Gets arbitrary metadata for host adapters.</summary>
     public Dictionary<string, string> Metadata { get; } = new();
 }
@@ -206,6 +212,9 @@ public sealed class TopologyEdge {
 
     /// <summary>Gets or sets the deterministic orthogonal route lane offset in pixels.</summary>
     public double RouteLane { get; set; }
+
+    /// <summary>Gets or sets which edge layout values were inferred during layout preparation.</summary>
+    public TopologyEdgeLayoutInference LayoutInference { get; set; } = TopologyEdgeLayoutInference.None;
 
     /// <summary>Gets explicit route bend points used between the source and target nodes.</summary>
     public List<ChartPoint> Waypoints { get; } = new();

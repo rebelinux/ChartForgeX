@@ -283,6 +283,24 @@ public static class TopologyChartExtensions {
     }
 
     /// <summary>
+    /// Sets the preferred node arrangement policy for a group when using dense grouped layouts.
+    /// </summary>
+    /// <param name="chart">The topology chart.</param>
+    /// <param name="groupId">The group id.</param>
+    /// <param name="layoutPolicy">The dense group layout policy.</param>
+    /// <returns>The current topology chart.</returns>
+    public static TopologyChart WithGroupLayout(this TopologyChart chart, string groupId, TopologyGroupLayoutPolicy layoutPolicy) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
+        foreach (var group in chart.Groups) {
+            if (!string.Equals(group.Id, groupId, StringComparison.Ordinal)) continue;
+            group.LayoutPolicy = layoutPolicy;
+            return chart;
+        }
+
+        throw new ArgumentException("Topology group '" + groupId + "' was not found.", nameof(groupId));
+    }
+
+    /// <summary>
     /// Adds an edge to the topology chart.
     /// </summary>
     /// <param name="chart">The topology chart.</param>

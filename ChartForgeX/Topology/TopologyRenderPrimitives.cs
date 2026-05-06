@@ -148,7 +148,11 @@ internal static class TopologyRenderPrimitives {
     public static List<ChartPoint> EdgePoints(TopologyChart chart, TopologyEdge edge, IReadOnlyDictionary<string, TopologyNode> nodes) {
         var source = nodes[edge.SourceNodeId];
         var target = nodes[edge.TargetNodeId];
-        var points = edge.Waypoints.Count == 0 ? EdgePoints(source, target, edge.Routing, edge.SourcePort, edge.TargetPort, edge.RouteLane) : EdgePoints(source, target, edge.Waypoints, edge.SourcePort, edge.TargetPort);
+        var points = edge.Waypoints.Count == 0
+            ? edge.Routing == TopologyEdgeRouting.ObstacleAvoidingOrthogonal
+                ? TopologyEdgeRouter.Route(chart, edge, source, target).Points
+                : EdgePoints(source, target, edge.Routing, edge.SourcePort, edge.TargetPort, edge.RouteLane)
+            : EdgePoints(source, target, edge.Waypoints, edge.SourcePort, edge.TargetPort);
         var offset = EdgeRouteOffset(chart, edge);
         if (Math.Abs(offset) < 0.0001) return points;
 
@@ -162,6 +166,10 @@ internal static class TopologyRenderPrimitives {
         var ox = -dy / length * offset;
         var oy = dx / length * offset;
         return points.Select(point => new ChartPoint(point.X + ox, point.Y + oy)).ToList();
+    }
+
+    public static TopologyRouteDiagnostics EdgeRouteDiagnostics(TopologyChart chart, TopologyEdge edge, IReadOnlyDictionary<string, TopologyNode> nodes) {
+        return TopologyEdgeRouter.Diagnose(chart, edge, nodes);
     }
 
     public static List<ChartPoint> EdgePoints(TopologyNode source, TopologyNode target, IReadOnlyList<ChartPoint> waypoints) {
