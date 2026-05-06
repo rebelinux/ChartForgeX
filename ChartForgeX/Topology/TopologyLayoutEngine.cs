@@ -41,6 +41,10 @@ internal static class TopologyLayoutEngine {
                     node.Width = Math.Min(node.Width, 108);
                     node.Height = Math.Min(node.Height, 52);
                     break;
+                case TopologyNodeDisplayMode.Tile:
+                    node.Width = Math.Min(node.Width, 64);
+                    node.Height = Math.Min(node.Height, 46);
+                    break;
                 case TopologyNodeDisplayMode.Pill:
                     node.Width = Math.Min(node.Width, 112);
                     node.Height = Math.Min(node.Height, 34);
@@ -340,7 +344,9 @@ internal static class TopologyLayoutEngine {
             Height = group.Height,
             Href = group.Href,
             Tooltip = group.Tooltip,
-            CssClass = group.CssClass
+            CssClass = group.CssClass,
+            Symbol = group.Symbol,
+            Color = group.Color
         };
         foreach (var item in group.Metadata) copy.Metadata[item.Key] = item.Value;
         return copy;
@@ -363,7 +369,8 @@ internal static class TopologyLayoutEngine {
             Height = node.Height,
             Href = node.Href,
             Tooltip = node.Tooltip,
-            CssClass = node.CssClass
+            CssClass = node.CssClass,
+            Color = node.Color
         };
         foreach (var item in node.Metrics) copy.Metrics[item.Key] = item.Value;
         foreach (var item in node.Metadata) copy.Metadata[item.Key] = item.Value;
@@ -379,11 +386,17 @@ internal static class TopologyLayoutEngine {
             Status = edge.Status,
             Direction = edge.Direction,
             Routing = edge.Routing,
+            LineStyle = edge.LineStyle,
+            SourcePort = edge.SourcePort,
+            TargetPort = edge.TargetPort,
+            RouteLane = edge.RouteLane,
             Label = edge.Label,
             SecondaryLabel = edge.SecondaryLabel,
+            TertiaryLabel = edge.TertiaryLabel,
             Href = edge.Href,
             Tooltip = edge.Tooltip,
-            CssClass = edge.CssClass
+            CssClass = edge.CssClass,
+            IsMuted = edge.IsMuted
         };
         foreach (var item in edge.Metrics) copy.Metrics[item.Key] = item.Value;
         foreach (var item in edge.Metadata) copy.Metadata[item.Key] = item.Value;

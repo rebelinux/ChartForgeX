@@ -11,7 +11,7 @@ Use it for static or embeddable diagrams such as service maps, SQL/server depend
 - `TopologyNode` represents a logical object such as a server, database, service, endpoint, person, team, queue, network segment, or application.
 - `TopologyEdge` represents a link, connection, dependency, replication path, trust, mapping, data flow, membership, or certificate chain.
 
-Groups, nodes, and edges can carry `Href`, `Tooltip`, `CssClass`, `Metrics`, and `Metadata`. Edges can also carry explicit `Waypoints` for deterministic manual route bends around dense content. Nodes have an optional `Symbol` for short visual glyphs such as `SQL`, `API`, `DC`, `GC`, initials, or role abbreviations without baking those product roles into ChartForgeX enums. A node can override the chart-wide display mode with `DisplayMode` and can expose a short `Badge`, which is useful for collapsed clusters, counts, roles, or small site markers. The SVG renderer escapes text safely, emits native SVG `<title>` tooltips, emits stable `data-*` attributes, and wraps linked elements in SVG anchors. Unsafe `javascript:`, `data:`, and `vbscript:` hrefs are skipped.
+Groups, nodes, and edges can carry `Href`, `Tooltip`, `CssClass`, `Metrics`, and `Metadata`. Edges can also carry explicit `Waypoints` for deterministic manual route bends around dense content. Use `SourcePort`, `TargetPort`, or `.WithEdgePorts(...)` when a route should attach to a specific node side such as hub-to-hub site links, vertical replication paths, or selected-object connectivity spokes. Use `RouteLane` or `.WithEdgeRouteLane(...)` to shift the generated orthogonal lane while keeping the endpoints anchored to their ports. Nodes have an optional `Symbol` for short visual glyphs such as `SQL`, `API`, `DC`, `GC`, initials, or role abbreviations without baking those product roles into ChartForgeX enums. A node can override the chart-wide display mode with `DisplayMode` and can expose a short `Badge`, which is useful for collapsed clusters, counts, roles, or small site markers. The SVG renderer escapes text safely, emits native SVG `<title>` tooltips, emits stable `data-*` attributes, and wraps linked elements in SVG anchors. Unsafe `javascript:`, `data:`, and `vbscript:` hrefs are skipped.
 
 When `TopologyRenderOptions.IncludeDataAttributes` is enabled, which is the default, SVG output emits sanitized `data-cfx-meta-*` and `data-cfx-metric-*` attributes for groups, nodes, and edges. Caller-provided `CssClass` tokens are sanitized and appended to the matching SVG element so host wrappers can target product-specific states without ChartForgeX needing product-specific enums.
 
@@ -38,6 +38,17 @@ V1 layouts are deterministic and report-friendly:
 Set `TopologyChart.LayoutDirection` or use `.WithLayout(TopologyLayoutMode.Layered, TopologyLayoutDirection.LeftToRight)` when a hierarchy should read horizontally, such as namespace -> service -> database, source -> processor -> sink, or selected object -> connected dependencies.
 
 After layout, ChartForgeX runs a deterministic normalization pass. It keeps nodes out of group headers, separates overlapping sibling nodes, expands groups around their members, shifts negative or title-overlapping manual coordinates and edge waypoints into the report-safe area, and expands the viewport when content, explicit edge routes, or the legend would otherwise be clipped. This is a safety net for reusable chart builders; callers should still provide intentional coordinates when using `Manual`.
+
+For dense replication, subnet, and connectivity views, combine explicit ports with route lanes before reaching for manual waypoints:
+
+```csharp
+chart
+    .AddEdge("emea-apac", "emea-hub", "apac-hub", "82 ms", TopologyEdgeKind.Link, TopologyHealthStatus.Warning, TopologyDirection.Bidirectional)
+    .WithEdgePorts("emea-apac", TopologyEdgePort.Right, TopologyEdgePort.Left)
+    .AddEdge("fra-sin", "fra-dc2", "sin-dc1", "238 ms", TopologyEdgeKind.Replication, TopologyHealthStatus.Critical, TopologyDirection.Forward)
+    .WithEdgePorts("fra-sin", TopologyEdgePort.Bottom, TopologyEdgePort.Top)
+    .WithEdgeRouteLane("fra-sin", 24);
+```
 
 Force-directed and physics layouts are intentionally not implemented in v1.
 
@@ -96,14 +107,24 @@ var metricSvg = chart.ToSvg(new TopologyRenderOptions {
 });
 ```
 
-`TopologySvgRenderer` outputs a complete standalone SVG with `viewBox`, `defs`, scoped CSS, groups below edges, edge labels above edges, nodes above labels, status badges, optional legends, and accessibility metadata. `TopologyPngRenderer` draws the same model through ChartForgeX's dependency-free raster canvas for report exports. `TopologyHtmlRenderer` only wraps the generated SVG in a neutral `.cfx-topology-wrapper` div with chart metadata.
+`TopologySvgRenderer` outputs a complete standalone SVG with `viewBox`, `defs`, scoped CSS, groups below edges, edge labels above edges, nodes above labels, status badges, optional legends, and accessibility metadata. `TopologyPngRenderer` draws the same model through ChartForgeX's dependency-free raster canvas for report exports. `TopologyHtmlRenderer` wraps the generated SVG in a neutral `.cfx-topology-wrapper` div with chart metadata and, by default for complete pages, a tiny selection script that marks clicked groups, nodes, or edges and dispatches `cfx-topology-select` / `cfx-topology-clear` events. Set `TopologyRenderOptions.EnableHtmlInteractions = false` when a host wants a purely static page or will provide all behavior itself.
 
 `TopologyRenderOptions` also supports reusable render presets and node display modes:
 
 - `TopologyViewPreset.Grouped`, `Ungrouped`, `Connectivity`, `Dependency`, `Offenders`, `Compact`, and `MetricLabels` compose common static dashboard perspectives.
-- `TopologyNodeDisplayMode.Card`, `CompactCard`, `Pill`, `Icon`, and `Dot` let the same model render as full report cards or dense dashboard summaries.
+- `TopologyNodeDisplayMode.Card`, `CompactCard`, `Tile`, `Pill`, `Icon`, and `Dot` let the same model render as full report cards, screenshot-style site tiles, or dense dashboard summaries.
 - Individual nodes can set `DisplayMode` or use `.WithNodeDisplay("node-id", TopologyNodeDisplayMode.Dot, badge: "+12")` so a single topology can mix full cards, compact markers, icons, and collapsed count badges.
-- `EdgeLabelMetricKey` and `EdgeSecondaryLabelMetricKey` allow hosts to switch labels from default edge text to metrics such as `lag`, `queue`, `cost`, `owner`, or `lastSuccess`.
+- Node kinds can use `.WithNodesDisplay(TopologyNodeKind.Server, TopologyNodeDisplayMode.Card)` so a host can keep branches as compact tiles while rendering servers, bridgeheads, databases, or selected assets as wider cards.
+- `IncludeTileSubtitles` adds compact subtitle chips below tile labels for subnet CIDRs, roles, queue labels, or site metadata when a dense map needs those details visible.
+- `CardSubtitleMode = TopologyCardSubtitleMode.Chip` renders card and compact-card subtitles as status-like chips inside node cards for bridgeheads, servers, selected assets, or health labels.
+- `TopologyRenderOptions.IncludeEdgeLabelBackplates` can be disabled for route-label styling closer to network maps where latency labels sit directly on the route.
+- Groups can carry a short `Symbol`; the built-in `region` / `globe` symbol renders a small geographic mark in the group header.
+- Groups can set `.WithGroupColor("group-id", "#8B5CF6")` to keep region or product identity color independent from health status; the health remains in `data-cfx-status`.
+- Nodes can set `.WithNodeColor("node-id", "#2563EB")` for the same identity/status split on hubs, selected sites, collapsed clusters, or service nodes.
+- Render options can set `.WithSelectedGroup("region-id")`, `.WithSelectedNode("node-id")`, and `.WithSelectedEdge("edge-id")` when a static export should show the currently selected site, region, or path without filtering or dimming other elements. SVG emits `data-cfx-selected` and selected classes; PNG renders matching selected outlines.
+- Edges can set `.WithEdgeLineStyle("edge-id", TopologyEdgeLineStyle.Dashed)` or `Dotted` when relationship type should control line style separately from health status.
+- Edges can be marked with `.WithEdgeMuted("edge-id")` when they represent quiet internal structure, such as hub-to-branch hierarchy lines, while health-bearing site links remain status-colored.
+- `EdgeLabelMetricKey`, `EdgeSecondaryLabelMetricKey`, and `EdgeTertiaryLabelMetricKey` allow hosts to switch route labels from default edge text to metrics such as `transport`, `cost`, `lag`, `queue`, `owner`, or `lastSuccess`; `.WithEdgeMetricLabels("lag", "queue", "transport")` applies the stacked metric label keys in one call.
 
 ## Host Boundaries
 

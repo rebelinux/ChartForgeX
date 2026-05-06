@@ -159,7 +159,12 @@ internal static partial class SmokeTests {
             .AddGroup("tier", "Tier", 30, 70, 420, 160, TopologyHealthStatus.Healthy, cssClass: "tier-primary tier.primary")
             .AddNode("api", "API", 70, 130, TopologyNodeKind.Service, TopologyHealthStatus.Healthy, "tier", cssClass: "is-primary bad\"class")
             .AddNode("sql", "SQL", 270, 130, TopologyNodeKind.Database, TopologyHealthStatus.Warning, "tier")
-            .AddEdge("api-sql", "api", "sql", "42 ms", TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, cssClass: "critical:path odd$class");
+            .AddEdge("api-sql", "api", "sql", "42 ms", TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, cssClass: "critical:path odd$class", tertiaryLabel: "p95")
+            .WithGroupSymbol("tier", "region")
+            .WithGroupColor("tier", "#7C3AED")
+            .WithNodeColor("sql", "#2563EB")
+            .WithEdgeLineStyle("api-sql", TopologyEdgeLineStyle.Dotted)
+            .WithEdgeMuted("api-sql");
 
         chart.Groups[0].Metadata["region/name"] = "EU & US";
         chart.Nodes[0].Metadata["role type"] = "public <api>";
@@ -171,6 +176,13 @@ internal static partial class SmokeTests {
         Assert(svg.Contains(" tier-primary\"", StringComparison.Ordinal), "Topology SVG should emit sanitized caller CSS class hooks.");
         Assert(svg.Contains(" is-primary bad-class", StringComparison.Ordinal), "Topology SVG should sanitize unsafe node CSS class tokens.");
         Assert(svg.Contains(" critical:path odd-class", StringComparison.Ordinal), "Topology SVG should preserve safe CSS namespace separators and sanitize unsafe characters.");
+        Assert(svg.Contains("data-group-symbol=\"region\"", StringComparison.Ordinal), "Topology SVG should expose group symbol hooks.");
+        Assert(svg.Contains("data-group-color=\"#7C3AED\"", StringComparison.Ordinal), "Topology SVG should expose explicit group accent color hooks.");
+        Assert(svg.Contains("data-node-color=\"#2563EB\"", StringComparison.Ordinal), "Topology SVG should expose explicit node accent color hooks.");
+        Assert(svg.Contains("data-edge-line-style=\"Dotted\"", StringComparison.Ordinal), "Topology SVG should expose explicit edge line style hooks.");
+        Assert(svg.Contains(">p95</text>", StringComparison.Ordinal), "Topology SVG should render tertiary edge labels.");
+        Assert(svg.Contains("data-edge-muted=\"true\"", StringComparison.Ordinal), "Topology SVG should expose muted structural edge hooks.");
+        Assert(svg.Contains("cfx-topology__edge-wrap--muted", StringComparison.Ordinal), "Topology SVG should emit muted edge CSS hooks.");
         Assert(svg.Contains("data-cfx-meta-region-name=\"EU &amp; US\"", StringComparison.Ordinal), "Topology SVG should emit escaped group metadata attributes.");
         Assert(svg.Contains("data-cfx-meta-role-type=\"public &lt;api&gt;\"", StringComparison.Ordinal), "Topology SVG should emit escaped node metadata attributes.");
         Assert(svg.Contains("data-cfx-metric-latency-p95=\"42 ms\"", StringComparison.Ordinal), "Topology SVG should emit node metric attributes.");
@@ -179,6 +191,17 @@ internal static partial class SmokeTests {
         var withoutData = chart.ToSvg(new TopologyRenderOptions { IncludeLegend = false, IncludeDataAttributes = false });
         Assert(!withoutData.Contains("data-cfx-meta-role-type", StringComparison.Ordinal), "Topology render options should allow metadata attributes to be omitted.");
         Assert(chart.ToPng(new TopologyRenderOptions { IncludeLegend = false }).Length > 64, "Topology PNG should ignore SVG-only hooks while still rendering.");
+    }
+
+    private static void TopologyHtmlPagesExposeSelectionInteractions() {
+        var html = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { IncludeLegend = false });
+        Assert(html.Contains("data-cfx-interactive=\"true\"", StringComparison.Ordinal), "Topology HTML pages should mark interactive wrappers.");
+        Assert(html.Contains("cfx-topology-select", StringComparison.Ordinal), "Topology HTML pages should dispatch host-friendly selection events.");
+        Assert(html.Contains("data-cfx-selection-kind", StringComparison.Ordinal), "Topology HTML pages should track selected topology element kind.");
+
+        var staticHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { EnableHtmlInteractions = false });
+        Assert(staticHtml.Contains("data-cfx-interactive=\"false\"", StringComparison.Ordinal), "Topology HTML interactions should be optional.");
+        Assert(!staticHtml.Contains("cfx-topology-select", StringComparison.Ordinal), "Static topology HTML pages should omit the interaction script.");
     }
 
     private static void TopologyValidatorReportsActionableErrors() {
@@ -333,30 +356,77 @@ internal static partial class SmokeTests {
         Assert(chart.ToPng(new TopologyRenderOptions { IncludeLegend = false }).Length > 64, "Topology PNG should render explicit edge waypoints.");
     }
 
+    private static void TopologyEdgesSupportPortsAndRouteLanes() {
+        var straight = TopologyChart.Create()
+            .WithId("ported-straight")
+            .WithViewport(540, 260, 20)
+            .WithLegend(null)
+            .AddNode("left", "Left", 80, 120, TopologyNodeKind.Service, TopologyHealthStatus.Healthy)
+            .AddNode("right", "Right", 340, 120, TopologyNodeKind.Database, TopologyHealthStatus.Warning)
+            .AddEdge("left-right", "left", "right", "port", TopologyEdgeKind.Connectivity, TopologyHealthStatus.Healthy, TopologyDirection.Forward, TopologyEdgeRouting.Straight)
+            .WithEdgePorts("left-right", TopologyEdgePort.Right, TopologyEdgePort.Left)
+            .WithEdgeLineStyle("left-right", TopologyEdgeLineStyle.Dashed);
+
+        var straightSvg = straight.ToSvg(new TopologyRenderOptions { IncludeLegend = false });
+        Assert(straightSvg.Contains("data-source-port=\"Right\" data-target-port=\"Left\" data-route-lane=\"0\"", StringComparison.Ordinal), "Topology SVG should expose explicit edge ports and lanes for host adapters.");
+        Assert(straightSvg.Contains("data-edge-line-style=\"Dashed\"", StringComparison.Ordinal), "Topology SVG should expose explicit edge line style metadata.");
+        Assert(straightSvg.Contains("stroke-dasharray=\"8 5\"", StringComparison.Ordinal), "Explicit edge line style should override health-derived dash behavior.");
+        Assert(straightSvg.Contains("d=\"M 207 152 L 333 152\"", StringComparison.Ordinal), "Straight topology edges should attach to the requested source and target ports.");
+
+        var lane = TopologyChart.Create()
+            .WithId("ported-lane")
+            .WithViewport(620, 360, 20)
+            .WithLegend(null)
+            .AddNode("source", "Source", 80, 80, TopologyNodeKind.Service, TopologyHealthStatus.Healthy)
+            .AddNode("target", "Target", 320, 240, TopologyNodeKind.Database, TopologyHealthStatus.Warning)
+            .AddEdge("source-target", "source", "target", "lane", TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, TopologyDirection.Forward, TopologyEdgeRouting.Orthogonal)
+            .WithEdgePorts("source-target", TopologyEdgePort.Bottom, TopologyEdgePort.Top)
+            .WithEdgeRouteLane("source-target", 24);
+
+        var laneSvg = lane.ToSvg(new TopologyRenderOptions { IncludeLegend = false });
+        Assert(laneSvg.Contains("data-source-port=\"Bottom\" data-target-port=\"Top\" data-route-lane=\"24\"", StringComparison.Ordinal), "Topology SVG should expose non-zero route lanes.");
+        Assert(laneSvg.Contains("d=\"M 140 151 L 140 216 L 380 216 L 380 233\"", StringComparison.Ordinal), "Orthogonal topology edges should use requested ports and deterministic route lanes.");
+        Assert(lane.ToPng(new TopologyRenderOptions { IncludeLegend = false }).Length > 64, "Topology PNG should render ported orthogonal route lanes.");
+    }
+
     private static void TopologyRenderOptionsSupportDashboardPerspectives() {
         var chart = CreateSampleTopologyChart();
         chart.Edges[0].Metrics["queue"] = "Q:12";
+        chart.Edges[0].Metrics["transport"] = "MPLS";
         chart.Edges[1].Metrics["queue"] = "Q:44";
 
-        var svg = chart.ToSvg(new TopologyRenderOptions {
+        var options = new TopologyRenderOptions {
             IncludeGroups = false,
             IncludeNodeLabels = false,
             IncludeDirectionMarkers = false,
-            EdgeLabelMetricKey = "queue",
             HighlightStatuses = { TopologyHealthStatus.Critical }
-        });
+        }
+        .WithEdgeMetricLabels("queue", tertiaryMetricKey: "transport")
+        .WithSelectedNode("tr-branch")
+        .WithSelectedEdge("emea-tr");
+
+        var svg = chart.ToSvg(options);
 
         Assert(!svg.Contains("data-cfx-role=\"topology-groups\"", StringComparison.Ordinal), "Topology render options should support ungrouped views.");
         Assert(!svg.Contains("marker-end=", StringComparison.Ordinal), "Topology render options should support direction-marker toggles.");
         Assert(!svg.Contains(">AMER Hub<", StringComparison.Ordinal), "Topology render options should support node label toggles.");
         Assert(svg.Contains("Q:44", StringComparison.Ordinal), "Topology render options should support metric-driven edge labels.");
+        Assert(svg.Contains(">MPLS</text>", StringComparison.Ordinal), "Topology render options should allow metric-driven tertiary edge labels.");
         Assert(!svg.Contains(">142 ms<", StringComparison.Ordinal), "Metric-driven edge labels should replace the default edge label.");
         Assert(svg.Contains("cfx-topology--highlighted", StringComparison.Ordinal), "Topology render options should mark highlighted offenders.");
         Assert(svg.Contains("cfx-topology--dimmed", StringComparison.Ordinal), "Topology render options should dim non-highlighted elements.");
+        Assert(svg.Contains("data-node-id=\"tr-branch\" data-node-kind=\"Branch\" data-node-display-mode=\"Card\" data-cfx-status=\"Critical\" data-cfx-selected=\"true\"", StringComparison.Ordinal), "Topology render options should mark selected nodes without filtering the chart.");
+        Assert(svg.Contains("data-edge-id=\"emea-tr\"", StringComparison.Ordinal) && svg.Contains("data-cfx-selected=\"true\"", StringComparison.Ordinal), "Topology render options should mark selected edges without filtering the chart.");
         Assert(chart.ToPng(new TopologyRenderOptions { IncludeGroups = false, IncludeNodeLabels = false, EdgeLabelMetricKey = "queue", HighlightStatuses = { TopologyHealthStatus.Critical } }).Length > 64, "Topology PNG should support dashboard perspective options.");
 
         var groupHighlight = chart.ToSvg(new TopologyRenderOptions { HighlightGroupIds = { "EMEA" } });
         Assert(groupHighlight.Contains("id=\"site-topology-edge-emea-tr\" class=\"cfx-topology__edge-wrap cfx-topology__edge-wrap--critical cfx-topology--highlighted\"", StringComparison.Ordinal), "Topology group highlighting should keep connected edges visible.");
+
+        var nakedEdgeLabels = chart.ToSvg(new TopologyRenderOptions { IncludeLegend = false, IncludeEdgeLabelBackplates = false });
+        var labelStart = nakedEdgeLabels.IndexOf("data-cfx-role=\"topology-edge-label\" data-edge-id=\"amer-emea\"", StringComparison.Ordinal);
+        var labelEnd = nakedEdgeLabels.IndexOf("</g>", labelStart, StringComparison.Ordinal);
+        Assert(labelStart >= 0 && labelEnd > labelStart, "Topology render options should still render naked edge-label groups.");
+        Assert(!nakedEdgeLabels.Substring(labelStart, labelEnd - labelStart).Contains("<rect", StringComparison.Ordinal), "Topology render options should allow screenshot-style route labels without label backplates.");
     }
 
     private static void TopologyPresetsAndNodeDisplayModesRenderDenseViews() {
@@ -373,7 +443,16 @@ internal static partial class SmokeTests {
         Assert(dots.Contains("data-node-display-mode=\"Dot\"", StringComparison.Ordinal), "Topology dot mode should expose display-mode metadata.");
         Assert(dots.Contains("cfx-topology__node-dot", StringComparison.Ordinal), "Topology dot mode should render dot nodes.");
         Assert(!dots.Contains("<rect class=\"cfx-topology__node-card\"", StringComparison.Ordinal), "Topology dot mode should avoid full node cards.");
+        var tile = chart.ToSvg(new TopologyRenderOptions { NodeDisplayMode = TopologyNodeDisplayMode.Tile, IncludeLegend = false });
+        Assert(tile.Contains("data-node-display-mode=\"Tile\"", StringComparison.Ordinal), "Topology tile mode should expose display-mode metadata.");
+        Assert(tile.Contains("width=\"64\" height=\"46\"", StringComparison.Ordinal), "Topology tile mode should render compact icon tiles.");
+        Assert(!tile.Contains("topology-node-subtitle", StringComparison.Ordinal), "Topology tile subtitles should be opt-in for dense diagrams.");
+        var tileSubtitles = chart.ToSvg(new TopologyRenderOptions { NodeDisplayMode = TopologyNodeDisplayMode.Tile, IncludeTileSubtitles = true, IncludeLegend = false });
+        Assert(tileSubtitles.Contains("data-cfx-role=\"topology-node-subtitle\"", StringComparison.Ordinal), "Topology tile mode should optionally render compact subtitle chips.");
+        var cardSubtitleChips = chart.ToSvg(new TopologyRenderOptions { CardSubtitleMode = TopologyCardSubtitleMode.Chip, IncludeLegend = false });
+        Assert(cardSubtitleChips.Contains("data-cfx-role=\"topology-node-card-subtitle\"", StringComparison.Ordinal), "Topology card mode should optionally render compact subtitle chips.");
         Assert(chart.ToPng(new TopologyRenderOptions { NodeDisplayMode = TopologyNodeDisplayMode.Pill, IncludeLegend = false }).Length > 64, "Topology PNG should render pill node display mode.");
+        Assert(chart.ToPng(new TopologyRenderOptions { CardSubtitleMode = TopologyCardSubtitleMode.Chip, IncludeLegend = false }).Length > 64, "Topology PNG should render card subtitle chips.");
     }
 
     private static void TopologyNodesCanOverrideDisplayModeAndBadges() {
@@ -384,13 +463,17 @@ internal static partial class SmokeTests {
             .AddGroup("site", "Site", 40, 70, 380, 170, TopologyHealthStatus.Healthy)
             .AddNode("hub", "Hub", 95, 135, TopologyNodeKind.Hub, TopologyHealthStatus.Healthy, "site", symbol: "H")
             .AddNode("cluster", "Worker Pool", 270, 132, TopologyNodeKind.Service, TopologyHealthStatus.Warning, "site", symbol: "API")
+            .AddNode("queue", "Queue", 335, 134, TopologyNodeKind.Service, TopologyHealthStatus.Healthy, "site", symbol: "Q")
             .AddEdge("hub-cluster", "hub", "cluster", "18 ms", TopologyEdgeKind.Connectivity, TopologyHealthStatus.Warning, TopologyDirection.Forward)
+            .WithNodesDisplay(TopologyNodeKind.Service, TopologyNodeDisplayMode.Dot, "+")
             .WithNodeDisplay("cluster", TopologyNodeDisplayMode.Dot, "+12");
 
         var svg = chart.ToSvg(new TopologyRenderOptions { IncludeLegend = false });
         Assert(svg.Contains("data-node-id=\"hub\" data-node-kind=\"Hub\" data-node-display-mode=\"Card\"", StringComparison.Ordinal), "Topology nodes without overrides should use the render-option display mode.");
         Assert(svg.Contains("data-node-id=\"cluster\" data-node-kind=\"Service\" data-node-display-mode=\"Dot\"", StringComparison.Ordinal), "Topology nodes should be able to override display mode individually.");
+        Assert(svg.Contains("data-node-id=\"queue\" data-node-kind=\"Service\" data-node-display-mode=\"Dot\"", StringComparison.Ordinal), "Topology nodes should be able to override display mode by node kind.");
         Assert(svg.Contains("data-node-badge=\"+12\"", StringComparison.Ordinal), "Topology nodes should emit safe badge metadata.");
+        Assert(svg.Contains("data-node-badge=\"+\"", StringComparison.Ordinal), "Kind-based node display overrides should optionally apply a shared badge.");
         Assert(svg.Contains("data-cfx-role=\"topology-node-badge\"", StringComparison.Ordinal), "Topology SVG should render node badge overlays.");
         Assert(svg.Contains("cfx-topology__node-dot", StringComparison.Ordinal), "Per-node dot display should render a compact marker without switching the whole chart to dots.");
         Assert(chart.ToPng(new TopologyRenderOptions { IncludeLegend = false }).Length > 64, "Topology PNG should render mixed node display modes and badges.");

@@ -98,6 +98,12 @@ public sealed class TopologyGroup {
     /// <summary>Gets or sets optional caller-provided CSS class tokens for SVG/HTML hosts.</summary>
     public string? CssClass { get; set; }
 
+    /// <summary>Gets or sets an optional short group symbol used by renderers.</summary>
+    public string? Symbol { get; set; }
+
+    /// <summary>Gets or sets an optional group accent color. When set, this colors the group shell independently from health status.</summary>
+    public string? Color { get; set; }
+
     /// <summary>Gets arbitrary metadata for host adapters.</summary>
     public Dictionary<string, string> Metadata { get; } = new();
 }
@@ -154,6 +160,9 @@ public sealed class TopologyNode {
     /// <summary>Gets or sets optional caller-provided CSS class tokens for SVG/HTML hosts.</summary>
     public string? CssClass { get; set; }
 
+    /// <summary>Gets or sets an optional node accent color. When set, this colors the node shell independently from health status.</summary>
+    public string? Color { get; set; }
+
     /// <summary>Gets node metrics for host adapters.</summary>
     public Dictionary<string, string> Metrics { get; } = new();
 
@@ -186,6 +195,18 @@ public sealed class TopologyEdge {
     /// <summary>Gets or sets the edge routing mode.</summary>
     public TopologyEdgeRouting Routing { get; set; } = TopologyEdgeRouting.Orthogonal;
 
+    /// <summary>Gets or sets explicit edge line styling. Auto derives styling from health status.</summary>
+    public TopologyEdgeLineStyle LineStyle { get; set; } = TopologyEdgeLineStyle.Auto;
+
+    /// <summary>Gets or sets the preferred source attachment side.</summary>
+    public TopologyEdgePort SourcePort { get; set; } = TopologyEdgePort.Auto;
+
+    /// <summary>Gets or sets the preferred target attachment side.</summary>
+    public TopologyEdgePort TargetPort { get; set; } = TopologyEdgePort.Auto;
+
+    /// <summary>Gets or sets the deterministic orthogonal route lane offset in pixels.</summary>
+    public double RouteLane { get; set; }
+
     /// <summary>Gets explicit route bend points used between the source and target nodes.</summary>
     public List<ChartPoint> Waypoints { get; } = new();
 
@@ -195,6 +216,9 @@ public sealed class TopologyEdge {
     /// <summary>Gets or sets the secondary edge label.</summary>
     public string? SecondaryLabel { get; set; }
 
+    /// <summary>Gets or sets the tertiary edge label.</summary>
+    public string? TertiaryLabel { get; set; }
+
     /// <summary>Gets or sets an optional drill-down link.</summary>
     public string? Href { get; set; }
 
@@ -203,6 +227,9 @@ public sealed class TopologyEdge {
 
     /// <summary>Gets or sets optional caller-provided CSS class tokens for SVG/HTML hosts.</summary>
     public string? CssClass { get; set; }
+
+    /// <summary>Gets or sets whether the edge should render as a quiet structural relationship instead of a status route.</summary>
+    public bool IsMuted { get; set; }
 
     /// <summary>Gets edge metrics for host adapters.</summary>
     public Dictionary<string, string> Metrics { get; } = new();

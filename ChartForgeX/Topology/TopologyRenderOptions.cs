@@ -30,8 +30,17 @@ public sealed class TopologyRenderOptions {
     /// <summary>Gets or sets whether node labels should be rendered.</summary>
     public bool IncludeNodeLabels { get; set; } = true;
 
+    /// <summary>Gets or sets whether tile nodes should render their subtitle as a compact chip below the tile label.</summary>
+    public bool IncludeTileSubtitles { get; set; }
+
+    /// <summary>Gets or sets how card and compact-card node subtitles should be rendered.</summary>
+    public TopologyCardSubtitleMode CardSubtitleMode { get; set; } = TopologyCardSubtitleMode.Text;
+
     /// <summary>Gets or sets whether edge labels should be rendered.</summary>
     public bool IncludeEdgeLabels { get; set; } = true;
+
+    /// <summary>Gets or sets whether edge labels should render a subtle background plate.</summary>
+    public bool IncludeEdgeLabelBackplates { get; set; } = true;
 
     /// <summary>Gets or sets whether direction markers should be rendered on directed edges.</summary>
     public bool IncludeDirectionMarkers { get; set; } = true;
@@ -50,6 +59,9 @@ public sealed class TopologyRenderOptions {
 
     /// <summary>Gets or sets whether the SVG should include responsive sizing style.</summary>
     public bool UseResponsiveSvg { get; set; } = true;
+
+    /// <summary>Gets or sets whether complete HTML pages should include lightweight selection interactions.</summary>
+    public bool EnableHtmlInteractions { get; set; } = true;
 
     /// <summary>Gets or sets whether links should open in a new tab.</summary>
     public bool OpenLinksInNewTab { get; set; }
@@ -75,6 +87,9 @@ public sealed class TopologyRenderOptions {
     /// <summary>Gets or sets the edge metric key to use as the secondary edge label. When unset, the edge secondary label is used.</summary>
     public string? EdgeSecondaryLabelMetricKey { get; set; }
 
+    /// <summary>Gets or sets the edge metric key to use as the tertiary edge label. When unset, the edge tertiary label is used.</summary>
+    public string? EdgeTertiaryLabelMetricKey { get; set; }
+
     /// <summary>Gets health statuses to highlight while dimming non-matching topology elements.</summary>
     public List<TopologyHealthStatus> HighlightStatuses { get; } = new();
 
@@ -89,6 +104,15 @@ public sealed class TopologyRenderOptions {
 
     /// <summary>Gets or sets whether edges connected to highlighted nodes should also be highlighted.</summary>
     public bool HighlightConnectedEdges { get; set; } = true;
+
+    /// <summary>Gets group ids to mark as selected without filtering or dimming the topology.</summary>
+    public List<string> SelectedGroupIds { get; } = new();
+
+    /// <summary>Gets node ids to mark as selected without filtering or dimming the topology.</summary>
+    public List<string> SelectedNodeIds { get; } = new();
+
+    /// <summary>Gets edge ids to mark as selected without filtering or dimming the topology.</summary>
+    public List<string> SelectedEdgeIds { get; } = new();
 
     /// <summary>Gets or sets the opacity used for non-highlighted elements when highlighting is active.</summary>
     public double DimmedOpacity { get; set; } = 0.28;

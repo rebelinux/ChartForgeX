@@ -56,12 +56,24 @@ public enum TopologyNodeDisplayMode {
     Card,
     /// <summary>Render smaller node cards.</summary>
     CompactCard,
+    /// <summary>Render compact icon tiles with labels below the tile.</summary>
+    Tile,
     /// <summary>Render single-line pill nodes.</summary>
     Pill,
     /// <summary>Render icon-only nodes.</summary>
     Icon,
     /// <summary>Render small status dots.</summary>
     Dot
+}
+
+/// <summary>
+/// Defines how card-like topology node subtitles should be rendered.
+/// </summary>
+public enum TopologyCardSubtitleMode {
+    /// <summary>Render subtitles as plain muted text.</summary>
+    Text,
+    /// <summary>Render subtitles as compact chips inside the node card.</summary>
+    Chip
 }
 
 /// <summary>
@@ -196,6 +208,36 @@ public enum TopologyEdgeRouting {
     Curved,
     /// <summary>Route edges as orthogonal paths.</summary>
     Orthogonal
+}
+
+/// <summary>
+/// Describes explicit edge line styling.
+/// </summary>
+public enum TopologyEdgeLineStyle {
+    /// <summary>Choose line styling from edge health status.</summary>
+    Auto,
+    /// <summary>Render a solid line regardless of health status.</summary>
+    Solid,
+    /// <summary>Render a dashed line regardless of health status.</summary>
+    Dashed,
+    /// <summary>Render a dotted line regardless of health status.</summary>
+    Dotted
+}
+
+/// <summary>
+/// Describes a preferred edge attachment side on a topology node.
+/// </summary>
+public enum TopologyEdgePort {
+    /// <summary>Choose the attachment side from node positions.</summary>
+    Auto,
+    /// <summary>Attach to the top side of the node.</summary>
+    Top,
+    /// <summary>Attach to the right side of the node.</summary>
+    Right,
+    /// <summary>Attach to the bottom side of the node.</summary>
+    Bottom,
+    /// <summary>Attach to the left side of the node.</summary>
+    Left
 }
 
 /// <summary>

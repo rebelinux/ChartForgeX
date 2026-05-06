@@ -37,6 +37,30 @@ internal static class TopologyRenderPrimitives {
         };
     }
 
+    public static string EdgeDash(TopologyEdge edge) {
+        return edge.LineStyle switch {
+            TopologyEdgeLineStyle.Solid => "none",
+            TopologyEdgeLineStyle.Dashed => "8 5",
+            TopologyEdgeLineStyle.Dotted => "2 5",
+            _ => EdgeDash(edge.Status)
+        };
+    }
+
+    public static (bool Dashed, double Dash, double Gap) EdgePngDash(TopologyEdge edge) {
+        return edge.LineStyle switch {
+            TopologyEdgeLineStyle.Solid => (false, 0, 0),
+            TopologyEdgeLineStyle.Dashed => (true, 8, 5),
+            TopologyEdgeLineStyle.Dotted => (true, 2, 5),
+            _ => edge.Status switch {
+                TopologyHealthStatus.Warning => (true, 8, 5),
+                TopologyHealthStatus.Critical => (true, 8, 5),
+                TopologyHealthStatus.Unknown => (true, 5, 6),
+                TopologyHealthStatus.Disabled => (true, 3, 6),
+                _ => (false, 0, 0)
+            }
+        };
+    }
+
     public static string KindGlyph(TopologyNodeKind kind) {
         return kind switch {
             TopologyNodeKind.Group => "G",
@@ -84,45 +108,47 @@ internal static class TopologyRenderPrimitives {
     public static string StatusFill(string color, string background) => Blend(color, background, 0.10);
 
     public static List<ChartPoint> EdgePoints(TopologyNode source, TopologyNode target, TopologyEdgeRouting routing) {
+        return EdgePoints(source, target, routing, TopologyEdgePort.Auto, TopologyEdgePort.Auto, 0);
+    }
+
+    public static List<ChartPoint> EdgePoints(TopologyNode source, TopologyNode target, TopologyEdgeRouting routing, TopologyEdgePort sourcePort, TopologyEdgePort targetPort, double routeLane) {
         var sourceCenterX = CenterX(source);
         var sourceCenterY = CenterY(source);
         var targetCenterX = CenterX(target);
         var targetCenterY = CenterY(target);
         if (routing != TopologyEdgeRouting.Orthogonal) {
             return new List<ChartPoint> {
-                BoundaryPoint(source, targetCenterX, targetCenterY),
-                BoundaryPoint(target, sourceCenterX, sourceCenterY)
+                BoundaryPoint(source, targetCenterX, targetCenterY, sourcePort),
+                BoundaryPoint(target, sourceCenterX, sourceCenterY, targetPort)
             };
         }
 
-        var horizontal = Math.Abs(targetCenterX - sourceCenterX) >= Math.Abs(targetCenterY - sourceCenterY);
+        var horizontal = ShouldRouteHorizontally(sourcePort, targetPort, Math.Abs(targetCenterX - sourceCenterX) >= Math.Abs(targetCenterY - sourceCenterY));
+        var sourcePoint = BoundaryPoint(source, targetCenterX, targetCenterY, sourcePort);
+        var targetPoint = BoundaryPoint(target, sourceCenterX, sourceCenterY, targetPort);
         if (horizontal) {
-            var sourceX = targetCenterX >= sourceCenterX ? source.X + source.Width + EdgeEndpointGap : source.X - EdgeEndpointGap;
-            var targetX = targetCenterX >= sourceCenterX ? target.X - EdgeEndpointGap : target.X + target.Width + EdgeEndpointGap;
-            var middleX = (sourceX + targetX) / 2;
+            var middleX = (sourcePoint.X + targetPoint.X) / 2 + routeLane;
             return new List<ChartPoint> {
-                new(sourceX, sourceCenterY),
-                new(middleX, sourceCenterY),
-                new(middleX, targetCenterY),
-                new(targetX, targetCenterY)
+                sourcePoint,
+                new(middleX, sourcePoint.Y),
+                new(middleX, targetPoint.Y),
+                targetPoint
             };
         }
 
-        var sourceY = targetCenterY >= sourceCenterY ? source.Y + source.Height + EdgeEndpointGap : source.Y - EdgeEndpointGap;
-        var targetY = targetCenterY >= sourceCenterY ? target.Y - EdgeEndpointGap : target.Y + target.Height + EdgeEndpointGap;
-        var middleY = (sourceY + targetY) / 2;
+        var middleY = (sourcePoint.Y + targetPoint.Y) / 2 + routeLane;
         return new List<ChartPoint> {
-            new(sourceCenterX, sourceY),
-            new(sourceCenterX, middleY),
-            new(targetCenterX, middleY),
-            new(targetCenterX, targetY)
+            sourcePoint,
+            new(sourcePoint.X, middleY),
+            new(targetPoint.X, middleY),
+            targetPoint
         };
     }
 
     public static List<ChartPoint> EdgePoints(TopologyChart chart, TopologyEdge edge, IReadOnlyDictionary<string, TopologyNode> nodes) {
         var source = nodes[edge.SourceNodeId];
         var target = nodes[edge.TargetNodeId];
-        var points = edge.Waypoints.Count == 0 ? EdgePoints(source, target, edge.Routing) : EdgePoints(source, target, edge.Waypoints);
+        var points = edge.Waypoints.Count == 0 ? EdgePoints(source, target, edge.Routing, edge.SourcePort, edge.TargetPort, edge.RouteLane) : EdgePoints(source, target, edge.Waypoints, edge.SourcePort, edge.TargetPort);
         var offset = EdgeRouteOffset(chart, edge);
         if (Math.Abs(offset) < 0.0001) return points;
 
@@ -139,12 +165,16 @@ internal static class TopologyRenderPrimitives {
     }
 
     public static List<ChartPoint> EdgePoints(TopologyNode source, TopologyNode target, IReadOnlyList<ChartPoint> waypoints) {
-        if (waypoints.Count == 0) return EdgePoints(source, target, TopologyEdgeRouting.Orthogonal);
+        return EdgePoints(source, target, waypoints, TopologyEdgePort.Auto, TopologyEdgePort.Auto);
+    }
+
+    public static List<ChartPoint> EdgePoints(TopologyNode source, TopologyNode target, IReadOnlyList<ChartPoint> waypoints, TopologyEdgePort sourcePort, TopologyEdgePort targetPort) {
+        if (waypoints.Count == 0) return EdgePoints(source, target, TopologyEdgeRouting.Orthogonal, sourcePort, targetPort, 0);
         var first = waypoints[0];
         var last = waypoints[waypoints.Count - 1];
-        var points = new List<ChartPoint> { BoundaryPoint(source, first.X, first.Y) };
+        var points = new List<ChartPoint> { BoundaryPoint(source, first.X, first.Y, sourcePort) };
         points.AddRange(waypoints);
-        points.Add(BoundaryPoint(target, last.X, last.Y));
+        points.Add(BoundaryPoint(target, last.X, last.Y, targetPort));
         return points;
     }
 
@@ -201,16 +231,19 @@ internal static class TopologyRenderPrimitives {
         foreach (var edge in chart.Edges) {
             var label = EdgeLabel(edge, options.EdgeLabelMetricKey, edge.Label);
             var secondary = EdgeLabel(edge, options.EdgeSecondaryLabelMetricKey, edge.SecondaryLabel);
-            if (string.IsNullOrWhiteSpace(label) && string.IsNullOrWhiteSpace(secondary)) continue;
+            var tertiary = EdgeLabel(edge, options.EdgeTertiaryLabelMetricKey, edge.TertiaryLabel);
+            if (string.IsNullOrWhiteSpace(label) && string.IsNullOrWhiteSpace(secondary) && string.IsNullOrWhiteSpace(tertiary)) continue;
             if (!nodes.ContainsKey(edge.SourceNodeId) || !nodes.ContainsKey(edge.TargetNodeId)) continue;
 
             var labelPoint = EdgeLabelPoint(EdgePoints(chart, edge, nodes));
-            var width = Math.Max(48, Math.Max(label.Length, secondary.Length) * 7.2 + 18);
-            var height = string.IsNullOrWhiteSpace(secondary) ? 22 : 38;
+            var maxText = Math.Max(label.Length, Math.Max(secondary.Length, tertiary.Length));
+            var lineCount = (string.IsNullOrWhiteSpace(label) ? 0 : 1) + (string.IsNullOrWhiteSpace(secondary) ? 0 : 1) + (string.IsNullOrWhiteSpace(tertiary) ? 0 : 1);
+            var width = Math.Max(48, maxText * 7.2 + 18);
+            var height = lineCount <= 1 ? 22 : lineCount == 2 ? 38 : 52;
             var center = PlaceLabel(edge, labelPoint.X, labelPoint.Y, width, height, chart.Viewport, chart.Legend, nodeBoxes, placed, edgeSegments);
             var box = LabelBox.FromCenter(center.X, center.Y, width, height);
             placed.Add(box);
-            layouts.Add(new TopologyEdgeLabelLayout(edge, label, secondary, center.X, center.Y, width, height));
+            layouts.Add(new TopologyEdgeLabelLayout(edge, label, secondary, tertiary, center.X, center.Y, width, height));
         }
 
         return layouts;
@@ -381,8 +414,22 @@ internal static class TopologyRenderPrimitives {
     }
 
     private static ChartPoint BoundaryPoint(TopologyNode node, double towardX, double towardY) {
+        return BoundaryPoint(node, towardX, towardY, TopologyEdgePort.Auto);
+    }
+
+    private static ChartPoint BoundaryPoint(TopologyNode node, double towardX, double towardY, TopologyEdgePort port) {
         var centerX = CenterX(node);
         var centerY = CenterY(node);
+        if (port != TopologyEdgePort.Auto) {
+            return port switch {
+                TopologyEdgePort.Top => new ChartPoint(centerX, node.Y - EdgeEndpointGap),
+                TopologyEdgePort.Right => new ChartPoint(node.X + node.Width + EdgeEndpointGap, centerY),
+                TopologyEdgePort.Bottom => new ChartPoint(centerX, node.Y + node.Height + EdgeEndpointGap),
+                TopologyEdgePort.Left => new ChartPoint(node.X - EdgeEndpointGap, centerY),
+                _ => new ChartPoint(centerX, centerY)
+            };
+        }
+
         var dx = towardX - centerX;
         var dy = towardY - centerY;
         if (Math.Abs(dx) < 0.000001 && Math.Abs(dy) < 0.000001) return new ChartPoint(centerX, centerY);
@@ -391,6 +438,14 @@ internal static class TopologyRenderPrimitives {
         var scaleY = Math.Abs(dy) < 0.000001 ? double.PositiveInfinity : (node.Height / 2 + EdgeEndpointGap) / Math.Abs(dy);
         var scale = Math.Min(scaleX, scaleY);
         return new ChartPoint(centerX + dx * scale, centerY + dy * scale);
+    }
+
+    private static bool ShouldRouteHorizontally(TopologyEdgePort sourcePort, TopologyEdgePort targetPort, bool fallback) {
+        var hasHorizontalPort = sourcePort is TopologyEdgePort.Left or TopologyEdgePort.Right || targetPort is TopologyEdgePort.Left or TopologyEdgePort.Right;
+        var hasVerticalPort = sourcePort is TopologyEdgePort.Top or TopologyEdgePort.Bottom || targetPort is TopologyEdgePort.Top or TopologyEdgePort.Bottom;
+        if (hasHorizontalPort && !hasVerticalPort) return true;
+        if (hasVerticalPort && !hasHorizontalPort) return false;
+        return fallback;
     }
 
     private static double Distance(ChartPoint a, ChartPoint b) {
@@ -506,10 +561,11 @@ internal static class TopologyRenderPrimitives {
 }
 
 internal sealed class TopologyEdgeLabelLayout {
-    public TopologyEdgeLabelLayout(TopologyEdge edge, string label, string secondaryLabel, double centerX, double centerY, double width, double height) {
+    public TopologyEdgeLabelLayout(TopologyEdge edge, string label, string secondaryLabel, string tertiaryLabel, double centerX, double centerY, double width, double height) {
         Edge = edge;
         Label = label;
         SecondaryLabel = secondaryLabel;
+        TertiaryLabel = tertiaryLabel;
         CenterX = centerX;
         CenterY = centerY;
         Width = width;
@@ -521,6 +577,8 @@ internal sealed class TopologyEdgeLabelLayout {
     public string Label { get; }
 
     public string SecondaryLabel { get; }
+
+    public string TertiaryLabel { get; }
 
     public double CenterX { get; }
 

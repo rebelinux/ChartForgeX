@@ -53,27 +53,52 @@ public sealed class TopologyPngRenderer {
     private static void DrawGroups(RgbaCanvas canvas, TopologyChart chart, TopologyTheme theme, TopologyRenderOptions options, TopologyHighlightState highlight) {
         foreach (var group in chart.Groups) {
             var isHighlighted = highlight.IsGroupHighlighted(group);
-            var status = Color(theme.StatusColor(group.Status));
-            canvas.FillRoundedRect(group.X, group.Y, group.Width, group.Height, 16, Color(StatusFill(theme.StatusColor(group.Status), theme.Background)));
-            canvas.StrokeRoundedRect(group.X, group.Y, group.Width, group.Height, 16, WithAlpha(status, 170), 1.2);
-            if (!isHighlighted && highlight.IsActive) canvas.FillRoundedRect(group.X, group.Y, group.Width, group.Height, 16, WithAlpha(Color(theme.Background), 180));
+            var isSelected = IsSelected(options.SelectedGroupIds, group.Id);
+            var accentValue = GroupAccentColor(group, theme);
+            var accent = Color(accentValue);
+            canvas.FillRoundedRect(group.X, group.Y, group.Width, group.Height, 12, Color(StatusFill(accentValue, theme.Background)));
+            canvas.StrokeRoundedRect(group.X, group.Y, group.Width, group.Height, 12, WithAlpha(accent, isSelected ? (byte)230 : (byte)170), isSelected ? 2.4 : 1.2);
+            if (!isHighlighted && highlight.IsActive) canvas.FillRoundedRect(group.X, group.Y, group.Width, group.Height, 12, WithAlpha(Color(theme.Background), 180));
             if (options.IncludeGroupLabels) {
-                canvas.DrawTextEmphasized(group.X + 24, group.Y + 16, group.Label, status, 16);
-                if (!string.IsNullOrWhiteSpace(group.Subtitle)) canvas.DrawText(group.X + 24, group.Y + 38, group.Subtitle!, Color(theme.MutedForeground), 12);
+                var cx = group.X + group.Width / 2;
+                canvas.DrawCircle(cx - 52, group.Y + 26, 10, Color(StatusFill(accentValue, theme.Background)));
+                canvas.DrawCircleOutline(cx - 52, group.Y + 26, 10, accent, 1);
+                DrawGroupSymbol(canvas, group, cx - 52, group.Y + 26, accent);
+                DrawCentered(canvas, cx, group.Y + 16, group.Label, accent, 16, true);
+                if (!string.IsNullOrWhiteSpace(group.Subtitle)) DrawCentered(canvas, cx, group.Y + 38, group.Subtitle!, Color(theme.MutedForeground), 12, false);
             }
         }
+    }
+
+    private static string GroupAccentColor(TopologyGroup group, TopologyTheme theme) => string.IsNullOrWhiteSpace(group.Color) ? theme.StatusColor(group.Status) : group.Color!.Trim();
+
+    private static void DrawGroupSymbol(RgbaCanvas canvas, TopologyGroup group, double cx, double cy, ChartColor color) {
+        var symbol = string.IsNullOrWhiteSpace(group.Symbol) ? string.Empty : group.Symbol!.Trim();
+        if (symbol.Equals("region", StringComparison.OrdinalIgnoreCase) || symbol.Equals("globe", StringComparison.OrdinalIgnoreCase)) {
+            canvas.DrawCircleOutline(cx, cy, 5.8, color, 1.2);
+            canvas.DrawLine(cx - 5.2, cy, cx + 5.2, cy, color, 1);
+            canvas.DrawArc(cx, cy, 3.2, Math.PI / 2, Math.PI * 1.5, color, 1);
+            canvas.DrawArc(cx, cy, 3.2, -Math.PI / 2, Math.PI / 2, color, 1);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(symbol)) canvas.DrawCircleOutline(cx, cy, 4, color, 1);
+        else DrawCentered(canvas, cx, cy - 5, TrimTo(symbol, 3), color, 7, true);
     }
 
     private static void DrawEdges(RgbaCanvas canvas, TopologyChart chart, TopologyTheme theme, TopologyRenderOptions options, TopologyHighlightState highlight) {
         var nodes = chart.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
         foreach (var edge in chart.Edges) {
             var points = EdgePoints(chart, edge, nodes);
-            var color = highlight.IsEdgeHighlighted(edge) ? Color(theme.StatusColor(edge.Status)) : WithAlpha(Color(theme.StatusColor(edge.Status)), (byte)Math.Round(255 * highlight.DimmedOpacity));
+            var baseColor = edge.IsMuted ? Color(theme.Border) : Color(theme.StatusColor(edge.Status));
+            var color = highlight.IsEdgeHighlighted(edge) ? baseColor : WithAlpha(baseColor, (byte)Math.Round(255 * highlight.DimmedOpacity));
+            var isSelected = IsSelected(options.SelectedEdgeIds, edge.Id);
+            var dash = EdgePngDash(edge);
             for (var i = 0; i < points.Count - 1; i++) {
-                if (edge.Status is TopologyHealthStatus.Warning or TopologyHealthStatus.Critical or TopologyHealthStatus.Unknown or TopologyHealthStatus.Disabled) {
-                    canvas.DrawDashedLine(points[i].X, points[i].Y, points[i + 1].X, points[i + 1].Y, color, 2.2, 8, 5);
+                if (!edge.IsMuted && dash.Dashed) {
+                    canvas.DrawDashedLine(points[i].X, points[i].Y, points[i + 1].X, points[i + 1].Y, color, isSelected ? 3.4 : 2.2, dash.Dash, dash.Gap);
                 } else {
-                    canvas.DrawLine(points[i].X, points[i].Y, points[i + 1].X, points[i + 1].Y, color, 2.2);
+                    canvas.DrawLine(points[i].X, points[i].Y, points[i + 1].X, points[i + 1].Y, color, isSelected ? 3.4 : edge.IsMuted ? 1.45 : 2.2);
                 }
             }
 
@@ -87,43 +112,100 @@ public sealed class TopologyPngRenderer {
             var edge = layout.Edge;
             var cx = layout.CenterX;
             var cy = layout.CenterY;
-            canvas.FillRoundedRect(cx - layout.Width / 2, cy - layout.Height / 2, layout.Width, layout.Height, 9, Color(theme.Background));
-            canvas.StrokeRoundedRect(cx - layout.Width / 2, cy - layout.Height / 2, layout.Width, layout.Height, 9, Color(theme.Border), 1);
-            var color = highlight.IsEdgeHighlighted(edge) ? Color(theme.StatusColor(edge.Status)) : WithAlpha(Color(theme.StatusColor(edge.Status)), (byte)Math.Round(255 * highlight.DimmedOpacity));
-            if (!string.IsNullOrWhiteSpace(layout.Label)) DrawCentered(canvas, cx, cy + (string.IsNullOrWhiteSpace(layout.SecondaryLabel) ? -7 : -13), layout.Label, color, 12, true);
-            if (!string.IsNullOrWhiteSpace(layout.SecondaryLabel)) DrawCentered(canvas, cx, cy + 3, layout.SecondaryLabel, Color(theme.MutedForeground), 10, false);
+            if (options.IncludeEdgeLabelBackplates) {
+                canvas.FillRoundedRect(cx - layout.Width / 2, cy - layout.Height / 2, layout.Width, layout.Height, 9, Color(theme.Background));
+                canvas.StrokeRoundedRect(cx - layout.Width / 2, cy - layout.Height / 2, layout.Width, layout.Height, 9, Color(theme.Border), 1);
+            }
+            var baseColor = edge.IsMuted ? Color(theme.MutedForeground) : Color(theme.StatusColor(edge.Status));
+            var color = highlight.IsEdgeHighlighted(edge) ? baseColor : WithAlpha(baseColor, (byte)Math.Round(255 * highlight.DimmedOpacity));
+            DrawEdgeLabelLines(canvas, layout, cx, cy, color, Color(theme.MutedForeground));
+        }
+    }
+
+    private static void DrawEdgeLabelLines(RgbaCanvas canvas, TopologyEdgeLabelLayout layout, double cx, double cy, ChartColor primaryColor, ChartColor secondaryColor) {
+        var lines = new List<(string Text, bool Primary)>();
+        if (!string.IsNullOrWhiteSpace(layout.Label)) lines.Add((layout.Label, true));
+        if (!string.IsNullOrWhiteSpace(layout.SecondaryLabel)) lines.Add((layout.SecondaryLabel, false));
+        if (!string.IsNullOrWhiteSpace(layout.TertiaryLabel)) lines.Add((layout.TertiaryLabel, false));
+        var start = cy - (lines.Count - 1) * 8;
+        for (var i = 0; i < lines.Count; i++) {
+            var line = lines[i];
+            DrawCentered(canvas, cx, start + i * 16 - (line.Primary ? 7 : 6), line.Text, line.Primary ? primaryColor : secondaryColor, line.Primary ? 12 : 10, line.Primary);
         }
     }
 
     private static void DrawNodes(RgbaCanvas canvas, TopologyChart chart, TopologyTheme theme, TopologyRenderOptions options, TopologyHighlightState highlight) {
         foreach (var node in chart.Nodes) {
             var isHighlighted = highlight.IsNodeHighlighted(node);
-            var status = Color(theme.StatusColor(node.Status));
+            var isSelected = IsSelected(options.SelectedNodeIds, node.Id);
+            var accent = Color(NodeAccentColor(node, theme));
             var displayMode = EffectiveNodeDisplayMode(node, options);
             if (displayMode == TopologyNodeDisplayMode.Dot) {
                 var radius = Math.Max(5, Math.Min(node.Width, node.Height) / 2);
+                if (isSelected) canvas.DrawCircleOutline(CenterX(node), CenterY(node), radius + 5, WithAlpha(accent, 140), 2.4);
                 canvas.DrawCircle(CenterX(node), CenterY(node), radius + 2, Color(theme.Background));
-                canvas.DrawCircle(CenterX(node), CenterY(node), radius, status);
-                DrawNodeBadge(canvas, node, theme, status, displayMode);
+                canvas.DrawCircle(CenterX(node), CenterY(node), radius, accent);
+                DrawNodeBadge(canvas, node, theme, accent, displayMode);
                 continue;
             }
 
-            var radiusRect = displayMode == TopologyNodeDisplayMode.Pill ? node.Height / 2 : displayMode == TopologyNodeDisplayMode.Icon ? 12 : 10;
+            var radiusRect = displayMode == TopologyNodeDisplayMode.Pill ? node.Height / 2 : displayMode is TopologyNodeDisplayMode.Icon or TopologyNodeDisplayMode.Tile ? 12 : 10;
             canvas.FillRoundedRect(node.X + 2, node.Y + 5, node.Width, node.Height, 10, ChartColor.FromRgba(15, 23, 42, 18));
             canvas.FillRoundedRect(node.X, node.Y, node.Width, node.Height, radiusRect, Color(theme.Card));
-            canvas.StrokeRoundedRect(node.X, node.Y, node.Width, node.Height, radiusRect, status, 1.5);
+            canvas.StrokeRoundedRect(node.X, node.Y, node.Width, node.Height, radiusRect, accent, isSelected ? 2.8 : 1.5);
             if (!isHighlighted && highlight.IsActive) canvas.FillRoundedRect(node.X, node.Y, node.Width, node.Height, radiusRect, WithAlpha(Color(theme.Background), 185));
-            DrawNodeIcon(canvas, node, theme, status, displayMode);
+            DrawNodeIcon(canvas, node, theme, accent, displayMode);
             if (options.IncludeNodeLabels && displayMode != TopologyNodeDisplayMode.Icon) {
+                if (displayMode == TopologyNodeDisplayMode.Tile) {
+                    DrawCentered(canvas, CenterX(node), node.Y + node.Height + 4, TrimTo(node.Label, 14), Color(theme.Foreground), 10.5, true);
+                    if (options.IncludeTileSubtitles && !string.IsNullOrWhiteSpace(node.Subtitle)) DrawTileSubtitle(canvas, node, theme, accent);
+                    DrawNodeBadge(canvas, node, theme, accent, displayMode);
+                    continue;
+                }
+
                 var textX = displayMode == TopologyNodeDisplayMode.Pill ? node.X + 34 : node.X + 42;
                 var titleY = displayMode == TopologyNodeDisplayMode.Pill ? node.Y + node.Height / 2 - 7 : node.Y + (displayMode == TopologyNodeDisplayMode.CompactCard ? 13 : 17);
                 var titleSize = displayMode == TopologyNodeDisplayMode.Pill ? 11.5 : displayMode == TopologyNodeDisplayMode.CompactCard ? 11.5 : 12.5;
                 canvas.DrawTextEmphasized(textX, titleY, TrimTo(node.Label, NodeTitleMaxLength(displayMode)), Color(theme.Foreground), titleSize);
-                if (displayMode != TopologyNodeDisplayMode.Pill && !string.IsNullOrWhiteSpace(node.Subtitle)) canvas.DrawText(textX, node.Y + (displayMode == TopologyNodeDisplayMode.CompactCard ? 31 : 37), TrimTo(node.Subtitle!, NodeLabelMaxLength), Color(theme.MutedForeground), 10.5);
+                if (displayMode != TopologyNodeDisplayMode.Pill && !string.IsNullOrWhiteSpace(node.Subtitle)) {
+                    if (options.CardSubtitleMode == TopologyCardSubtitleMode.Chip) DrawCardSubtitleChip(canvas, node, theme, accent, displayMode);
+                    else canvas.DrawText(textX, node.Y + (displayMode == TopologyNodeDisplayMode.CompactCard ? 31 : 37), TrimTo(node.Subtitle!, NodeLabelMaxLength), Color(theme.MutedForeground), 10.5);
+                }
             }
 
-            DrawNodeBadge(canvas, node, theme, status, displayMode);
+            DrawNodeBadge(canvas, node, theme, accent, displayMode);
         }
+    }
+
+    private static void DrawCardSubtitleChip(RgbaCanvas canvas, TopologyNode node, TopologyTheme theme, ChartColor accent, TopologyNodeDisplayMode displayMode) {
+        var subtitle = TrimTo(node.Subtitle!, displayMode == TopologyNodeDisplayMode.CompactCard ? 12 : 16);
+        var width = Math.Min(Math.Max(48, RgbaCanvas.MeasureTextEmphasizedWidth(subtitle, 8.5, null) + 18), Math.Max(48, node.Width - 50));
+        var height = 17.0;
+        var x = node.X + 42;
+        var y = node.Y + (displayMode == TopologyNodeDisplayMode.CompactCard ? 31 : node.Height - 22);
+        canvas.FillRoundedRect(x, y, width, height, 8.5, Color(StatusFill(NodeAccentColor(node, theme), theme.Background)));
+        canvas.StrokeRoundedRect(x, y, width, height, 8.5, WithAlpha(accent, 115), 1);
+        DrawCentered(canvas, x + width / 2, y + 3.8, subtitle, accent, 8.5, true);
+    }
+
+    private static string NodeAccentColor(TopologyNode node, TopologyTheme theme) => string.IsNullOrWhiteSpace(node.Color) ? theme.StatusColor(node.Status) : node.Color!.Trim();
+
+    private static bool IsSelected(List<string> ids, string id) {
+        foreach (var selectedId in ids) {
+            if (string.Equals(selectedId, id, StringComparison.Ordinal)) return true;
+        }
+
+        return false;
+    }
+
+    private static void DrawTileSubtitle(RgbaCanvas canvas, TopologyNode node, TopologyTheme theme, ChartColor accent) {
+        var subtitle = TrimTo(node.Subtitle!, 16);
+        var width = Math.Min(Math.Max(46, RgbaCanvas.MeasureTextEmphasizedWidth(subtitle, 8.5, null) + 18), Math.Max(46, node.Width + 28));
+        var x = CenterX(node) - width / 2;
+        var y = node.Y + node.Height + 14;
+        canvas.FillRoundedRect(x, y, width, 17, 8.5, Color(StatusFill(NodeAccentColor(node, theme), theme.Background)));
+        canvas.StrokeRoundedRect(x, y, width, 17, 8.5, WithAlpha(accent, 115), 1);
+        DrawCentered(canvas, CenterX(node), y + 3.8, subtitle, Color(theme.MutedForeground), 8.5, true);
     }
 
     private static void DrawNodeBadge(RgbaCanvas canvas, TopologyNode node, TopologyTheme theme, ChartColor color, TopologyNodeDisplayMode displayMode) {
@@ -132,19 +214,67 @@ public sealed class TopologyPngRenderer {
         var width = Math.Max(18, RgbaCanvas.MeasureTextEmphasizedWidth(badge, 8.5, null) + 12);
         var height = 18.0;
         var x = displayMode == TopologyNodeDisplayMode.Dot ? CenterX(node) + 8 : displayMode == TopologyNodeDisplayMode.Icon ? CenterX(node) - width / 2 : node.X + node.Width - width - 6;
-        var y = displayMode == TopologyNodeDisplayMode.Dot ? CenterY(node) - 21 : displayMode == TopologyNodeDisplayMode.Icon ? node.Y + node.Height + 4 : node.Y + node.Height - height - 6;
+        var y = displayMode == TopologyNodeDisplayMode.Dot ? CenterY(node) - 21 : displayMode == TopologyNodeDisplayMode.Icon ? node.Y + node.Height + 4 : displayMode == TopologyNodeDisplayMode.Tile ? node.Y - 8 : node.Y + node.Height - height - 6;
         canvas.FillRoundedRect(x, y, width, height, 9, Color(StatusFill(theme.StatusColor(node.Status), theme.Background)));
         canvas.StrokeRoundedRect(x, y, width, height, 9, color, 1);
         DrawCentered(canvas, x + width / 2, y + 4, badge, color, 8.5, true);
     }
 
     private static void DrawNodeIcon(RgbaCanvas canvas, TopologyNode node, TopologyTheme theme, ChartColor status, TopologyNodeDisplayMode displayMode) {
-        var cx = displayMode == TopologyNodeDisplayMode.Icon ? CenterX(node) : node.X + 22;
-        var cy = node.Y + node.Height / 2;
-        var size = displayMode == TopologyNodeDisplayMode.Pill ? 18 : displayMode == TopologyNodeDisplayMode.Icon ? 26 : 22;
+        var cx = displayMode is TopologyNodeDisplayMode.Icon or TopologyNodeDisplayMode.Tile ? CenterX(node) : node.X + 22;
+        var cy = displayMode == TopologyNodeDisplayMode.Tile ? node.Y + node.Height / 2 - 1 : node.Y + node.Height / 2;
+        var size = displayMode == TopologyNodeDisplayMode.Pill ? 18 : displayMode == TopologyNodeDisplayMode.Icon ? 26 : displayMode == TopologyNodeDisplayMode.Tile ? 24 : 22;
         canvas.FillRoundedRect(cx - size / 2, cy - size / 2, size, size, 6, Color(StatusFill(theme.StatusColor(node.Status), theme.Background)));
         canvas.StrokeRoundedRect(cx - size / 2, cy - size / 2, size, size, 6, status, 1);
-        DrawCentered(canvas, cx, cy - 6, NodeGlyph(node), status, displayMode == TopologyNodeDisplayMode.Pill ? 7.5 : 8.5, true);
+        if (!DrawInfrastructureGlyph(canvas, node, cx, cy, status)) DrawCentered(canvas, cx, cy - 6, NodeGlyph(node), status, displayMode == TopologyNodeDisplayMode.Pill ? 7.5 : 8.5, true);
+    }
+
+    private static bool DrawInfrastructureGlyph(RgbaCanvas canvas, TopologyNode node, double cx, double cy, ChartColor color) {
+        switch (node.Kind) {
+            case TopologyNodeKind.Hub:
+            case TopologyNodeKind.Branch:
+            case TopologyNodeKind.Location:
+                canvas.DrawLine(cx - 6, cy + 7, cx - 6, cy - 7, color, 1.4);
+                canvas.DrawLine(cx - 6, cy - 7, cx + 6, cy - 7, color, 1.4);
+                canvas.DrawLine(cx + 6, cy - 7, cx + 6, cy + 7, color, 1.4);
+                canvas.DrawLine(cx - 2, cy + 7, cx - 2, cy + 2, color, 1.4);
+                canvas.DrawLine(cx - 2, cy + 2, cx + 2, cy + 2, color, 1.4);
+                canvas.DrawLine(cx + 2, cy + 2, cx + 2, cy + 7, color, 1.4);
+                canvas.DrawLine(cx - 3.5, cy - 3, cx - 0.5, cy - 3, color, 1.4);
+                canvas.DrawLine(cx + 2.5, cy - 3, cx + 5.5, cy - 3, color, 1.4);
+                canvas.DrawLine(cx - 3.5, cy + 1, cx - 0.5, cy + 1, color, 1.4);
+                canvas.DrawLine(cx + 2.5, cy + 1, cx + 5.5, cy + 1, color, 1.4);
+                return true;
+            case TopologyNodeKind.Server:
+                canvas.StrokeRect(cx - 7, cy - 6, 14, 5, color, 1);
+                canvas.StrokeRect(cx - 7, cy + 2, 14, 5, color, 1);
+                canvas.DrawLine(cx + 4.5, cy - 3.5, cx + 5.5, cy - 3.5, color, 1.4);
+                canvas.DrawLine(cx + 4.5, cy + 4.5, cx + 5.5, cy + 4.5, color, 1.4);
+                return true;
+            case TopologyNodeKind.Network:
+            case TopologyNodeKind.NetworkSegment:
+                canvas.DrawLine(cx - 6, cy + 5, cx, cy - 5, color, 1.3);
+                canvas.DrawLine(cx, cy - 5, cx + 6, cy + 5, color, 1.3);
+                canvas.DrawLine(cx, cy - 5, cx, cy + 7, color, 1.3);
+                canvas.DrawCircle(cx, cy - 6, 2.3, color);
+                canvas.DrawCircle(cx - 7, cy + 6, 2.3, color);
+                canvas.DrawCircle(cx + 7, cy + 6, 2.3, color);
+                return true;
+            case TopologyNodeKind.Service:
+                canvas.DrawCircleOutline(cx, cy, 5.5, color, 1.4);
+                canvas.DrawLine(cx, cy - 9, cx, cy - 7, color, 1.4);
+                canvas.DrawLine(cx, cy + 7, cx, cy + 9, color, 1.4);
+                canvas.DrawLine(cx - 9, cy, cx - 7, cy, color, 1.4);
+                canvas.DrawLine(cx + 7, cy, cx + 9, cy, color, 1.4);
+                return true;
+            case TopologyNodeKind.Queue:
+                canvas.DrawLine(cx - 7, cy - 6, cx + 7, cy - 6, color, 1.7);
+                canvas.DrawLine(cx - 7, cy, cx + 7, cy, color, 1.7);
+                canvas.DrawLine(cx - 7, cy + 6, cx + 7, cy + 6, color, 1.7);
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static int NodeTitleMaxLength(TopologyNodeDisplayMode displayMode) {

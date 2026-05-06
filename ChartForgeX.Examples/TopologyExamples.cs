@@ -52,6 +52,7 @@ internal static class TopologyExamples {
             LegendMode = TopologyLegendMode.Auto
         });
 
+        TopologyVisualExamples.Write(target);
         File.WriteAllText(Path.Combine(target, "index.html"), BuildIndex(demos), Encoding.UTF8);
     }
 
@@ -152,6 +153,14 @@ internal static class TopologyExamples {
             .AddEdge("sfo-sin", "sfo-dc2", "sin-dc1", "214 ms", TopologyEdgeKind.Replication, TopologyHealthStatus.Critical, TopologyDirection.Forward, TopologyEdgeRouting.Straight, "Q:1552; 1m ago", "/replication/paths/sfo-sin")
             .AddEdge("lon-sfo", "lon-dc1", "sfo-dc1", "118 ms", TopologyEdgeKind.Replication, TopologyHealthStatus.Healthy, TopologyDirection.Bidirectional, TopologyEdgeRouting.Orthogonal, "Q:301; 10m ago", "/replication/paths/lon-sfo");
         AddReplicationMetrics(chart);
+        chart
+            .WithEdgePorts("nyc-lon", TopologyEdgePort.Right, TopologyEdgePort.Left)
+            .WithEdgePorts("lon-fra", TopologyEdgePort.Right, TopologyEdgePort.Left)
+            .WithEdgePorts("fra-sin", TopologyEdgePort.Bottom, TopologyEdgePort.Top)
+            .WithEdgeRouteLane("fra-sin", 24)
+            .WithEdgePorts("sfo-sin", TopologyEdgePort.Right, TopologyEdgePort.Left)
+            .WithEdgePorts("lon-sfo", TopologyEdgePort.Bottom, TopologyEdgePort.Top)
+            .WithEdgeRouteLane("lon-sfo", -24);
         foreach (var node in chart.Nodes.Where(node => node.Kind == TopologyNodeKind.Server)) {
             node.DisplayMode = TopologyNodeDisplayMode.Icon;
             node.Badge = node.Id.EndsWith("dc1", StringComparison.Ordinal) ? "1" : "2";
@@ -181,7 +190,11 @@ internal static class TopologyExamples {
             .AddEdge("amer-emea", "amer-hub", "emea-hub", "MPLS $1.20", TopologyEdgeKind.Link, TopologyHealthStatus.Healthy, TopologyDirection.Bidirectional, TopologyEdgeRouting.Straight, "24 ms", "/subnets/links/amer-emea")
             .AddEdge("emea-apac", "emea-hub", "apac-hub", "MPLS $1.35", TopologyEdgeKind.Link, TopologyHealthStatus.Warning, TopologyDirection.Bidirectional, TopologyEdgeRouting.Straight, "82 ms", "/subnets/links/emea-apac")
             .AddEdge("apac-anz", "apac-hub", "anz-subnet", "MPLS $1.10", TopologyEdgeKind.Mapping, TopologyHealthStatus.Critical, TopologyDirection.Forward, TopologyEdgeRouting.Orthogonal, "62 ms", "/subnets/links/apac-anz")
-            .AddEdge("orphan-bh", "orphan", "bridgehead", "unmapped", TopologyEdgeKind.Mapping, TopologyHealthStatus.Unknown, TopologyDirection.None, TopologyEdgeRouting.Straight, "needs owner", "/subnets/issues/orphan-bh");
+            .AddEdge("orphan-bh", "orphan", "bridgehead", "unmapped", TopologyEdgeKind.Mapping, TopologyHealthStatus.Unknown, TopologyDirection.None, TopologyEdgeRouting.Straight, "needs owner", "/subnets/issues/orphan-bh")
+            .WithEdgePorts("amer-emea", TopologyEdgePort.Right, TopologyEdgePort.Left)
+            .WithEdgePorts("emea-apac", TopologyEdgePort.Right, TopologyEdgePort.Left)
+            .WithEdgePorts("apac-anz", TopologyEdgePort.Bottom, TopologyEdgePort.Top)
+            .WithEdgeRouteLane("apac-anz", 18);
     }
 
     private static TopologyChart BuildGeographicTopologyChart() {
