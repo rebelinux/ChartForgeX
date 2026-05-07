@@ -66,6 +66,9 @@ public sealed class TopologyRenderOptions {
     /// <summary>Gets or sets whether interactive HTML pages should include lightweight zoom and pan controls.</summary>
     public bool EnableHtmlViewportControls { get; set; }
 
+    /// <summary>Gets or sets whether interactive HTML pages should include lightweight SVG and PNG export controls.</summary>
+    public bool EnableHtmlExportControls { get; set; }
+
     /// <summary>Gets or sets whether links should open in a new tab.</summary>
     public bool OpenLinksInNewTab { get; set; }
 

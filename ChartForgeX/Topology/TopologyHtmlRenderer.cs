@@ -23,16 +23,25 @@ public sealed class TopologyHtmlRenderer {
         var id = string.IsNullOrWhiteSpace(chart.Id) ? "topology" : chart.Id!;
         if (options.View != null && !string.IsNullOrWhiteSpace(options.View.Id)) id += "-" + options.View.Id;
         var enableViewportControls = options.EnableHtmlInteractions && options.EnableHtmlViewportControls;
+        var enableExportControls = options.EnableHtmlInteractions && options.EnableHtmlExportControls;
         var sb = new StringBuilder();
-        sb.Append("<div class=\"cfx-topology-wrapper\" data-chart-id=\"").Append(EscapeAttr(id)).Append("\" data-layout-mode=\"").Append(chart.LayoutMode).Append("\" data-cfx-interactive=\"").Append(options.EnableHtmlInteractions ? "true" : "false").Append("\" data-cfx-viewport-controls=\"").Append(enableViewportControls ? "true" : "false").Append("\" style=\"width:100%;max-width:").Append(chart.Viewport.Width.ToString("0.###", CultureInfo.InvariantCulture)).Append("px;box-sizing:border-box\">");
+        sb.Append("<div class=\"cfx-topology-wrapper\" data-chart-id=\"").Append(EscapeAttr(id)).Append("\" data-layout-mode=\"").Append(chart.LayoutMode).Append("\" data-cfx-interactive=\"").Append(options.EnableHtmlInteractions ? "true" : "false").Append("\" data-cfx-viewport-controls=\"").Append(enableViewportControls ? "true" : "false").Append("\" data-cfx-export-controls=\"").Append(enableExportControls ? "true" : "false").Append("\" style=\"width:100%;max-width:").Append(chart.Viewport.Width.ToString("0.###", CultureInfo.InvariantCulture)).Append("px;box-sizing:border-box\">");
         sb.Append("<div class=\"cfx-topology-viewport\">");
-        if (enableViewportControls) {
-            sb.Append("<div class=\"cfx-topology-controls\" aria-label=\"Topology viewport controls\">")
-                .Append("<button type=\"button\" data-cfx-topology-zoom=\"in\" title=\"Zoom in\" aria-label=\"Zoom in\">+</button>")
-                .Append("<button type=\"button\" data-cfx-topology-zoom=\"out\" title=\"Zoom out\" aria-label=\"Zoom out\">-</button>")
-                .Append("<button type=\"button\" data-cfx-topology-mode=\"pan\" title=\"Pan topology\" aria-label=\"Pan topology\" aria-pressed=\"false\">Pan</button>")
-                .Append("<button type=\"button\" data-cfx-topology-reset=\"true\" title=\"Reset viewport\" aria-label=\"Reset viewport\">0</button>")
-                .Append("</div>");
+        if (enableViewportControls || enableExportControls) {
+            sb.Append("<div class=\"cfx-topology-controls\" aria-label=\"Topology controls\">");
+            if (enableViewportControls) {
+                sb.Append("<button type=\"button\" data-cfx-topology-zoom=\"in\" title=\"Zoom in\" aria-label=\"Zoom in\">+</button>")
+                    .Append("<button type=\"button\" data-cfx-topology-zoom=\"out\" title=\"Zoom out\" aria-label=\"Zoom out\">-</button>")
+                    .Append("<button type=\"button\" data-cfx-topology-mode=\"pan\" title=\"Pan topology\" aria-label=\"Pan topology\" aria-pressed=\"false\">Pan</button>")
+                    .Append("<button type=\"button\" data-cfx-topology-reset=\"true\" title=\"Reset viewport\" aria-label=\"Reset viewport\">0</button>");
+            }
+
+            if (enableExportControls) {
+                sb.Append("<button type=\"button\" data-cfx-topology-export=\"svg\" title=\"Export SVG\" aria-label=\"Export SVG\">SVG</button>")
+                    .Append("<button type=\"button\" data-cfx-topology-export=\"png\" title=\"Export PNG\" aria-label=\"Export PNG\">PNG</button>");
+            }
+
+            sb.Append("</div>");
         }
 
         sb.Append(_svg.Render(chart, options));
@@ -75,6 +84,7 @@ public sealed class TopologyHtmlRenderer {
   for (const wrapper of document.querySelectorAll('.cfx-topology-wrapper[data-cfx-interactive="true"]')) {
     const selectables = '[data-cfx-role="topology-node"],[data-cfx-role="topology-edge"],[data-cfx-role="topology-group"]';
     const viewportControls = wrapper.getAttribute('data-cfx-viewport-controls') === 'true';
+    const exportControls = wrapper.getAttribute('data-cfx-export-controls') === 'true';
     const viewport = wrapper.querySelector('.cfx-topology-viewport') || wrapper;
     const attr = (element, name) => element.getAttribute(name) || '';
     const toCamel = value => value.replace(/-([a-z0-9])/g, (_, ch) => ch.toUpperCase());
@@ -130,6 +140,66 @@ public sealed class TopologyHtmlRenderer {
       if (next) wrapper.setAttribute('data-cfx-topology-mode', next);
       else wrapper.removeAttribute('data-cfx-topology-mode');
       wrapper.querySelectorAll('[data-cfx-topology-mode]').forEach(button => button.setAttribute('aria-pressed', attr(button, 'data-cfx-topology-mode') === next ? 'true' : 'false'));
+    };
+    const svgElement = () => wrapper.querySelector('.cfx-topology-viewport svg') || wrapper.querySelector('svg');
+    const exportName = () => (attr(wrapper, 'data-chart-id') || 'topology').replace(/[^a-z0-9_.-]+/gi, '-').replace(/^-+|-+$/g, '') || 'topology';
+    const serializeSvg = () => {
+      const svg = svgElement();
+      return svg ? { svg, data: new XMLSerializer().serializeToString(svg) } : null;
+    };
+    const emitExport = format => {
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-export', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), format } }));
+    };
+    const downloadBlob = (blob, extension, format) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = exportName() + '.' + extension;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      emitExport(format);
+    };
+    const svgSize = svg => {
+      const viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+      const rect = svg.getBoundingClientRect ? svg.getBoundingClientRect() : { width: 0, height: 0 };
+      const width = Math.max(1, Math.round((viewBox && viewBox.width) || (svg.width && svg.width.baseVal ? svg.width.baseVal.value : 0) || rect.width || 800));
+      const height = Math.max(1, Math.round((viewBox && viewBox.height) || (svg.height && svg.height.baseVal ? svg.height.baseVal.value : 0) || rect.height || 450));
+      return { width, height };
+    };
+    const exportSvg = () => {
+      const serialized = serializeSvg();
+      if (!serialized) return;
+      downloadBlob(new Blob([serialized.data], { type: 'image/svg+xml;charset=utf-8' }), 'svg', 'svg');
+    };
+    const exportPng = () => {
+      const serialized = serializeSvg();
+      if (!serialized) return;
+      const source = new Blob([serialized.data], { type: 'image/svg+xml;charset=utf-8' });
+      const sourceUrl = URL.createObjectURL(source);
+      const image = new Image();
+      image.onload = () => {
+        const size = svgSize(serialized.svg);
+        const scale = Math.max(1, Math.ceil(window.devicePixelRatio || 1));
+        const canvas = document.createElement('canvas');
+        canvas.width = size.width * scale;
+        canvas.height = size.height * scale;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          URL.revokeObjectURL(sourceUrl);
+          return;
+        }
+        context.setTransform(scale, 0, 0, scale, 0, 0);
+        context.clearRect(0, 0, size.width, size.height);
+        context.drawImage(image, 0, 0, size.width, size.height);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(sourceUrl);
+          if (blob) downloadBlob(blob, 'png', 'png');
+        }, 'image/png');
+      };
+      image.onerror = () => URL.revokeObjectURL(sourceUrl);
+      image.src = sourceUrl;
     };
     const edgeIdentity = edge => ({
       id: attr(edge, 'data-edge-id'),
@@ -430,6 +500,14 @@ public sealed class TopologyHtmlRenderer {
         event.preventDefault();
         event.stopPropagation();
       }, true);
+    }
+    if (exportControls) {
+      wrapper.querySelectorAll('[data-cfx-topology-export]').forEach(button => {
+        button.addEventListener('click', () => {
+          if (attr(button, 'data-cfx-topology-export') === 'png') exportPng();
+          else exportSvg();
+        });
+      });
     }
     wrapper.addEventListener('click', event => {
       const element = event.target instanceof Element ? event.target.closest(selectables) : null;

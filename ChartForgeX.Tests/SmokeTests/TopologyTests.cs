@@ -361,6 +361,17 @@ internal static partial class SmokeTests {
         var staticViewportHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { EnableHtmlInteractions = false, EnableHtmlViewportControls = true });
         Assert(staticViewportHtml.Contains("data-cfx-viewport-controls=\"false\"", StringComparison.Ordinal), "Static topology HTML pages should not render viewport controls.");
         Assert(!staticViewportHtml.Contains("data-cfx-topology-zoom=\"in\"", StringComparison.Ordinal), "Static topology HTML pages should omit viewport control markup.");
+
+        var exportHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { IncludeLegend = false, EnableHtmlExportControls = true });
+        Assert(exportHtml.Contains("data-cfx-export-controls=\"true\"", StringComparison.Ordinal), "Topology HTML pages should expose opt-in export controls.");
+        Assert(exportHtml.Contains("data-cfx-topology-export=\"svg\"", StringComparison.Ordinal) && exportHtml.Contains("data-cfx-topology-export=\"png\"", StringComparison.Ordinal), "Topology export controls should include SVG and PNG actions.");
+        Assert(exportHtml.Contains("new CustomEvent('cfx-topology-export'", StringComparison.Ordinal), "Topology export controls should dispatch host-friendly export events.");
+        Assert(exportHtml.Contains("new XMLSerializer().serializeToString(svg)", StringComparison.Ordinal), "Topology SVG export should serialize the embedded SVG.");
+        Assert(exportHtml.Contains("canvas.toBlob", StringComparison.Ordinal), "Topology PNG export should rasterize the embedded SVG in-browser.");
+
+        var staticExportHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { EnableHtmlInteractions = false, EnableHtmlExportControls = true });
+        Assert(staticExportHtml.Contains("data-cfx-export-controls=\"false\"", StringComparison.Ordinal), "Static topology HTML pages should not render export controls.");
+        Assert(!staticExportHtml.Contains("data-cfx-topology-export=\"svg\"", StringComparison.Ordinal), "Static topology HTML pages should omit export control markup.");
     }
 
     private static void TopologyValidatorReportsActionableErrors() {
