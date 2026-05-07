@@ -24,8 +24,10 @@ public sealed class TopologyHtmlRenderer {
         if (options.View != null && !string.IsNullOrWhiteSpace(options.View.Id)) id += "-" + options.View.Id;
         var enableViewportControls = options.EnableHtmlInteractions && options.EnableHtmlViewportControls;
         var enableExportControls = options.EnableHtmlInteractions && options.EnableHtmlExportControls;
+        var enableSync = options.EnableHtmlInteractions && options.EnableHtmlSynchronizedState && !string.IsNullOrWhiteSpace(options.HtmlSyncGroupName);
+        var syncGroup = enableSync ? options.HtmlSyncGroupName!.Trim() : string.Empty;
         var sb = new StringBuilder();
-        sb.Append("<div class=\"cfx-topology-wrapper\" data-chart-id=\"").Append(EscapeAttr(id)).Append("\" data-layout-mode=\"").Append(chart.LayoutMode).Append("\" data-cfx-interactive=\"").Append(options.EnableHtmlInteractions ? "true" : "false").Append("\" data-cfx-viewport-controls=\"").Append(enableViewportControls ? "true" : "false").Append("\" data-cfx-export-controls=\"").Append(enableExportControls ? "true" : "false").Append("\" style=\"width:100%;max-width:").Append(chart.Viewport.Width.ToString("0.###", CultureInfo.InvariantCulture)).Append("px;box-sizing:border-box\">");
+        sb.Append("<div class=\"cfx-topology-wrapper\" data-chart-id=\"").Append(EscapeAttr(id)).Append("\" data-layout-mode=\"").Append(chart.LayoutMode).Append("\" data-cfx-interactive=\"").Append(options.EnableHtmlInteractions ? "true" : "false").Append("\" data-cfx-viewport-controls=\"").Append(enableViewportControls ? "true" : "false").Append("\" data-cfx-export-controls=\"").Append(enableExportControls ? "true" : "false").Append("\" data-cfx-sync-enabled=\"").Append(enableSync ? "true" : "false").Append("\" data-cfx-sync-group=\"").Append(EscapeAttr(syncGroup)).Append("\" style=\"width:100%;max-width:").Append(chart.Viewport.Width.ToString("0.###", CultureInfo.InvariantCulture)).Append("px;box-sizing:border-box\">");
         sb.Append("<div class=\"cfx-topology-viewport\">");
         if (enableViewportControls || enableExportControls) {
             sb.Append("<div class=\"cfx-topology-controls\" aria-label=\"Topology controls\">");
@@ -85,7 +87,10 @@ public sealed class TopologyHtmlRenderer {
     const selectables = '[data-cfx-role="topology-node"],[data-cfx-role="topology-edge"],[data-cfx-role="topology-group"]';
     const viewportControls = wrapper.getAttribute('data-cfx-viewport-controls') === 'true';
     const exportControls = wrapper.getAttribute('data-cfx-export-controls') === 'true';
+    const syncEnabled = wrapper.getAttribute('data-cfx-sync-enabled') === 'true';
+    const syncGroup = wrapper.getAttribute('data-cfx-sync-group') || '';
     const viewport = wrapper.querySelector('.cfx-topology-viewport') || wrapper;
+    let applyingSync = false;
     const attr = (element, name) => element.getAttribute(name) || '';
     const toCamel = value => value.replace(/-([a-z0-9])/g, (_, ch) => ch.toUpperCase());
     const collectPrefixed = (element, prefix) => {
@@ -106,6 +111,15 @@ public sealed class TopologyHtmlRenderer {
       panX: numberAttr('data-cfx-topology-pan-x', 0),
       panY: numberAttr('data-cfx-topology-pan-y', 0)
     });
+    const emitSync = (action, payload) => {
+      if (!syncEnabled || !syncGroup || applyingSync) return;
+      const detail = Object.assign({ chartId: attr(wrapper, 'data-chart-id'), group: syncGroup, action }, payload || {});
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-sync', { bubbles: true, detail }));
+      document.querySelectorAll('.cfx-topology-wrapper[data-cfx-interactive="true"][data-cfx-sync-enabled="true"]').forEach(peer => {
+        if (peer === wrapper || peer.getAttribute('data-cfx-sync-group') !== syncGroup) return;
+        peer.dispatchEvent(new CustomEvent('cfx-topology-apply-sync', { detail }));
+      });
+    };
     const applyViewport = state => {
       if (!viewportControls) return;
       const next = {
@@ -122,6 +136,7 @@ public sealed class TopologyHtmlRenderer {
     };
     const emitViewport = () => {
       wrapper.dispatchEvent(new CustomEvent('cfx-topology-viewport', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), state: viewportState() } }));
+      emitSync('viewport', { state: viewportState() });
     };
     const zoomBy = factor => {
       const state = viewportState();
@@ -432,6 +447,7 @@ public sealed class TopologyHtmlRenderer {
       element.setAttribute('aria-selected', 'true');
       applyRelatedClasses({ ...detail, element }, 'cfx-topology-html-', '');
       wrapper.dispatchEvent(new CustomEvent('cfx-topology-select', { bubbles: true, detail }));
+      emitSync('selection', { selection: { kind: detail.kind, id: detail.id, status: detail.status } });
     };
     wrapper.querySelectorAll(selectables).forEach(element => {
       if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '0');
@@ -519,6 +535,7 @@ public sealed class TopologyHtmlRenderer {
       if (event.key === 'Escape') {
         clear();
         wrapper.dispatchEvent(new CustomEvent('cfx-topology-clear', { bubbles: true }));
+        emitSync('clear-selection', {});
         return;
       }
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
@@ -540,6 +557,26 @@ public sealed class TopologyHtmlRenderer {
     wrapper.addEventListener('cfx-topology-clear-selection', () => {
       clear();
       wrapper.dispatchEvent(new CustomEvent('cfx-topology-clear', { bubbles: true }));
+      emitSync('clear-selection', {});
+    });
+    wrapper.addEventListener('cfx-topology-apply-sync', event => {
+      const detail = event.detail || {};
+      if (!syncEnabled || !syncGroup || detail.group !== syncGroup) return;
+      applyingSync = true;
+      try {
+        if (detail.action === 'selection' && detail.selection) {
+          const element = findSelection(detail.selection);
+          if (element) select(element);
+        } else if (detail.action === 'clear-selection') {
+          clear();
+          wrapper.dispatchEvent(new CustomEvent('cfx-topology-clear', { bubbles: true }));
+        } else if (detail.action === 'viewport' && detail.state) {
+          applyViewport(detail.state);
+          wrapper.dispatchEvent(new CustomEvent('cfx-topology-viewport', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), state: viewportState(), sourceChartId: detail.chartId } }));
+        }
+      } finally {
+        applyingSync = false;
+      }
     });
   }
 })();

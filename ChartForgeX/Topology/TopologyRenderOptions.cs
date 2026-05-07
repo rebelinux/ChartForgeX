@@ -69,6 +69,12 @@ public sealed class TopologyRenderOptions {
     /// <summary>Gets or sets whether interactive HTML pages should include lightweight SVG and PNG export controls.</summary>
     public bool EnableHtmlExportControls { get; set; }
 
+    /// <summary>Gets or sets whether interactive HTML pages should synchronize selection and viewport state with wrappers in the same sync group.</summary>
+    public bool EnableHtmlSynchronizedState { get; set; }
+
+    /// <summary>Gets or sets the optional HTML synchronization group name used by topology wrappers on the same page.</summary>
+    public string? HtmlSyncGroupName { get; set; }
+
     /// <summary>Gets or sets whether links should open in a new tab.</summary>
     public bool OpenLinksInNewTab { get; set; }
 
