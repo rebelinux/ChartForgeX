@@ -12,7 +12,7 @@ namespace ChartForgeX.Topology;
 /// <summary>
 /// Renders topology charts to dependency-free PNG images.
 /// </summary>
-public sealed class TopologyPngRenderer {
+public sealed partial class TopologyPngRenderer {
     /// <summary>
     /// Renders a topology chart to PNG bytes.
     /// </summary>
@@ -40,6 +40,7 @@ public sealed class TopologyPngRenderer {
         if (options.IncludeEdgeLabels) DrawEdgeLabels(canvas, prepared, theme, options, highlight);
         DrawNodes(canvas, prepared, theme, options, highlight);
         if (options.IncludeStatusBadges) DrawStatusBadges(canvas, prepared, theme, options, highlight);
+        if (prepared.LayoutMode == TopologyLayoutMode.Geographic) DrawGeographicCallouts(canvas, prepared, theme, options, highlight);
         if (options.IncludeLegend && prepared.Legend != null) DrawLegend(canvas, prepared, theme);
         return PngWriter.WriteRgba(canvas.OutputWidth, canvas.OutputHeight, canvas.ToOutputPixels());
     }

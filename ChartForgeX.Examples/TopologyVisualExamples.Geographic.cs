@@ -16,18 +16,21 @@ internal static partial class TopologyVisualExamples {
                 .AddNodeKind("Site", TopologyNodeKind.Branch, symbol: "S")
                 .AddNodeKind("Bridgehead DC", TopologyNodeKind.Server, symbol: "DC")
                 .AddEdgeKind("WAN link", TopologyEdgeKind.Connectivity))
-            .AddNode("amer-hub", "AMER", 0, 0, TopologyNodeKind.Hub, TopologyHealthStatus.Healthy, subtitle: "47 sites", href: "/geo/regions/amer", width: 104, height: 52, symbol: "H", color: AmerColor)
-            .AddNode("emea-hub", "EMEA", 0, 0, TopologyNodeKind.Hub, TopologyHealthStatus.Healthy, subtitle: "56 sites", href: "/geo/regions/emea", width: 104, height: 52, symbol: "H", color: EmeaColor)
-            .AddNode("apac-hub", "APAC", 0, 0, TopologyNodeKind.Hub, TopologyHealthStatus.Critical, subtitle: "39 sites", href: "/geo/regions/apac", width: 104, height: 52, symbol: "H", color: ApacColor)
-            .AddNode("nyc", "NYC DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, subtitle: "Healthy", href: "/geo/sites/nyc", width: 58, height: 38, symbol: "DC", color: AmerColor)
-            .AddNode("chi", "CHI DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Warning, subtitle: "Packet loss", href: "/geo/sites/chi", width: 58, height: 38, symbol: "DC", color: AmerColor)
-            .AddNode("sfo", "SFO Branch", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Critical, subtitle: "Down", href: "/geo/sites/sfo", width: 58, height: 38, symbol: "S", color: AmerColor)
-            .AddNode("lon", "UK DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, subtitle: "Healthy", href: "/geo/sites/lon", width: 58, height: 38, symbol: "DC", color: EmeaColor)
-            .AddNode("fra", "DE Branch", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Warning, subtitle: "172 ms", href: "/geo/sites/fra", width: 58, height: 38, symbol: "S", color: EmeaColor)
-            .AddNode("ams", "AMS DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, subtitle: "Healthy", href: "/geo/sites/ams", width: 58, height: 38, symbol: "DC", color: EmeaColor)
-            .AddNode("sin", "APAC Hub", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, subtitle: "Healthy", href: "/geo/sites/sin", width: 58, height: 38, symbol: "DC", color: ApacColor)
-            .AddNode("syd", "ANZ", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Critical, subtitle: "Critical", href: "/geo/sites/syd", width: 58, height: 38, symbol: "S", color: ApacColor)
-            .AddNode("bom", "IN Branch", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Warning, subtitle: "185 ms", href: "/geo/sites/bom", width: 58, height: 38, symbol: "S", color: ApacColor)
+            .AddGroup("AMER", "AMER", 0, 0, 0, 0, TopologyHealthStatus.Healthy, "47 sites", "/geo/regions/amer", symbol: "region", color: AmerColor)
+            .AddGroup("EMEA", "EMEA", 0, 0, 0, 0, TopologyHealthStatus.Healthy, "56 sites", "/geo/regions/emea", symbol: "region", color: EmeaColor)
+            .AddGroup("APAC", "APAC", 0, 0, 0, 0, TopologyHealthStatus.Critical, "39 sites", "/geo/regions/apac", symbol: "region", color: ApacColor)
+            .AddNode("amer-hub", "AMER", 0, 0, TopologyNodeKind.Hub, TopologyHealthStatus.Healthy, "AMER", "47 sites", "/geo/regions/amer", width: 104, height: 52, symbol: "H", color: AmerColor)
+            .AddNode("emea-hub", "EMEA", 0, 0, TopologyNodeKind.Hub, TopologyHealthStatus.Healthy, "EMEA", "56 sites", "/geo/regions/emea", width: 104, height: 52, symbol: "H", color: EmeaColor)
+            .AddNode("apac-hub", "APAC", 0, 0, TopologyNodeKind.Hub, TopologyHealthStatus.Critical, "APAC", "39 sites", "/geo/regions/apac", width: 104, height: 52, symbol: "H", color: ApacColor)
+            .AddNode("nyc", "NYC DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, "AMER", "Healthy", "/geo/sites/nyc", width: 58, height: 38, symbol: "DC", color: AmerColor)
+            .AddNode("chi", "CHI DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Warning, "AMER", "Packet loss", "/geo/sites/chi", width: 58, height: 38, symbol: "DC", color: AmerColor)
+            .AddNode("sfo", "SFO Branch", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Critical, "AMER", "Down", "/geo/sites/sfo", width: 58, height: 38, symbol: "S", color: AmerColor)
+            .AddNode("lon", "UK DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, "EMEA", "Healthy", "/geo/sites/lon", width: 58, height: 38, symbol: "DC", color: EmeaColor)
+            .AddNode("fra", "DE Branch", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Warning, "EMEA", "172 ms", "/geo/sites/fra", width: 58, height: 38, symbol: "S", color: EmeaColor)
+            .AddNode("ams", "AMS DC", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, "EMEA", "Healthy", "/geo/sites/ams", width: 58, height: 38, symbol: "DC", color: EmeaColor)
+            .AddNode("sin", "APAC Hub", 0, 0, TopologyNodeKind.Server, TopologyHealthStatus.Healthy, "APAC", "Healthy", "/geo/sites/sin", width: 58, height: 38, symbol: "DC", color: ApacColor)
+            .AddNode("syd", "ANZ", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Critical, "APAC", "Critical", "/geo/sites/syd", width: 58, height: 38, symbol: "S", color: ApacColor)
+            .AddNode("bom", "IN Branch", 0, 0, TopologyNodeKind.Branch, TopologyHealthStatus.Warning, "APAC", "185 ms", "/geo/sites/bom", width: 58, height: 38, symbol: "S", color: ApacColor)
             .AddEdge("amer-emea", "amer-hub", "emea-hub", "68 ms", TopologyEdgeKind.Connectivity, TopologyHealthStatus.Healthy, TopologyDirection.Bidirectional, TopologyEdgeRouting.Curved, "WAN", "/geo/links/amer-emea")
             .AddEdge("emea-apac", "emea-hub", "apac-hub", "92 ms", TopologyEdgeKind.Connectivity, TopologyHealthStatus.Critical, TopologyDirection.Bidirectional, TopologyEdgeRouting.Curved, "WAN", "/geo/links/emea-apac")
             .AddEdge("amer-apac", "amer-hub", "apac-hub", "142 ms", TopologyEdgeKind.Connectivity, TopologyHealthStatus.Warning, TopologyDirection.Bidirectional, TopologyEdgeRouting.Curved, "backup", "/geo/links/amer-apac")
@@ -40,6 +43,9 @@ internal static partial class TopologyVisualExamples {
             .AddEdge("apac-sin", "apac-hub", "sin", "local", TopologyEdgeKind.Dependency, TopologyHealthStatus.Healthy, routing: TopologyEdgeRouting.Curved)
             .AddEdge("apac-syd", "apac-hub", "syd", "critical", TopologyEdgeKind.Dependency, TopologyHealthStatus.Critical, routing: TopologyEdgeRouting.Curved)
             .AddEdge("apac-bom", "apac-hub", "bom", "185 ms", TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, routing: TopologyEdgeRouting.Curved)
+            .WithGroupCoordinates("AMER", -98.5795, 39.8283)
+            .WithGroupCoordinates("EMEA", 12.4964, 41.9028)
+            .WithGroupCoordinates("APAC", 103.8198, 1.3521)
             .WithNodeCoordinates("amer-hub", -98.5795, 39.8283)
             .WithNodeCoordinates("emea-hub", 12.4964, 41.9028)
             .WithNodeCoordinates("apac-hub", 103.8198, 1.3521)
@@ -66,6 +72,9 @@ internal static partial class TopologyVisualExamples {
             node.Badge = node.Symbol;
         }
 
+        chart.Groups[0].Metadata["calloutSubtitle"] = "47 sites / 1 down";
+        chart.Groups[1].Metadata["calloutSubtitle"] = "56 sites / 1 warning";
+        chart.Groups[2].Metadata["calloutSubtitle"] = "39 sites / critical";
         return chart;
     }
 }

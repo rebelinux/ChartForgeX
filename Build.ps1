@@ -194,7 +194,9 @@ function Assert-TopologyVisualCoverage {
         'data-route-curve="geographic"',
         'data-route-control-x',
         'data-node-longitude',
-        'data-node-geo-visible'
+        'data-node-geo-visible',
+        'data-cfx-visual-role="topology-geographic-callout"',
+        'data-callout-node-count'
     )) {
         if (-not $geographicSource.Contains($requiredFragment)) {
             throw "Topology geographic visual artifact is missing required SVG fragment '$requiredFragment'. See $geographicSvg."

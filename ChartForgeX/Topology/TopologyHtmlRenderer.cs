@@ -344,7 +344,19 @@ public sealed class TopologyHtmlRenderer {
           latitude: attr(element, 'data-group-latitude'),
           geoVisible: attr(element, 'data-group-geo-visible'),
           layoutPolicy: attr(element, 'data-group-layout-policy'),
-          appliedLayoutPolicy: attr(element, 'data-group-applied-layout-policy')
+          appliedLayoutPolicy: attr(element, 'data-group-applied-layout-policy'),
+          callout: {
+            visualRole: attr(element, 'data-cfx-visual-role'),
+            placement: attr(element, 'data-callout-placement'),
+            anchorX: attr(element, 'data-callout-anchor-x'),
+            anchorY: attr(element, 'data-callout-anchor-y'),
+            nodeCount: attr(element, 'data-callout-node-count'),
+            healthyCount: attr(element, 'data-callout-healthy-count'),
+            warningCount: attr(element, 'data-callout-warning-count'),
+            criticalCount: attr(element, 'data-callout-critical-count'),
+            unknownCount: attr(element, 'data-callout-unknown-count'),
+            disabledCount: attr(element, 'data-callout-disabled-count')
+          }
         };
       }
       return { ...base, kind: 'unknown', id: '' };

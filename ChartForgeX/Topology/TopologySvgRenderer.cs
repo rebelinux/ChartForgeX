@@ -84,6 +84,7 @@ public sealed partial class TopologySvgRenderer {
         DrawEdgeLabels(sb, chart, prefix, theme, options, highlight);
         DrawNodes(sb, chart, prefix, theme, options, highlight);
         if (options.IncludeStatusBadges) DrawNodeStatuses(sb, chart, prefix, theme, options, highlight);
+        if (chart.LayoutMode == TopologyLayoutMode.Geographic) DrawGeographicCallouts(sb, chart, prefix, theme, options, highlight);
         if (options.IncludeLegend && chart.Legend != null) DrawLegend(sb, chart, prefix, theme);
         return sb.ToString();
     }

@@ -88,14 +88,14 @@ Suggested PR: `Add dense grouped topology layout`.
 
 ### 4. Geographic Topology Rendering
 
-The geographic demos can still use the dotted-map chart family for full map-style weighted markers, labels, and routes. Topology now also has a first-class `Geographic` layout mode that projects typed node/group longitude and latitude through `ChartMapViewport`, emits a topology-native geographic frame, graticule, generated land-dot background, and regional boundary/land-area geometry, and keeps node/edge/group topology semantics intact for SVG, HTML, and PNG output.
+The geographic demos can still use the dotted-map chart family for full map-style weighted markers, labels, and routes. Topology now also has a first-class `Geographic` layout mode that projects typed node/group longitude and latitude through `ChartMapViewport`, emits a topology-native geographic frame, graticule, generated land-dot background, regional boundary/land-area geometry, and optional group callout summaries with health counts, and keeps node/edge/group topology semantics intact for SVG, HTML, and PNG output.
 
 Next work:
 
 - decide whether geographic topology remains a dotted-map host pattern or becomes `TopologyLayoutMode.Geographic` - done with a topology-native layout while keeping dotted maps available for full map visuals
 - if it becomes topology-native, add latitude/longitude metadata or typed coordinates on nodes - done for nodes and groups
 - reuse existing map projection and viewport logic where possible, but make topology nodes/edges render on the projected coordinates - done with `ChartMapViewport` and equirectangular projection
-- improve route arcs, endpoint trimming, clustering, label placement, and region callouts for TestimoX-like regional views - route arcs now render through a shared quadratic map-arc primitive in SVG/PNG and edge labels use the arc midpoint
+- improve route arcs, endpoint trimming, clustering, label placement, and region callouts for TestimoX-like regional views - route arcs now render through a shared quadratic map-arc primitive in SVG/PNG, edge labels use the arc midpoint, and coordinated groups can render opt-in callout summaries
 - consider additional projection modes only if the static output gains a visible benefit
 - reuse or expose the dotted-map land layer behind topology nodes when a full world/region silhouette is needed - done for generated land dots and regional boundaries in SVG/PNG
 
@@ -134,7 +134,7 @@ Suggested PR: `Upgrade topology HTML interactions`.
 
 ### 7. Visual Examples And Baselines
 
-The topology demo generator now includes a topology-native geographic map artifact (`visual-geographic-topology-map`) with typed coordinates, projected site markers, SVG/PNG route arcs, selected state, and route-control metadata. The basic `geographic-topology` demo also uses `TopologyLayoutMode.Geographic` instead of manually positioned map-like coordinates. `Build.ps1` now validates the topology visual manifest, required SVG/HTML/PNG artifacts, and key geographic route metadata during normal example validation.
+The topology demo generator now includes a topology-native geographic map artifact (`visual-geographic-topology-map`) with typed coordinates, projected site markers, SVG/PNG route arcs, selected state, regional callout summaries, and route-control metadata. The basic `geographic-topology` demo also uses `TopologyLayoutMode.Geographic` instead of manually positioned map-like coordinates. `Build.ps1` now validates the topology visual manifest, required SVG/HTML/PNG artifacts, and key geographic route metadata during normal example validation.
 
 Next work:
 
