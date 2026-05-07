@@ -19,9 +19,25 @@ public sealed class TopologyHtmlRenderer {
     /// <returns>An HTML fragment.</returns>
     public string RenderFragment(TopologyChart chart, TopologyRenderOptions? options = null) {
         if (chart == null) throw new ArgumentNullException(nameof(chart));
+        options ??= new TopologyRenderOptions();
         var id = string.IsNullOrWhiteSpace(chart.Id) ? "topology" : chart.Id!;
-        if (options?.View != null && !string.IsNullOrWhiteSpace(options.View.Id)) id += "-" + options.View.Id;
-        return "<div class=\"cfx-topology-wrapper\" data-chart-id=\"" + EscapeAttr(id) + "\" data-layout-mode=\"" + chart.LayoutMode + "\" data-cfx-interactive=\"" + ((options?.EnableHtmlInteractions ?? true) ? "true" : "false") + "\" style=\"width:100%;max-width:" + chart.Viewport.Width.ToString("0.###", CultureInfo.InvariantCulture) + "px;box-sizing:border-box\">" + _svg.Render(chart, options) + "</div>";
+        if (options.View != null && !string.IsNullOrWhiteSpace(options.View.Id)) id += "-" + options.View.Id;
+        var enableViewportControls = options.EnableHtmlInteractions && options.EnableHtmlViewportControls;
+        var sb = new StringBuilder();
+        sb.Append("<div class=\"cfx-topology-wrapper\" data-chart-id=\"").Append(EscapeAttr(id)).Append("\" data-layout-mode=\"").Append(chart.LayoutMode).Append("\" data-cfx-interactive=\"").Append(options.EnableHtmlInteractions ? "true" : "false").Append("\" data-cfx-viewport-controls=\"").Append(enableViewportControls ? "true" : "false").Append("\" style=\"width:100%;max-width:").Append(chart.Viewport.Width.ToString("0.###", CultureInfo.InvariantCulture)).Append("px;box-sizing:border-box\">");
+        sb.Append("<div class=\"cfx-topology-viewport\">");
+        if (enableViewportControls) {
+            sb.Append("<div class=\"cfx-topology-controls\" aria-label=\"Topology viewport controls\">")
+                .Append("<button type=\"button\" data-cfx-topology-zoom=\"in\" title=\"Zoom in\" aria-label=\"Zoom in\">+</button>")
+                .Append("<button type=\"button\" data-cfx-topology-zoom=\"out\" title=\"Zoom out\" aria-label=\"Zoom out\">-</button>")
+                .Append("<button type=\"button\" data-cfx-topology-mode=\"pan\" title=\"Pan topology\" aria-label=\"Pan topology\" aria-pressed=\"false\">Pan</button>")
+                .Append("<button type=\"button\" data-cfx-topology-reset=\"true\" title=\"Reset viewport\" aria-label=\"Reset viewport\">0</button>")
+                .Append("</div>");
+        }
+
+        sb.Append(_svg.Render(chart, options));
+        sb.Append("</div></div>");
+        return sb.ToString();
     }
 
     /// <summary>
@@ -42,7 +58,7 @@ public sealed class TopologyHtmlRenderer {
         sb.AppendLine("<meta charset=\"utf-8\">");
         sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
         sb.AppendLine("<title>" + Escape(title) + "</title>");
-        sb.AppendLine("<style>body{margin:0;min-height:100vh;background:" + EscapeAttr(theme.Background) + ";font-family:" + CssFontFamily(theme.FontFamily) + ";padding:24px;box-sizing:border-box}.cfx-topology-wrapper{margin:0 auto}.cfx-topology-wrapper svg{max-width:100%;height:auto;display:block}.cfx-topology-wrapper [data-cfx-role='topology-node'],.cfx-topology-wrapper [data-cfx-role='topology-edge'],.cfx-topology-wrapper [data-cfx-role='topology-group']{cursor:pointer}.cfx-topology-wrapper .cfx-topology-html-selected{filter:drop-shadow(0 10px 18px rgba(37,99,235,.22))}.cfx-topology-wrapper .cfx-topology-html-muted{opacity:.32}.cfx-topology-wrapper .cfx-topology-html-related{opacity:1}.cfx-topology-wrapper .cfx-topology-html-hovered{filter:drop-shadow(0 8px 16px rgba(15,23,42,.16))}.cfx-topology-wrapper .cfx-topology-html-hover-muted{opacity:.42}.cfx-topology-wrapper .cfx-topology-html-hover-related{opacity:1}</style>");
+        sb.AppendLine("<style>body{margin:0;min-height:100vh;background:" + EscapeAttr(theme.Background) + ";font-family:" + CssFontFamily(theme.FontFamily) + ";padding:24px;box-sizing:border-box}.cfx-topology-wrapper{margin:0 auto}.cfx-topology-viewport{position:relative}.cfx-topology-wrapper svg{max-width:100%;height:auto;display:block}.cfx-topology-wrapper[data-cfx-viewport-controls='true'] .cfx-topology-viewport{overflow:hidden;touch-action:none}.cfx-topology-wrapper[data-cfx-viewport-controls='true'] svg{transform:translate(var(--cfx-topology-pan-x,0),var(--cfx-topology-pan-y,0)) scale(var(--cfx-topology-zoom,1));transform-origin:center center;transition:transform .12s ease;will-change:transform}.cfx-topology-controls{position:absolute;z-index:5;top:12px;left:12px;display:grid;gap:6px}.cfx-topology-controls button{min-width:34px;height:34px;border:1px solid rgba(37,99,235,.28);border-radius:6px;background:rgba(255,255,255,.92);color:#1e3a8a;cursor:pointer;font:700 12px/1 " + CssFontFamily(theme.FontFamily) + ";box-shadow:0 8px 18px rgba(15,23,42,.1)}.cfx-topology-controls button:hover,.cfx-topology-controls button:focus-visible,.cfx-topology-controls button[aria-pressed='true']{border-color:#2563eb;color:#0f172a;background:#eff6ff}.cfx-topology-wrapper[data-cfx-topology-mode='pan'] .cfx-topology-viewport{cursor:grab}.cfx-topology-wrapper[data-cfx-topology-mode='pan'] .cfx-topology-viewport:active{cursor:grabbing}.cfx-topology-wrapper [data-cfx-role='topology-node'],.cfx-topology-wrapper [data-cfx-role='topology-edge'],.cfx-topology-wrapper [data-cfx-role='topology-group']{cursor:pointer}.cfx-topology-wrapper .cfx-topology-html-selected{filter:drop-shadow(0 10px 18px rgba(37,99,235,.22))}.cfx-topology-wrapper .cfx-topology-html-muted{opacity:.32}.cfx-topology-wrapper .cfx-topology-html-related{opacity:1}.cfx-topology-wrapper .cfx-topology-html-hovered{filter:drop-shadow(0 8px 16px rgba(15,23,42,.16))}.cfx-topology-wrapper .cfx-topology-html-hover-muted{opacity:.42}.cfx-topology-wrapper .cfx-topology-html-hover-related{opacity:1}</style>");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
         sb.AppendLine(RenderFragment(chart, options));
@@ -58,6 +74,8 @@ public sealed class TopologyHtmlRenderer {
 (() => {
   for (const wrapper of document.querySelectorAll('.cfx-topology-wrapper[data-cfx-interactive="true"]')) {
     const selectables = '[data-cfx-role="topology-node"],[data-cfx-role="topology-edge"],[data-cfx-role="topology-group"]';
+    const viewportControls = wrapper.getAttribute('data-cfx-viewport-controls') === 'true';
+    const viewport = wrapper.querySelector('.cfx-topology-viewport') || wrapper;
     const attr = (element, name) => element.getAttribute(name) || '';
     const toCamel = value => value.replace(/-([a-z0-9])/g, (_, ch) => ch.toUpperCase());
     const collectPrefixed = (element, prefix) => {
@@ -68,6 +86,51 @@ public sealed class TopologyHtmlRenderer {
       return values;
     };
     const unique = values => Array.from(new Set(values.filter(value => value)));
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const numberAttr = (name, fallback) => {
+      const value = Number(wrapper.getAttribute(name) || '');
+      return Number.isFinite(value) ? value : fallback;
+    };
+    const viewportState = () => ({
+      zoom: numberAttr('data-cfx-topology-zoom', 1),
+      panX: numberAttr('data-cfx-topology-pan-x', 0),
+      panY: numberAttr('data-cfx-topology-pan-y', 0)
+    });
+    const applyViewport = state => {
+      if (!viewportControls) return;
+      const next = {
+        zoom: clamp(Number(state.zoom) || 1, 0.5, 4),
+        panX: clamp(Number(state.panX) || 0, -4000, 4000),
+        panY: clamp(Number(state.panY) || 0, -4000, 4000)
+      };
+      wrapper.setAttribute('data-cfx-topology-zoom', next.zoom.toFixed(3));
+      wrapper.setAttribute('data-cfx-topology-pan-x', next.panX.toFixed(1));
+      wrapper.setAttribute('data-cfx-topology-pan-y', next.panY.toFixed(1));
+      wrapper.style.setProperty('--cfx-topology-zoom', next.zoom.toFixed(3));
+      wrapper.style.setProperty('--cfx-topology-pan-x', next.panX.toFixed(1) + 'px');
+      wrapper.style.setProperty('--cfx-topology-pan-y', next.panY.toFixed(1) + 'px');
+    };
+    const emitViewport = () => {
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-viewport', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), state: viewportState() } }));
+    };
+    const zoomBy = factor => {
+      const state = viewportState();
+      applyViewport({ zoom: state.zoom * factor, panX: state.panX, panY: state.panY });
+      emitViewport();
+    };
+    const resetViewport = () => {
+      applyViewport({ zoom: 1, panX: 0, panY: 0 });
+      wrapper.removeAttribute('data-cfx-topology-mode');
+      wrapper.querySelectorAll('[data-cfx-topology-mode]').forEach(button => button.setAttribute('aria-pressed', 'false'));
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-reset', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id') } }));
+      emitViewport();
+    };
+    const setViewportMode = mode => {
+      const next = wrapper.getAttribute('data-cfx-topology-mode') === mode ? '' : mode;
+      if (next) wrapper.setAttribute('data-cfx-topology-mode', next);
+      else wrapper.removeAttribute('data-cfx-topology-mode');
+      wrapper.querySelectorAll('[data-cfx-topology-mode]').forEach(button => button.setAttribute('aria-pressed', attr(button, 'data-cfx-topology-mode') === next ? 'true' : 'false'));
+    };
     const edgeIdentity = edge => ({
       id: attr(edge, 'data-edge-id'),
       kind: attr(edge, 'data-edge-kind'),
@@ -270,6 +333,60 @@ public sealed class TopologyHtmlRenderer {
         wrapper.dispatchEvent(new CustomEvent('cfx-topology-hover-clear', { bubbles: true }));
       });
     });
+    if (viewportControls) {
+      applyViewport(viewportState());
+      wrapper.querySelectorAll('[data-cfx-topology-zoom]').forEach(button => {
+        button.addEventListener('click', () => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333));
+      });
+      wrapper.querySelectorAll('[data-cfx-topology-mode]').forEach(button => {
+        button.addEventListener('click', () => setViewportMode(attr(button, 'data-cfx-topology-mode')));
+      });
+      wrapper.querySelectorAll('[data-cfx-topology-reset]').forEach(button => {
+        button.addEventListener('click', () => resetViewport());
+      });
+      let drag = null;
+      let suppressClick = false;
+      viewport.addEventListener('wheel', event => {
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 1.08 : 0.92);
+      }, { passive: false });
+      viewport.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || wrapper.getAttribute('data-cfx-topology-mode') !== 'pan') return;
+        const state = viewportState();
+        drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, moved: false };
+        viewport.setPointerCapture(event.pointerId);
+      });
+      viewport.addEventListener('pointermove', event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const dx = event.clientX - drag.x;
+        const dy = event.clientY - drag.y;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          drag.moved = true;
+          suppressClick = true;
+        }
+        applyViewport({ zoom: viewportState().zoom, panX: drag.panX + dx, panY: drag.panY + dy });
+      });
+      viewport.addEventListener('pointerup', event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        viewport.releasePointerCapture(event.pointerId);
+        if (drag.moved) emitViewport();
+        drag = null;
+      });
+      viewport.addEventListener('pointercancel', event => {
+        if (drag && drag.id === event.pointerId) drag = null;
+      });
+      wrapper.addEventListener('cfx-topology-set-viewport', event => {
+        applyViewport(event.detail || {});
+        emitViewport();
+      });
+      wrapper.addEventListener('cfx-topology-reset-viewport', () => resetViewport());
+      wrapper.addEventListener('click', event => {
+        if (!suppressClick) return;
+        suppressClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }, true);
+    }
     wrapper.addEventListener('click', event => {
       const element = event.target instanceof Element ? event.target.closest(selectables) : null;
       if (!element || !wrapper.contains(element)) return;
