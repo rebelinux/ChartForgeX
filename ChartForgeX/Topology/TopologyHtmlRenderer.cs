@@ -271,6 +271,50 @@ public sealed class TopologyHtmlRenderer {
         return detail.kind === request.kind && detail.id === request.id;
       }) || null;
     };
+    const elementKey = element => {
+      const detail = identity(element);
+      return detail.kind + ':' + detail.id;
+    };
+    const publicDetail = element => {
+      const detail = identity(element);
+      detail.related = related(detail);
+      delete detail.element;
+      return detail;
+    };
+    const relatedElements = detail => {
+      const items = [];
+      const seen = new Set();
+      const add = (kind, id) => {
+        if (!id) return;
+        const key = kind + ':' + id;
+        if (seen.has(key) || (detail.kind === kind && detail.id === id)) return;
+        const element = findSelection({ kind, id });
+        if (!element) return;
+        seen.add(key);
+        items.push(element);
+      };
+      (detail.related.nodeIds || []).forEach(id => add('node', id));
+      (detail.related.edgeIds || []).forEach(id => add('edge', id));
+      (detail.related.groupIds || []).forEach(id => add('group', id));
+      return items;
+    };
+    const focusRelated = (element, offset) => {
+      const detail = identity(element);
+      detail.related = related(detail);
+      const candidates = relatedElements(detail);
+      if (!candidates.length) return false;
+      const sourceKey = detail.kind + ':' + detail.id;
+      const previousTarget = wrapper.getAttribute('data-cfx-navigation-source') === sourceKey ? wrapper.getAttribute('data-cfx-navigation-target') || '' : '';
+      const previousIndex = candidates.findIndex(candidate => elementKey(candidate) === previousTarget);
+      const nextIndex = previousIndex >= 0 ? (previousIndex + offset + candidates.length) % candidates.length : (offset > 0 ? 0 : candidates.length - 1);
+      const target = candidates[nextIndex];
+      const targetKey = elementKey(target);
+      wrapper.setAttribute('data-cfx-navigation-source', sourceKey);
+      wrapper.setAttribute('data-cfx-navigation-target', targetKey);
+      if (target.focus) target.focus({ preventScroll: true });
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-navigate', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), from: publicDetail(element), to: publicDetail(target) } }));
+      return true;
+    };
     const applyRelatedClasses = (detail, classPrefix, selfClass) => {
       const relatedEdges = new Set(detail.related.edgeIds || []);
       const relatedNodes = new Set(detail.related.nodeIds || []);
@@ -397,6 +441,12 @@ public sealed class TopologyHtmlRenderer {
       if (event.key === 'Escape') {
         clear();
         wrapper.dispatchEvent(new CustomEvent('cfx-topology-clear', { bubbles: true }));
+        return;
+      }
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        const element = event.target instanceof Element ? event.target.closest(selectables) : null;
+        if (!element || !wrapper.contains(element)) return;
+        if (focusRelated(element, event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1)) event.preventDefault();
         return;
       }
       if (event.key !== 'Enter' && event.key !== ' ') return;
