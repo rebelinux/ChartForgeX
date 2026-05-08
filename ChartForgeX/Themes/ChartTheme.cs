@@ -6,7 +6,7 @@ namespace ChartForgeX.Themes;
 /// <summary>
 /// Defines colors, typography, and surface styling used by chart renderers.
 /// </summary>
-public sealed class ChartTheme {
+public sealed partial class ChartTheme {
     private ChartColor[] _palette = ChartPalettes.Report;
     private double _cornerRadius = 12;
     private double _plotCornerRadius = 8;
@@ -435,31 +435,6 @@ public sealed class ChartTheme {
     /// </summary>
     /// <returns>A light report chart theme.</returns>
     public static ChartTheme ReportLight() => Light();
-
-    /// <summary>
-    /// Creates a clean light theme for compact dashboard panels and recruitment-style stacked bar cards.
-    /// </summary>
-    /// <returns>A light dashboard chart theme.</returns>
-    public static ChartTheme DashboardLight() => Light()
-        .WithSurfaceColors(
-            ChartColor.White,
-            ChartColor.White,
-            ChartColor.White,
-            ChartColor.FromRgba(148,163,184,34),
-            ChartColor.Transparent)
-        .WithTextColors(ChartColor.FromRgb(17,24,39), ChartColor.FromHex("#8A8F98"))
-        .WithGuideColors(ChartColor.FromRgba(148,163,184,96), ChartColor.FromRgba(148,163,184,110))
-        .WithPalette(
-            ChartColor.FromHex("#FBBF24"),
-            ChartColor.FromHex("#22C55E"),
-            ChartColor.FromHex("#3B82F6"),
-            ChartColor.FromHex("#8B5CF6"),
-            ChartColor.FromHex("#14B8A6"),
-            ChartColor.FromHex("#F97316"),
-            ChartColor.FromHex("#06B6D4"),
-            ChartColor.FromHex("#EF4444"))
-        .WithShadowOpacity(0.08)
-        .WithStrokeWidth(2.6);
 
     /// <summary>
     /// Creates the default dark report theme.

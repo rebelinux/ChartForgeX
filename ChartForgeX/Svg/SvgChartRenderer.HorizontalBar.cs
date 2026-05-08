@@ -27,10 +27,11 @@ public sealed partial class SvgChartRenderer {
                 WriteSegmentedHorizontalBar(sb, chart, s, index, pointIndex, p.X, p.Y, baseValue, left, y, width, layout.BarHeight);
             } else {
                 WriteHorizontalBar(sb, index, pointIndex, p.X, p.Y, baseValue, left, y, width, layout.BarHeight, radius, BarFill(chart, s, index, pointIndex, id));
+                DrawSvgFillPatternOverlay(sb, s, index, pointIndex, id, left, y, width, layout.BarHeight, radius, "horizontal-bar-pattern");
                 DrawSvgBarHighlight(sb, left, y, width, layout.BarHeight);
             }
             if (ShouldDrawDataLabels(chart, s)) {
-                var label = FormatValue(chart, p.Y);
+                var label = FormatDataLabel(chart, s, pointIndex, p.Y);
                 var placement = DataLabelPlacement(chart, s);
                 var inside = placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Center || (chart.Options.BarMode == ChartBarMode.Stacked && placement == ChartDataLabelPlacement.Auto);
                 if (inside) {

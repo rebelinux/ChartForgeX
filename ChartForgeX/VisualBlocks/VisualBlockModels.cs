@@ -78,6 +78,16 @@ public enum VisualIcon {
 }
 
 /// <summary>
+/// Badge placement used by metric visual blocks.
+/// </summary>
+public enum MetricCardBadgePlacement {
+    /// <summary>Place the badge in the upper-right corner.</summary>
+    TopRight,
+    /// <summary>Place the badge before the label in the upper-left corner.</summary>
+    TopLeft
+}
+
+/// <summary>
 /// Shared renderer-independent options for visual blocks.
 /// </summary>
 public sealed class VisualBlockOptions {
@@ -486,83 +496,6 @@ public sealed class ChartListItem {
 }
 
 /// <summary>
-/// A compact KPI or metric card visual block.
-/// </summary>
-public sealed class MetricCard : VisualBlock<MetricCard> {
-    private string _label = string.Empty;
-    private string _value = string.Empty;
-    private string _caption = string.Empty;
-    private string _trend = string.Empty;
-    private string _symbol = string.Empty;
-    private VisualIcon _icon;
-    private VisualStatus _status;
-
-    /// <summary>Gets or sets the metric label.</summary>
-    public string Label { get => _label; set => _label = value ?? throw new ArgumentNullException(nameof(value)); }
-
-    /// <summary>Gets or sets the metric value.</summary>
-    public string Value { get => _value; set => _value = value ?? throw new ArgumentNullException(nameof(value)); }
-
-    /// <summary>Gets or sets optional supporting text.</summary>
-    public string Caption { get => _caption; set => _caption = value ?? throw new ArgumentNullException(nameof(value)); }
-
-    /// <summary>Gets or sets optional trend text.</summary>
-    public string Trend { get => _trend; set => _trend = value ?? throw new ArgumentNullException(nameof(value)); }
-
-    /// <summary>Gets or sets an optional compact symbol rendered as a badge.</summary>
-    public string Symbol { get => _symbol; set => _symbol = value ?? throw new ArgumentNullException(nameof(value)); }
-
-    /// <summary>Gets or sets an optional built-in icon rendered as a badge.</summary>
-    public VisualIcon Icon {
-        get => _icon;
-        set {
-            VisualBlockGuards.EnumDefined(value, nameof(value));
-            _icon = value;
-        }
-    }
-
-    /// <summary>Gets or sets the metric status.</summary>
-    public VisualStatus Status {
-        get => _status;
-        set {
-            VisualBlockGuards.EnumDefined(value, nameof(value));
-            _status = value;
-        }
-    }
-
-    /// <summary>Gets a concise accessibility label.</summary>
-    public override string AccessibleName => Label.Length == 0 ? base.AccessibleName : Label;
-
-    /// <summary>Creates a new metric card.</summary>
-    public static MetricCard Create() => new();
-
-    /// <summary>Sets the primary metric label and value.</summary>
-    public MetricCard WithMetric(string label, object? value, string? format = null) {
-        Label = label ?? throw new ArgumentNullException(nameof(label));
-        Value = ChartTableCell.FromValue(value, format).Text;
-        return this;
-    }
-
-    /// <summary>Sets optional supporting text.</summary>
-    public MetricCard WithCaption(string caption) { Caption = caption ?? throw new ArgumentNullException(nameof(caption)); return this; }
-
-    /// <summary>Sets optional trend text.</summary>
-    public MetricCard WithTrend(string trend) { Trend = trend ?? throw new ArgumentNullException(nameof(trend)); return this; }
-
-    /// <summary>Sets an optional compact symbol rendered as a badge.</summary>
-    public MetricCard WithSymbol(string symbol) { Symbol = symbol ?? throw new ArgumentNullException(nameof(symbol)); return this; }
-
-    /// <summary>Sets an optional built-in icon rendered as a badge.</summary>
-    public MetricCard WithIcon(VisualIcon icon) { Icon = icon; return this; }
-
-    /// <summary>Sets the metric status.</summary>
-    public MetricCard WithStatus(VisualStatus status) {
-        Status = status;
-        return this;
-    }
-}
-
-/// <summary>
 /// A KPI card with one or more radial progress layers around a central metric.
 /// </summary>
 public sealed class RadialMetricCard : VisualBlock<RadialMetricCard> {
@@ -647,6 +580,7 @@ public sealed class VisualGrid {
     private int _pngOutputScale = 1;
     private ChartSize? _panelSize;
     private VisualGridPanelFit _panelFit = VisualGridPanelFit.Contain;
+    private bool _frameVisible;
 
     /// <summary>Gets or sets the grid title.</summary>
     public string Title { get => _title; set => _title = value ?? throw new ArgumentNullException(nameof(value)); }
@@ -665,6 +599,9 @@ public sealed class VisualGrid {
 
     /// <summary>Gets or sets the PNG output pixel multiplier.</summary>
     public int PngOutputScale { get => _pngOutputScale; set { if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG output scale must be between one and four."); _pngOutputScale = value; } }
+
+    /// <summary>Gets or sets a value indicating whether the grid should render a subtle outer frame.</summary>
+    public bool FrameVisible { get => _frameVisible; set => _frameVisible = value; }
 
     /// <summary>Gets or sets the optional fixed panel size.</summary>
     public ChartSize? PanelSize {
@@ -693,6 +630,27 @@ public sealed class VisualGrid {
     /// <summary>Creates a new visual grid.</summary>
     public static VisualGrid Create() => new();
 
+    /// <summary>Creates a metric-card strip using the standard compact section layout.</summary>
+    public static VisualGrid CreateMetricStrip(string title, IEnumerable<MetricCard> cards, int columns = 4, int panelWidth = 320, int panelHeight = 176) {
+        if (title == null) throw new ArgumentNullException(nameof(title));
+        if (cards == null) throw new ArgumentNullException(nameof(cards));
+        var grid = Create()
+            .WithTitle(title)
+            .WithColumns(columns)
+            .WithPanelSize(panelWidth, panelHeight)
+            .WithGap(16)
+            .WithPadding(24);
+        var count = 0;
+        foreach (var card in cards) {
+            if (card == null) throw new ArgumentException("Metric strips cannot contain null cards.", nameof(cards));
+            grid.Add(card);
+            count++;
+        }
+
+        if (count == 0) throw new ArgumentException("Metric strips require at least one metric card.", nameof(cards));
+        return grid;
+    }
+
     /// <summary>Sets the grid title.</summary>
     public VisualGrid WithTitle(string title) { Title = title ?? throw new ArgumentNullException(nameof(title)); return this; }
 
@@ -719,6 +677,9 @@ public sealed class VisualGrid {
 
     /// <summary>Sets the PNG output pixel multiplier.</summary>
     public VisualGrid WithPngOutputScale(int scale) { PngOutputScale = scale; return this; }
+
+    /// <summary>Sets whether the grid renders a subtle outer frame.</summary>
+    public VisualGrid WithFrame(bool visible = true) { FrameVisible = visible; return this; }
 
     /// <summary>Adds a chart panel.</summary>
     public VisualGrid Add(Chart chart, int columnSpan = 1, int rowSpan = 1) {

@@ -116,6 +116,10 @@ public sealed partial class PngChartRenderer {
                 DrawSpecialChart(DrawHeatmap);
                 return c;
             }
+            if (IsHexbinHeatmapChart(chart)) {
+                DrawSpecialChart(DrawHexbinHeatmap);
+                return c;
+            }
             if (IsCalendarHeatmapChart(chart)) {
                 DrawSpecialChart(DrawCalendarHeatmap);
                 return c;
@@ -311,6 +315,11 @@ public sealed partial class PngChartRenderer {
             ? series.PointColors[pointIndex]!.Value
             : SeriesColor(chart, seriesIndex);
 
+    private static ChartFillPattern FillPattern(ChartSeries series, int pointIndex) =>
+        pointIndex >= 0 && pointIndex < series.PointFillPatterns.Count && series.PointFillPatterns[pointIndex].HasValue
+            ? series.PointFillPatterns[pointIndex]!.Value
+            : series.FillPattern;
+
     private static bool ShowXAxis(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowXAxis;
 
     private static bool ShowYAxis(Chart chart) => !IsMapChart(chart) && chart.Options.ShowAxes && chart.Options.ShowYAxis;
@@ -456,6 +465,11 @@ public sealed partial class PngChartRenderer {
         return formatter(value) ?? string.Empty;
     }
 
+    private static string FormatDataLabel(Chart chart, ChartSeries series, int pointIndex, double value) {
+        if (pointIndex >= 0 && pointIndex < series.PointLabels.Count && series.PointLabels[pointIndex] != null) return series.PointLabels[pointIndex]!;
+        return FormatValue(chart, value);
+    }
+
     private static string FormatSecondaryValue(Chart chart, double value) {
         var formatter = chart.Options.SecondaryYAxisValueFormatter;
         if (formatter == null) return FormatValue(chart, value);
@@ -576,6 +590,11 @@ public sealed partial class PngChartRenderer {
 
     private static bool IsProgressBarChart(Chart chart) {
         foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.ProgressBar) return true;
+        return false;
+    }
+
+    private static bool IsHexbinHeatmapChart(Chart chart) {
+        foreach (var series in chart.Series) if (series.Kind == ChartSeriesKind.HexbinHeatmap) return true;
         return false;
     }
 

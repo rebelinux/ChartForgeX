@@ -15,6 +15,7 @@ internal static partial class SmokeTests {
         var chart = Chart.Create()
             .WithSize(640, 360)
             .WithTheme(ChartTheme.DashboardLight())
+            .WithPalette("#FBBF24", "#22C55E", "#3B82F6", "#8B5CF6")
             .WithStackedBars()
             .WithDashboardBarStyle()
             .WithFocusedXAxisCategory(2, paletteIndex: 3)
@@ -36,7 +37,7 @@ internal static partial class SmokeTests {
         Assert(segmentedSvg.Contains("WriteSvgSegmentedCapLayers", StringComparison.Ordinal) && segmentedSvg.Contains("rolePrefix + \"-cap-highlight\"", StringComparison.Ordinal), "Segmented capsule SVG cap layers should stay centralized across bar renderers.");
         Assert(!chart.Options.ShowCard && !chart.Options.ShowPlotBackground && !chart.Options.ShowAxisLines, "Dashboard bar style should remove default chart chrome without hiding axes or legends.");
         Assert(svg.Contains("fill=\"#8B5CF6\"", StringComparison.Ordinal), "Charts should render reusable x-axis label highlights from theme palette tokens.");
-        Assert(svg.Contains("fill=\"#FBBF24\"", StringComparison.Ordinal) && svg.Contains("fill=\"#8B5CF6\"", StringComparison.Ordinal), "Dashboard light theme palette should color bar series when callers do not pass one-off colors.");
+        Assert(svg.Contains("fill=\"#FBBF24\"", StringComparison.Ordinal) && svg.Contains("fill=\"#8B5CF6\"", StringComparison.Ordinal), "Dashboard bar styles should compose with reusable palette tokens instead of one-off mark colors.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"annotation-line\"") == 2, "Focused x-axis categories should render reusable boundary guide lines.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"bar\"") == 12, "Segmented capsule style should preserve bar metadata roles.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"bar-cap-shadow-soft\"") == 12, "Segmented capsule bars should render a softer premium cap shadow layer.");
@@ -119,7 +120,7 @@ internal static partial class SmokeTests {
         reusableStyle.WithCapThickness(3);
         Assert(reused.Options.BarVisualStyle.CapThickness == 9, "Charts should clone reusable bar style instances so later caller changes do not mutate chart output.");
 
-        Assert(chart.Options.Theme.Background.ToHex() == "#FFFFFF" && chart.Options.Theme.Palette[3].ToHex() == "#8B5CF6" && chart.Options.Theme.ShadowOpacity > 0.04 && chart.Options.Theme.ShadowColor.ToHex() == "#0F172A", "Dashboard light theme should expose reusable surface, shadow, and palette tokens.");
+        Assert(chart.Options.Theme.CardBackground.ToHex() == "#FFFFFF" && chart.Options.Theme.Palette[3].ToHex() == "#8B5CF6" && chart.Options.Theme.ShadowOpacity > 0.04 && chart.Options.Theme.ShadowColor.ToHex() == "#0F172A", "Dashboard styles should expose reusable surface, shadow, and palette tokens.");
 
         var defaultPng = Chart.Create().WithSize(360, 220).WithStackedBars().AddBar("A", Points(20, 24)).AddBar("B", Points(18, 22)).ToPng();
         var segmentedPng = Chart.Create().WithSize(360, 220).WithStackedBars().WithBarVisualStyle(ChartBarVisualStyle.DashboardCapsule()).AddBar("A", Points(20, 24)).AddBar("B", Points(18, 22)).ToPng();

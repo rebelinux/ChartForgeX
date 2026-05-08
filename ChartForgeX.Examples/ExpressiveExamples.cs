@@ -215,7 +215,7 @@ internal static class ExpressiveExamples {
     private static Chart CreateDashboardPremiumTrendPreview() => Chart.Create()
         .WithHeader(false)
         .WithTransparentBackground(false)
-        .WithTheme(ChartTheme.DashboardLight())
+        .WithTheme(ChartTheme.DashboardLight().WithMarkerRadius(3.4))
         .WithDashboardPanelStyle()
         .WithLegend(false)
         .WithPadding(42, 26, 24, 54)

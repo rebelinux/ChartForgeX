@@ -8,7 +8,7 @@ using ChartForgeX.Rendering;
 namespace ChartForgeX.Svg;
 
 public sealed partial class SvgChartRenderer {
-    private static void DrawRangeBars(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map) {
+    private static void DrawRangeBars(StringBuilder sb, Chart chart, int index, ChartRect plot, ChartMapper map, string id) {
         var series = chart.Series[index];
         var intervalCount = Math.Max(1, series.Points.Count / 2);
         var barWidth = Math.Max(8, Math.Min(28, plot.Width / Math.Max(1, intervalCount * 4.0)));
@@ -24,17 +24,25 @@ public sealed partial class SvgChartRenderer {
             var intervalIndex = pointIndex / 2;
             var color = PointColor(chart, series, index, intervalIndex);
             var summary = FormatValue(chart, Math.Min(start.Y, end.Y)) + "-" + FormatValue(chart, Math.Max(start.Y, end.Y));
+            var label = FormatRangeBarLabel(chart, series, intervalIndex, start.Y, end.Y);
 
-            WriteRangeBarInterval(sb, chart, index, intervalIndex, start.X, start.Y, end.Y, summary, color, x, y1, y2, top, height, barWidth);
-            if (ShouldDrawDataLabels(chart, series)) DrawRangeBarLabel(sb, chart, series, intervalIndex, plot, reservedLabels, summary, x, y1, y2, top, height, barWidth);
+            WriteRangeBarInterval(sb, chart, series, index, intervalIndex, id, start.X, start.Y, end.Y, summary, color, x, y1, y2, top, height, barWidth);
+            if (ShouldDrawDataLabels(chart, series)) DrawRangeBarLabel(sb, chart, series, intervalIndex, plot, reservedLabels, label, x, y1, y2, top, height, barWidth);
         }
+    }
+
+    private static string FormatRangeBarLabel(Chart chart, ChartSeries series, int intervalIndex, double startValue, double endValue) {
+        if (intervalIndex >= 0 && intervalIndex < series.PointLabels.Count && series.PointLabels[intervalIndex] != null) return series.PointLabels[intervalIndex]!;
+        return FormatValue(chart, Math.Min(startValue, endValue)) + "-" + FormatValue(chart, Math.Max(startValue, endValue));
     }
 
     private static void WriteRangeBarInterval(
         StringBuilder sb,
         Chart chart,
+        ChartSeries series,
         int seriesIndex,
         int pointIndex,
+        string id,
         double valueX,
         double startValue,
         double endValue,
@@ -69,8 +77,14 @@ public sealed partial class SvgChartRenderer {
             .Attribute("opacity", opacity)
             .EndEmptyElement()
             .Line();
-        WriteRangeBarCap(writer, style, seriesIndex, pointIndex, "start", startValue, x, y1, barWidth, colorCss);
-        WriteRangeBarCap(writer, style, seriesIndex, pointIndex, "end", endValue, x, y2, barWidth, colorCss);
+        if (style.Kind == ChartBarStyle.SegmentedCapsule) {
+            WriteRangeBarCap(writer, style, seriesIndex, pointIndex, "start", startValue, x, y1, barWidth, colorCss);
+            WriteRangeBarCap(writer, style, seriesIndex, pointIndex, "end", endValue, x, y2, barWidth, colorCss);
+        } else {
+            WriteFillPatternOverlay(writer, series, seriesIndex, pointIndex, id, x - barWidth / 2, top, barWidth, height, Math.Min(7, barWidth / 2), "range-bar-pattern");
+            WriteRangeBarCap(writer, style, seriesIndex, pointIndex, "start", startValue, x, y1, barWidth, colorCss);
+            WriteRangeBarCap(writer, style, seriesIndex, pointIndex, "end", endValue, x, y2, barWidth, colorCss);
+        }
         sb.Append(writer.Build());
     }
 
