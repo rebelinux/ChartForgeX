@@ -32,6 +32,8 @@ internal static partial class SmokeTests {
         Assert(source.Contains("new SvgElement(\"g\")", StringComparison.Ordinal), "Topology SVG edge and label groups should be built through the SVG element engine.");
         Assert(source.Contains("SvgPathDataBuilder", StringComparison.Ordinal), "Topology edge paths should use the shared SVG path data builder.");
         Assert(!source.Contains("AppendLine(\"<svg", StringComparison.Ordinal), "Topology SVG renderer should not hand-build the root svg element with raw string concatenation.");
+        Assert(!source.Contains("Raw(BuildBodyMarkup", StringComparison.Ordinal), "Topology SVG body layers should be attached as SVG element children instead of a raw body markup handoff.");
+        Assert(!source.Contains("BuildBodyMarkup", StringComparison.Ordinal), "Topology SVG body composition should remain in the SVG element tree.");
     }
 
     private static void TopologyDefaultLegendIsProductNeutral() {
@@ -336,12 +338,58 @@ internal static partial class SmokeTests {
     }
 
     private static void TopologyValidatorRejectsInvalidDimensions() {
-        var chart = CreateSampleTopologyChart();
-        chart.Nodes[0].Width = 0;
-        chart.Groups[0].Height = -1;
+        var chart = new TopologyChart();
+        chart.Groups.Add(new TopologyGroup { Id = "g", Label = "Group" });
         var result = new TopologyChartValidator().Validate(chart);
-        Assert(result.Errors.Any(error => error.Code == "node-width"), "Topology validator should reject invalid node dimensions.");
+        Assert(result.Errors.Any(error => error.Code == "group-width"), "Topology validator should reject invalid group dimensions.");
         Assert(result.Errors.Any(error => error.Code == "group-height"), "Topology validator should reject invalid group dimensions.");
+
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyViewport { Width = 0 }, "Topology viewport models should reject invalid widths close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyChart { LayoutMode = (TopologyLayoutMode)999 }, "Topology chart models should reject undefined layout modes close to the caller.");
+        AssertThrows<ArgumentNullException>(() => new TopologyChart { Viewport = null! }, "Topology chart models should reject null viewports close to the caller.");
+        AssertThrows<ArgumentNullException>(() => new TopologyGroup { Id = null! }, "Topology group models should reject null ids close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyGroup { X = double.NaN }, "Topology group models should reject non-finite coordinates close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyGroup { Width = -1 }, "Topology group models should reject negative dimensions close to the caller while preserving auto-sized zero dimensions.");
+        AssertThrows<ArgumentNullException>(() => new TopologyNode { Label = null! }, "Topology node models should reject null labels close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyNode { Kind = (TopologyNodeKind)999 }, "Topology node models should reject undefined kind values close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyNode { DisplayMode = (TopologyNodeDisplayMode)999 }, "Topology node models should reject undefined display modes close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyNode { Width = 0 }, "Topology node models should reject non-positive dimensions close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyNode { Longitude = 181 }, "Topology node models should reject out-of-range longitudes close to the caller.");
+        AssertThrows<ArgumentNullException>(() => new TopologyEdge { SourceNodeId = null! }, "Topology edge models should reject null endpoint ids close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyEdge { Direction = (TopologyDirection)999 }, "Topology edge models should reject undefined directions close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyEdge { SourcePort = (TopologyEdgePort)999 }, "Topology edge models should reject undefined ports close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyEdge { RouteLane = double.NaN }, "Topology edge models should reject non-finite route lanes close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new TopologyEdge { LayoutInference = (TopologyEdgeLayoutInference)8 }, "Topology edge models should reject undefined layout-inference flag bits close to the caller.");
+        var inferred = new TopologyEdge { LayoutInference = TopologyEdgeLayoutInference.SourcePort | TopologyEdgeLayoutInference.TargetPort };
+        Assert(inferred.LayoutInference == (TopologyEdgeLayoutInference.SourcePort | TopologyEdgeLayoutInference.TargetPort), "Topology edge models should allow defined layout-inference flag combinations.");
+    }
+
+    private static void TopologyFluentApisRejectInvalidInputs() {
+        AssertThrows<ArgumentException>(() => TopologyChart.Create().WithId(" "), "Topology chart ids should reject empty values close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().WithViewport(0, 400), "Topology viewport widths should reject non-positive values close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().WithLayout((TopologyLayoutMode)999), "Topology layout modes should reject undefined enum values close to the caller.");
+        AssertThrows<ArgumentException>(() => TopologyChart.Create().AddGroup(" ", "Group", 0, 0, 100, 80), "Topology groups should reject empty ids close to the caller.");
+        AssertThrows<ArgumentException>(() => TopologyChart.Create().AddGroup("g", " ", 0, 0, 100, 80), "Topology groups should reject empty labels close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().AddGroup("g", "Group", double.NaN, 0, 100, 80), "Topology groups should reject non-finite coordinates close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().AddGroup("g", "Group", 0, 0, -1, 80), "Topology groups should reject negative dimensions close to the caller while preserving auto-sized layout groups.");
+        AssertThrows<ArgumentException>(() => TopologyChart.Create().AddNode(" ", "Node", 0, 0), "Topology nodes should reject empty ids close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().AddNode("n", "Node", 0, 0, (TopologyNodeKind)999), "Topology nodes should reject undefined kind values close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().AddNode("n", "Node", 0, 0, width: double.PositiveInfinity), "Topology nodes should reject non-finite dimensions close to the caller.");
+        AssertThrows<ArgumentException>(() => TopologyChart.Create().AddEdge(" ", "a", "b"), "Topology edges should reject empty ids close to the caller.");
+        AssertThrows<ArgumentException>(() => TopologyChart.Create().AddEdge("e", " ", "b"), "Topology edges should reject empty source node ids close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => TopologyChart.Create().AddEdge("e", "a", "b", kind: (TopologyEdgeKind)999), "Topology edges should reject undefined kind values close to the caller.");
+
+        var chart = TopologyChart.Create()
+            .AddGroup("g", "Group", 0, 0, 120, 90)
+            .AddNode("a", "A", 20, 20)
+            .AddNode("b", "B", 160, 20)
+            .AddEdge("a-b", "a", "b");
+
+        AssertThrows<ArgumentOutOfRangeException>(() => chart.WithNodeDisplay("a", (TopologyNodeDisplayMode)999), "Topology node display APIs should reject undefined display modes close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => chart.WithGroupLayout("g", (TopologyGroupLayoutPolicy)999), "Topology group layout APIs should reject undefined policies close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => chart.WithEdgePorts("a-b", (TopologyEdgePort)999, TopologyEdgePort.Auto), "Topology edge port APIs should reject undefined ports close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => chart.WithEdgeRouteLane("a-b", double.NaN), "Topology edge route lane APIs should reject non-finite values close to the caller.");
+        AssertThrows<ArgumentOutOfRangeException>(() => chart.WithEdgeLineStyle("a-b", (TopologyEdgeLineStyle)999), "Topology edge line style APIs should reject undefined values close to the caller.");
     }
 
     private static void TopologyViewsRenderFocusedSubsets() {

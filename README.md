@@ -19,7 +19,26 @@ dotnet add package ChartForgeX
 For local development from this repository, reference `ChartForgeX/ChartForgeX.csproj` directly for static rendering, add `ChartForgeX.Interactivity.Html/ChartForgeX.Interactivity.Html.csproj` when testing the optional HTML adapter, and run the quality loop before publishing packages.
 
 Contribution and release notes live in `CONTRIBUTING.md`, `RELEASING.md`, and `CHANGELOG.md`.
-The dependency-free rendering quality direction is documented in `docs/dependency-free-quality-roadmap.md`.
+The dependency-free rendering quality direction is documented in `docs/dependency-free-quality-roadmap.md`. Topology handoff notes live in `docs/topology-next-plan.md`, and non-chart visual block direction lives in `docs/visual-blocks.md`.
+
+## Release readiness handoff
+
+The current API is intended to be reusable by PowerBGInfo, ImagePlayground, HtmlForgeX, TestimoX, Office/Word/email generators, and other static-output hosts. Keep new work generic: no region-specific assumptions, no product-specific data collection, no `System.Drawing`, no JavaScript in the core static path, and no chart-shaped APIs for non-chart content.
+
+Already in place:
+
+- Static SVG/HTML/PNG chart rendering with dependency-free core packages and opt-in HTML interactivity adapters.
+- Dotted maps, reusable region maps, tile maps, and topology geographic projection through `ChartMapViewport` and data-driven map definitions.
+- Product-neutral topology diagrams with groups, nodes, edges, deterministic layouts, route diagnostics, selected states, metadata hooks, SVG/PNG output, and static HTML by default.
+- Neutral visual blocks for exact facts and compact report snippets: `ChartTable`, `ChartList`, `MetricCard`, and `VisualGrid`.
+- `SvgMarkupWriter`, `SvgDocument`, `SvgElement`, and path-data helpers for safer SVG emission across many renderers.
+
+Still open before calling the library future-complete:
+
+- Finish the remaining string/raw SVG cleanup outside topology. Topology body composition now stays in the SVG element tree, but grid embeds scoped child SVG as raw markup, and some map/chart renderers still use targeted `StringBuilder` paths.
+- Broaden visual blocks based on real consumers: richer table/list formatting, icons, status palettes, and infographic snippets without becoming a spreadsheet or arbitrary HTML renderer.
+- Keep dashboard shells in host projects. ChartForgeX should emit reusable visual fragments and data hooks; HtmlForgeX/TestimoX should own panels, filters, inspectors, tables, and collected product data.
+- Promote topology/geographic examples into formal visual baselines only after dense routing and geographic layout polish are stable enough for numeric baseline thresholds.
 
 ## Quality gates
 
@@ -39,7 +58,7 @@ Run the full local quality loop with:
 
 That restores, builds, runs smoke tests through `dotnet test`, regenerates example chart outputs and the static example gallery, packs `ChartForgeX`, `ChartForgeX.Interactivity`, and `ChartForgeX.Interactivity.Html` into `artifacts/packages/Release`, creates matching `.snupkg` symbol packages, verifies package contents and dependency invariants, and installs the freshly packed HTML interactivity adapter into a clean temporary console app. The generated demo entry points are `ChartForgeX.Examples/bin/Release/net8.0/output/index.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/catalog.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/quality-dashboard.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/svg-png-comparison.html`, `ChartForgeX.Examples/bin/Release/net8.0/output/domain-security-interactive.html`, and `ChartForgeX.Examples/bin/Release/net8.0/output/executive-interactive-dashboard.html`. The catalog includes map/geography, theme, brand-kit, palette-swatch, pictorial-symbol, pictorial-Isotype, point-color customization, word-cloud-control, and interactive demo pages so visual choices can be reviewed in HTML, SVG, PNG, and opt-in self-contained HTML interactivity.
 
-The GitHub Actions workflow is configured for private repositories and requires a self-hosted runner with the labels `self-hosted` and `private`.
+The GitHub Actions workflow is configured for private repositories and requires a self-hosted Linux x64 runner with the labels `self-hosted`, `Linux`, and `X64`.
 
 ## Design principles
 
@@ -64,7 +83,9 @@ ChartForgeX
 │   ├── Themes                  # light/dark themes
 │   ├── Svg                     # beautiful SVG renderer
 │   ├── Html                    # standalone page and HTML fragment renderer
-│   └── Raster                  # minimal PNG renderer and PNG writer
+│   ├── Raster                  # minimal PNG renderer and PNG writer
+│   ├── Topology                # product-neutral topology model and renderers
+│   └── VisualBlocks            # tables, lists, metric cards, mixed visual grids
 ├── ChartForgeX.Interactivity    # host-neutral interaction contracts
 ├── ChartForgeX.Interactivity.Html # self-contained HTML/SVG adapter
 ├── ChartForgeX.Examples         # sample console app
@@ -129,13 +150,48 @@ report.SavePng("scorecards.png");
 
 Use `Add(chart, columnSpan, rowSpan)` or `WithPanelSpan(index, columnSpan, rowSpan)` when a report needs a hero panel, wide trend, or tall narrative chart without creating a new chart type just for layout.
 
+`ChartGrid` is intentionally chart-only. Use `ChartForgeX.VisualBlocks` when a report needs exact facts beside charts instead of pretending tables, lists, metric cards, status panels, or infographic snippets are chart series. That keeps PowerBGInfo, ImagePlayground, email, Word, and desktop wallpaper scenarios free to compose exact-fact blocks beside charts without locking non-chart content into a chart-series contract.
+
+```csharp
+using ChartForgeX;
+using ChartForgeX.VisualBlocks;
+
+var drives = ChartTable.Create()
+    .WithTheme(ChartTheme.TransparentOverlayDark())
+    .WithTransparentBackground()
+    .AddColumn("Drive")
+    .AddColumn("Used", VisualTextAlignment.Right, format: "0%")
+    .AddColumn("Free", VisualTextAlignment.Right)
+    .AddColumn("Status")
+    .AddRow("C:", 0.72, "128 GB", "OK")
+    .AddRow("D:", 0.91, "34 GB", "Warning")
+    .WithStatusColumn("Status")
+    .WithDenseMode();
+
+var card = MetricCard.Create()
+    .WithMetric("Patch compliance", 0.94, "P0")
+    .WithTrend("+4 pp")
+    .WithStatus(VisualStatus.Positive);
+
+var snapshot = VisualGrid.Create()
+    .WithTitle("System Snapshot")
+    .WithColumns(2)
+    .Add(chart)
+    .Add(drives)
+    .Add(card, columnSpan: 2);
+
+snapshot.SaveSvg("snapshot.svg");
+snapshot.SaveHtml("snapshot.html");
+snapshot.SavePng("snapshot.png");
+```
+
 ChartForgeX validates chart data before rendering so invalid report payloads fail close to the caller instead of producing partial markup or malformed PNGs. Public APIs reject non-finite numbers, invalid enum values, empty required data sets, malformed specialized series, negative proportional values, cyclic Sankey flows, and tree data with multiple roots or parents. HTML fragments and grids scope child SVG IDs per render, so repeated or identical charts can be safely embedded on the same page. When embedding raw SVG strings yourself, pass a stable scope such as `chart.ToSvg("panel-a")` or `grid.ToSvg("report-a")` to keep element IDs unique without giving up deterministic output.
 
 For a single chart, `WithXAxisBounds(minimum, maximum)` and `WithYAxisBounds(minimum, maximum)` pin cartesian axes explicitly. `WithAutomaticXAxisBounds()` and `WithAutomaticYAxisBounds()` return them to data-driven scaling.
 
 Use `WithXAxisVisible(false)` or `WithYAxisVisible(false)` when an infographic-style chart should keep one axis worth of labels while removing the other axis line, ticks, and title. Use `WithAxisLines(false)` when tick labels and titles should remain but the axis rules and zero-lines should disappear. For example, horizontal scorecards often keep category labels on the left and hide the numeric value axis plus the remaining axis rule.
 
-Topology diagrams live in `ChartForgeX.Topology` because they are diagram models, not dashboard pages or data collectors. `TopologyChart` owns reusable groups, nodes, edges, deterministic layout hints, validation, SVG rendering, PNG rendering, and a tiny HTML wrapper that embeds the SVG in a neutral `<div>`. Complete topology HTML pages include lightweight pointer/focus hover, click selection, and keyboard selection by default. They dispatch `cfx-topology-hover`, `cfx-topology-hover-clear`, `cfx-topology-select`, `cfx-topology-clear`, and `cfx-topology-navigate` with selected ids, kind/status, metadata, metrics, route diagnostics, geographic route-arc diagnostics, endpoint context, and related node/edge/group ids; hosts can also dispatch `cfx-topology-set-selection` or `cfx-topology-clear-selection` to control state. Arrow keys cycle focus through related topology elements. Set `EnableHtmlViewportControls = true` to add opt-in zoom/pan/reset controls with `cfx-topology-viewport` host events and host-driven `cfx-topology-set-viewport` / `cfx-topology-reset-viewport` support. Set `EnableHtmlExportControls = true` to add opt-in SVG/PNG export buttons with `cfx-topology-export` host events. Set `EnableHtmlSynchronizedState = true` with `HtmlSyncGroupName` to mirror selection clears and viewport state across topology wrappers on the same page. Set `EnableHtmlInteractions = false` when HtmlForgeX or another host wants to own all behavior. HtmlForgeX can later host the rendered SVG in cards, filters, tabs, and inspector panels, while TestimoX or another product can map its own collected data into the model.
+Topology diagrams live in `ChartForgeX.Topology` because they are diagram models, not dashboard pages or data collectors. `TopologyChart` owns reusable groups, nodes, edges, deterministic layout hints, validation, SVG rendering, PNG rendering, and a tiny HTML wrapper that embeds the SVG in a neutral `<div>`. Complete topology HTML pages are static and script-free by default. Set `EnableHtmlInteractions = true` to add lightweight pointer/focus hover, click selection, keyboard selection, and host events. Interactive pages dispatch `cfx-topology-hover`, `cfx-topology-hover-clear`, `cfx-topology-select`, `cfx-topology-clear`, and `cfx-topology-navigate` with selected ids, kind/status, metadata, metrics, route diagnostics, geographic route-arc diagnostics, endpoint context, and related node/edge/group ids; hosts can also dispatch `cfx-topology-set-selection` or `cfx-topology-clear-selection` to control state. Arrow keys cycle focus through related topology elements. With interactions enabled, set `EnableHtmlViewportControls = true` to add opt-in zoom/pan/reset controls with `cfx-topology-viewport` host events and host-driven `cfx-topology-set-viewport` / `cfx-topology-reset-viewport` support. Set `EnableHtmlExportControls = true` to add opt-in SVG/PNG export buttons with `cfx-topology-export` host events. Set `EnableHtmlSynchronizedState = true` with `HtmlSyncGroupName` to mirror selection clears and viewport state across topology wrappers on the same page. HtmlForgeX can later host the rendered SVG in cards, filters, tabs, and inspector panels, while TestimoX or another product can map its own collected data into the model.
 
 ```csharp
 using ChartForgeX.Topology;
