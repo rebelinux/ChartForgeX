@@ -46,6 +46,10 @@ internal static partial class SmokeTests {
         Assert(CountOccurrences(svg, "data-cfx-role=\"bar-cap-shadow\"") == 12, "Segmented capsule bars should render soft cap shadows.");
         Assert(svg.Contains("opacity=\"0.22\"", StringComparison.Ordinal), "Segmented capsule bars should render translucent segment bodies from style tokens.");
         Assert(svg.Contains("stroke-dasharray=\"4 6\"", StringComparison.Ordinal), "Dashboard grid styles should render dashed guide lines.");
+        var axisHighlightOptions = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Core", "ChartOptions.AxisLabels.cs"));
+        Assert(axisHighlightOptions.Contains("AxisValueEquals", StringComparison.Ordinal), "X-axis label highlights should resolve generated tick values with a floating-point tolerance.");
+        var clearedFocus = Chart.Create().WithFocusedXAxisCategory(2, paletteIndex: 1).ClearHighlightedXAxisLabels();
+        Assert(clearedFocus.Options.XAxisLabelHighlights.Count == 0 && clearedFocus.Annotations.Count == 0, "Clearing x-axis label highlights should also clear focus guide annotations.");
 
         var trendSvg = Chart.Create()
             .WithSize(420, 260)
@@ -107,6 +111,8 @@ internal static partial class SmokeTests {
         Assert(rangeAreaSvg.Contains("data-cfx-role=\"range-area-upper-halo\"", StringComparison.Ordinal) && rangeAreaSvg.Contains("stroke-width=\"14\"", StringComparison.Ordinal), "SVG range-area halos should honor reusable line halo width tokens.");
         var pngCartesian = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.Cartesian.cs"));
         Assert(!pngCartesian.Contains("Math.Max(24", StringComparison.Ordinal) && !pngCartesian.Contains("Math.Max(10", StringComparison.Ordinal), "PNG premium line halos should honor low opacity style tokens without renderer-specific alpha floors.");
+        var pngRenderer = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.cs"));
+        Assert(pngRenderer.Contains("HorizontalValueGridOpacity", StringComparison.Ordinal) && pngRenderer.Contains("HorizontalCategoryGridOpacity", StringComparison.Ordinal), "PNG horizontal-bar grids should preserve tuned default value/category guide emphasis.");
         var compactSegmentedSvg = Chart.Create()
             .WithSize(220, 140)
             .WithYAxisBounds(0, 100000)

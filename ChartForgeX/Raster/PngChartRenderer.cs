@@ -436,13 +436,13 @@ public sealed partial class PngChartRenderer {
         for (var i = 0; i < xTicks.Count; i++) {
             var x = map.X(xTicks[i]);
             var label = xLabels[i];
-            if (o.ShowGrid && gridStyle.ShowVerticalLines) DrawPngGridLine(c, x, plot.Top, x, plot.Bottom, ApplyOpacity(t.Grid, gridStyle.VerticalOpacity), gridStyle);
+            if (o.ShowGrid && gridStyle.ShowVerticalLines) DrawPngGridLine(c, x, plot.Top, x, plot.Bottom, ApplyOpacity(t.Grid, HorizontalValueGridOpacity(gridStyle)), gridStyle);
             if (ShowXAxis(chart)) DrawXAxisTickLabel(c, chart, plot, label, x, xTicks[i], xLabels);
         }
 
         foreach (var category in categories) {
             var y = map.Y(category);
-            if (o.ShowGrid && gridStyle.ShowHorizontalLines) DrawPngGridLine(c, plot.Left, y, plot.Right, y, ApplyOpacity(t.Grid, gridStyle.HorizontalOpacity), gridStyle);
+            if (o.ShowGrid && gridStyle.ShowHorizontalLines) DrawPngGridLine(c, plot.Left, y, plot.Right, y, ApplyOpacity(t.Grid, HorizontalCategoryGridOpacity(gridStyle)), gridStyle);
             if (ShowYAxis(chart)) DrawHorizontalCategoryLabel(c, chart, plot, FormatX(chart, category), y);
         }
 
@@ -459,6 +459,20 @@ public sealed partial class PngChartRenderer {
     }
 
     private static string FormatNumber(double v) => ChartNumericFormatter.FormatCompact(v);
+
+    private static double HorizontalValueGridOpacity(ChartGridLineStyle style) => IsDefaultHorizontalGridStyle(style) ? ChartVisualPrimitives.HorizontalBarValueGridOpacity : style.VerticalOpacity;
+
+    private static double HorizontalCategoryGridOpacity(ChartGridLineStyle style) => IsDefaultHorizontalGridStyle(style) ? ChartVisualPrimitives.HorizontalBarCategoryGridOpacity : style.HorizontalOpacity;
+
+    private static bool IsDefaultHorizontalGridStyle(ChartGridLineStyle style) =>
+        style.ShowHorizontalLines &&
+        style.ShowVerticalLines &&
+        Math.Abs(style.HorizontalOpacity - 1.0) < 0.000001 &&
+        Math.Abs(style.VerticalOpacity - 0.42) < 0.000001 &&
+        Math.Abs(style.StrokeWidth - 1.0) < 0.000001 &&
+        Math.Abs(style.Dash) < 0.000001 &&
+        Math.Abs(style.Gap) < 0.000001;
+
     private static string FormatValue(Chart chart, double value) {
         var formatter = chart.Options.ValueFormatter;
         if (formatter == null) return FormatNumber(value);

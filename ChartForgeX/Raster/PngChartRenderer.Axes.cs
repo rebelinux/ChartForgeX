@@ -14,7 +14,7 @@ public sealed partial class PngChartRenderer {
 
     private static void DrawXAxisTickLabel(RgbaCanvas c, Chart chart, ChartRect plot, string label, double x, double value, IReadOnlyList<string>? axisLabels = null) {
         var preferredFontSize = PngTickFontSize(chart);
-        var color = chart.Options.XAxisLabelHighlights.TryGetValue(value, out var highlight) ? highlight : PngTickColor(chart);
+        var color = chart.Options.TryGetXAxisLabelHighlight(value, out var highlight) ? highlight : PngTickColor(chart);
         var angle = Clamp(chart.Options.XAxisLabelAngle, -80, 80);
         var maxWidth = PngAxisTickLabelMaxWidth(plot, axisLabels?.Count ?? 0, angle);
         var fontSize = TextFontSizeForWidth(label, maxWidth, preferredFontSize);

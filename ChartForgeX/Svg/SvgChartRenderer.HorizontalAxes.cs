@@ -21,7 +21,7 @@ public sealed partial class SvgChartRenderer {
             var x = map.X(xTicks[i]);
             var label = TrimSvgLabelToWidth(xLabels[i], tickFontSize, xLabelMaxWidth);
             if (o.ShowGrid && gridStyle.ShowVerticalLines) WriteHorizontalAxisLine(sb, null, x, plot.Top, x, plot.Bottom, t.Grid.ToCss(), gridStyle.StrokeWidth, HorizontalValueGridOpacity(gridStyle), gridStyle);
-            var labelColor = o.XAxisLabelHighlights.TryGetValue(xTicks[i], out var highlight) ? highlight : (ChartColor?)null;
+            var labelColor = o.TryGetXAxisLabelHighlight(xTicks[i], out var highlight) ? highlight : (ChartColor?)null;
             if (ShowXAxis(chart) && label.Length > 0) DrawXAxisLabel(sb, chart, plot, label, x, plot.Bottom + 21, 0, maxWidth: xLabelMaxWidth, color: labelColor);
         }
 

@@ -427,7 +427,7 @@ public sealed partial class SvgChartRenderer {
             var xv = xTicks[i];
             var x = map.X(xv);
             if (o.ShowGrid && gridStyle.ShowVerticalLines) WriteSvgGridLine(sb, x, plot.Top, x, plot.Bottom, t.Grid.ToCss(), gridStyle.StrokeWidth, gridStyle.VerticalOpacity, gridStyle);
-            var labelColor = o.XAxisLabelHighlights.TryGetValue(xv, out var highlight) ? highlight : (ChartColor?)null;
+            var labelColor = o.TryGetXAxisLabelHighlight(xv, out var highlight) ? highlight : (ChartColor?)null;
             if (ShowXAxis(chart)) DrawXAxisLabel(sb, chart, plot, xLabels[i], x, xLabelY, xLabelAngle, maxWidth: xLabelMaxWidth, color: labelColor);
         }
         var zeroY = map.Y(0);
