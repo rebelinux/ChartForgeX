@@ -26,6 +26,11 @@ internal static class VisualBlockRendering {
             if (card.Label.Length == 0) throw new InvalidOperationException("Metric cards must define a label.");
             if (card.Value.Length == 0) throw new InvalidOperationException("Metric cards must define a value.");
             if (card.Symbol.Length > 12) throw new InvalidOperationException("Metric card symbols must be twelve characters or fewer.");
+            foreach (var detail in card.Details) {
+                if (detail.Label.Length == 0) throw new InvalidOperationException("Metric card details must define a label.");
+                if (detail.Value.Length == 0) throw new InvalidOperationException("Metric card details must define a value.");
+            }
+
             if (card.ActionLabel.Length > 48) throw new InvalidOperationException("Metric card action labels must be forty-eight characters or fewer.");
             if (card.ActionSymbol.Length > 4) throw new InvalidOperationException("Metric card action symbols must be four characters or fewer.");
             if (card.ActionUrl.Length > 0 && !IsSafeActionUrl(card.ActionUrl)) throw new InvalidOperationException("Metric card action URLs must be relative URLs, http(s), or mailto links.");

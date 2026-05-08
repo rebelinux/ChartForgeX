@@ -43,7 +43,10 @@ public sealed class SvgVisualBlockRenderer {
             .Line();
 
         if (!options.TransparentBackground && theme.Background.A > 0) writer.StartElement("rect").Attribute("width", "100%").Attribute("height", "100%").Attribute("fill", theme.Background.ToCss()).EndEmptyElement().Line();
-        if (options.ShowCard && theme.UseCard) writer.StartElement("rect").Attribute("data-cfx-role", "visual-card").Attribute("x", 0).Attribute("y", 0).Attribute("width", options.Size.Width).Attribute("height", options.Size.Height).Attribute("rx", theme.CornerRadius).Attribute("fill", theme.CardBackground.ToCss()).Attribute("stroke", theme.CardBorder.ToCss()).EndEmptyElement().Line();
+        if (options.ShowCard && theme.UseCard) {
+            writer.StartElement("rect").Attribute("data-cfx-role", "visual-card").Attribute("x", 0.5).Attribute("y", 0.5).Attribute("width", Math.Max(0, options.Size.Width - 1)).Attribute("height", Math.Max(0, options.Size.Height - 1)).Attribute("rx", Math.Max(0, theme.CornerRadius - 0.5)).Attribute("fill", theme.CardBackground.ToCss()).Attribute("stroke", theme.CardBorder.ToCss()).EndEmptyElement().Line();
+            writer.StartElement("rect").Attribute("data-cfx-role", "visual-card-highlight").Attribute("x", 1.5).Attribute("y", 1.5).Attribute("width", Math.Max(0, options.Size.Width - 3)).Attribute("height", Math.Max(0, options.Size.Height - 3)).Attribute("rx", Math.Max(0, theme.CornerRadius - 1.5)).Attribute("fill", "none").Attribute("stroke", "#fff").Attribute("stroke-opacity", 0.36).EndEmptyElement().Line();
+        }
 
         if (block is ChartTable table) RenderTable(writer, table);
         else if (block is ChartList list) RenderList(writer, list);
@@ -175,6 +178,8 @@ public sealed class SvgVisualBlockRenderer {
         writer.StartElement("text").Attribute("data-cfx-role", "metric-value").Attribute("x", content.X).Attribute("y", content.Y + labelSize + valueSize + 14 + valueYOffset).Attribute("fill", theme.Text.ToCss()).Attribute("font-family", theme.FontFamily).Attribute("font-size", valueSize).Attribute("font-weight", "850").Text(VisualBlockRendering.FitText(card.Value, valueSize, valueWidth)).EndElement().Line();
         if (card.MiniSparkline.Count > 0) RenderMetricMiniSparkline(writer, card, content.X + content.Width - microWidth, content.Y + labelSize + Math.Max(20, valueSize * 0.52) + valueYOffset, microWidth, microHeight);
         else if (card.MiniBars.Count > 0) RenderMetricMiniBars(writer, card, content.X + content.Width - microWidth, content.Y + labelSize + Math.Max(20, valueSize * 0.52) + valueYOffset, microWidth, microHeight);
+        var detailsTop = content.Y + labelSize + valueSize + 22 + valueYOffset;
+        RenderMetricDetails(writer, card, content, detailsTop, detailBottom);
         RenderMetricDetail(writer, card, detailBottom, content.X, content.Width);
         if (hasAction) RenderMetricAction(writer, card, footerY, footerHeight, content.X, content.Width);
     }
@@ -257,6 +262,33 @@ public sealed class SvgVisualBlockRenderer {
         var last = sparkline.Current;
         writer.StartElement("circle").Attribute("data-cfx-role", "metric-mini-sparkline-current").Attribute("cx", last.X).Attribute("cy", last.Y).Attribute("r", sparkline.CurrentRadius).Attribute("fill", sparkline.LineColor.ToCss()).EndEmptyElement().Line();
         writer.EndElement().Line();
+    }
+
+    private static void RenderMetricDetails(SvgMarkupWriter writer, MetricCard card, ChartRect content, double top, double bottom) {
+        if (card.Details.Count == 0 || bottom <= top + 18) return;
+        var theme = card.Options.Theme;
+        var count = Math.Min(card.Details.Count, 4);
+        var columns = count <= 2 ? count : 2;
+        var rows = (int)Math.Ceiling(count / (double)columns);
+        var rowHeight = Math.Min(28, Math.Max(21, (bottom - top) / rows));
+        var gap = 8.0;
+        var cellWidth = (content.Width - gap * (columns - 1)) / columns;
+        var labelSize = Math.Max(9, theme.SubtitleFontSize - 3);
+        var valueSize = Math.Max(10, theme.SubtitleFontSize - 1);
+        for (var i = 0; i < count; i++) {
+            var detail = card.Details[i];
+            var column = i % columns;
+            var row = i / columns;
+            var x = content.X + column * (cellWidth + gap);
+            var y = top + row * rowHeight;
+            var marker = VisualBlockRendering.StatusColor(theme, detail.Status);
+            writer.StartElement("g").Attribute("data-cfx-role", "metric-detail").Attribute("data-cfx-label", detail.Label).EndStartElement().Line();
+            writer.StartElement("rect").Attribute("x", x).Attribute("y", y).Attribute("width", cellWidth).Attribute("height", rowHeight - 4).Attribute("rx", Math.Min(8, (rowHeight - 4) / 2)).Attribute("fill", theme.PlotBackground.WithAlpha(150).ToCss()).Attribute("stroke", theme.CardBorder.WithAlpha(120).ToCss()).EndEmptyElement().Line();
+            writer.StartElement("circle").Attribute("cx", x + 10).Attribute("cy", y + rowHeight / 2 - 2).Attribute("r", 3.2).Attribute("fill", marker.ToCss()).EndEmptyElement().Line();
+            writer.StartElement("text").Attribute("x", x + 18).Attribute("y", y + rowHeight / 2 - 4).Attribute("fill", theme.MutedText.ToCss()).Attribute("font-family", theme.FontFamily).Attribute("font-size", labelSize).Attribute("font-weight", "650").Text(VisualBlockRendering.FitText(detail.Label, labelSize, cellWidth * 0.55)).EndElement().Line();
+            writer.StartElement("text").Attribute("x", x + cellWidth - 9).Attribute("y", y + rowHeight / 2 + 7).Attribute("text-anchor", "end").Attribute("fill", theme.Text.ToCss()).Attribute("font-family", theme.FontFamily).Attribute("font-size", valueSize).Attribute("font-weight", "800").Text(VisualBlockRendering.FitText(detail.Value, valueSize, cellWidth * 0.42)).EndElement().Line();
+            writer.EndElement().Line();
+        }
     }
 
     private static void RenderRadialMetric(SvgMarkupWriter writer, RadialMetricCard card) {

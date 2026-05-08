@@ -13,7 +13,7 @@ public sealed partial class SvgChartRenderer {
         var rows = chart.Series.Where(series => series.Kind == ChartSeriesKind.Heatmap).ToArray();
         if (rows.Length == 0) return;
 
-        var columns = rows.SelectMany(series => series.Points.Select(point => point.X)).Distinct().OrderBy(value => value).ToArray();
+        var columns = HeatmapColumns(rows);
         if (columns.Length == 0) return;
 
         var t = chart.Options.Theme;
@@ -42,6 +42,8 @@ public sealed partial class SvgChartRenderer {
             }
             for (var columnIndex = 0; columnIndex < columns.Length; columnIndex++) {
                 var column = columns[columnIndex];
+                var pointIndex = HeatmapPointIndex(series, column);
+                if (pointIndex < 0) continue;
                 var value = FindHeatmapValue(series, column);
                 var x = plot.Left + columnIndex * (cellWidth + gap);
                 var ratio = HeatmapRatio(value, min, max);
@@ -51,8 +53,7 @@ public sealed partial class SvgChartRenderer {
                 if (chart.Options.HeatmapScale == ChartHeatmapScale.Semantic) summary += ", " + status;
                 WriteHeatmapCell(body, chart, rowIndex, columnIndex, status, summary, x, y, cellWidth, cellHeight, radius, color);
                 if (ShouldDrawDataLabels(chart, series) && cellWidth >= 34 && cellHeight >= 20) {
-                    var label = FormatValue(chart, value);
-                    var pointIndex = HeatmapPointIndex(series, column);
+                    var label = FormatDataLabel(chart, series, pointIndex, value);
                     var placement = DataLabelPlacement(chart, series);
                     if (placement == ChartDataLabelPlacement.Auto || placement == ChartDataLabelPlacement.Inside || placement == ChartDataLabelPlacement.Center) {
                         DrawSvgTextCenteredX(body, chart, "data-label", label, x + cellWidth / 2, y + cellHeight / 2, HeatmapTextColor(color), t.DataLabelFontSize, cellWidth - 6, "750", style: DataLabelStyle(chart, series, pointIndex));
@@ -97,6 +98,10 @@ public sealed partial class SvgChartRenderer {
         writer
             .StartElement("g")
             .Attribute("data-cfx-role", "heatmap")
+            .Attribute("data-cfx-row-count", rows.Length)
+            .Attribute("data-cfx-column-count", columns.Length)
+            .Attribute("data-cfx-min", min)
+            .Attribute("data-cfx-max", max)
             .Raw(Environment.NewLine)
             .Raw(body.ToString())
             .EndElement()
@@ -207,9 +212,10 @@ public sealed partial class SvgChartRenderer {
             if (placement != ChartDataLabelPlacement.Left && placement != ChartDataLabelPlacement.Right && placement != ChartDataLabelPlacement.Outside) continue;
             for (var i = 0; i < columns.Count; i++) {
                 var pointIndex = HeatmapPointIndex(row, columns[i]);
+                if (pointIndex < 0) continue;
                 var style = DataLabelStyle(chart, row, pointIndex);
                 var fontSize = StyleFontSize(style, chart.Options.Theme.DataLabelFontSize);
-                max = Math.Max(max, EstimateTextWidth(FormatValue(chart, FindHeatmapValue(row, columns[i])), fontSize));
+                max = Math.Max(max, EstimateTextWidth(FormatDataLabel(chart, row, pointIndex, FindHeatmapValue(row, columns[i])), fontSize));
             }
         }
 
@@ -335,6 +341,18 @@ public sealed partial class SvgChartRenderer {
     private static ChartColor HeatmapTextColor(ChartColor background) {
         var luminance = (0.2126 * background.R + 0.7152 * background.G + 0.0722 * background.B) / 255;
         return luminance > 0.54 ? ChartColor.FromRgb(15, 23, 42) : ChartColor.White;
+    }
+
+    private static double[] HeatmapColumns(IReadOnlyList<ChartSeries> rows) {
+        var columns = new SortedSet<double>();
+        foreach (var series in rows) {
+            foreach (var point in series.Points) columns.Add(point.X);
+            if (series.HeatmapColumnCount.HasValue) {
+                for (var i = 1; i <= series.HeatmapColumnCount.Value; i++) columns.Add(i);
+            }
+        }
+
+        return columns.ToArray();
     }
 
     private static double FindHeatmapValue(ChartSeries series, double column) {

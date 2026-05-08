@@ -8,6 +8,7 @@ namespace ChartForgeX.VisualBlocks;
 /// A compact KPI or metric card visual block.
 /// </summary>
 public sealed class MetricCard : VisualBlock<MetricCard> {
+    private readonly List<MetricCardDetail> _details = new();
     private readonly List<double> _miniBars = new();
     private readonly List<double> _miniSparkline = new();
     private string _label = string.Empty;
@@ -32,6 +33,9 @@ public sealed class MetricCard : VisualBlock<MetricCard> {
 
     /// <summary>Gets compact sparkline values rendered inside the metric card.</summary>
     public IReadOnlyList<double> MiniSparkline => _miniSparkline;
+
+    /// <summary>Gets compact supporting detail rows rendered inside the card.</summary>
+    public IReadOnlyList<MetricCardDetail> Details => _details;
 
     /// <summary>Gets or sets the metric label.</summary>
     public string Label { get => _label; set => _label = value ?? throw new ArgumentNullException(nameof(value)); }
@@ -160,6 +164,12 @@ public sealed class MetricCard : VisualBlock<MetricCard> {
     /// <summary>Sets optional trend text.</summary>
     public MetricCard WithTrend(string trend) { Trend = trend ?? throw new ArgumentNullException(nameof(trend)); return this; }
 
+    /// <summary>Adds a compact detail row to the card.</summary>
+    public MetricCard AddDetail(string label, object? value, VisualStatus status = VisualStatus.Neutral, string? format = null) {
+        _details.Add(new MetricCardDetail(label, ChartTableCell.FromValue(value, format).Text, status));
+        return this;
+    }
+
     /// <summary>Sets an optional compact symbol rendered as a badge.</summary>
     public MetricCard WithSymbol(string symbol) { Symbol = symbol ?? throw new ArgumentNullException(nameof(symbol)); return this; }
 
@@ -253,4 +263,35 @@ public sealed class MetricCard : VisualBlock<MetricCard> {
     }
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+}
+
+/// <summary>
+/// A compact supporting metric rendered inside a <see cref="MetricCard"/>.
+/// </summary>
+public sealed class MetricCardDetail {
+    private string _label;
+    private string _value;
+    private VisualStatus _status;
+
+    /// <summary>Initializes a metric card detail.</summary>
+    public MetricCardDetail(string label, string value, VisualStatus status = VisualStatus.Neutral) {
+        _label = label ?? throw new ArgumentNullException(nameof(label));
+        _value = value ?? throw new ArgumentNullException(nameof(value));
+        Status = status;
+    }
+
+    /// <summary>Gets or sets the detail label.</summary>
+    public string Label { get => _label; set => _label = value ?? throw new ArgumentNullException(nameof(value)); }
+
+    /// <summary>Gets or sets the detail value.</summary>
+    public string Value { get => _value; set => _value = value ?? throw new ArgumentNullException(nameof(value)); }
+
+    /// <summary>Gets or sets the semantic status color for the detail marker.</summary>
+    public VisualStatus Status {
+        get => _status;
+        set {
+            VisualBlockGuards.EnumDefined(value, nameof(value));
+            _status = value;
+        }
+    }
 }

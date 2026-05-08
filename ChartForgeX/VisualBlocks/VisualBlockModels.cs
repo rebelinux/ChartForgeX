@@ -580,6 +580,7 @@ public sealed class VisualGrid {
     private int _pngOutputScale = 1;
     private ChartSize? _panelSize;
     private VisualGridPanelFit _panelFit = VisualGridPanelFit.Contain;
+    private bool _frameVisible;
 
     /// <summary>Gets or sets the grid title.</summary>
     public string Title { get => _title; set => _title = value ?? throw new ArgumentNullException(nameof(value)); }
@@ -598,6 +599,9 @@ public sealed class VisualGrid {
 
     /// <summary>Gets or sets the PNG output pixel multiplier.</summary>
     public int PngOutputScale { get => _pngOutputScale; set { if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value), value, "PNG output scale must be between one and four."); _pngOutputScale = value; } }
+
+    /// <summary>Gets or sets a value indicating whether the grid should render a subtle outer frame.</summary>
+    public bool FrameVisible { get => _frameVisible; set => _frameVisible = value; }
 
     /// <summary>Gets or sets the optional fixed panel size.</summary>
     public ChartSize? PanelSize {
@@ -673,6 +677,9 @@ public sealed class VisualGrid {
 
     /// <summary>Sets the PNG output pixel multiplier.</summary>
     public VisualGrid WithPngOutputScale(int scale) { PngOutputScale = scale; return this; }
+
+    /// <summary>Sets whether the grid renders a subtle outer frame.</summary>
+    public VisualGrid WithFrame(bool visible = true) { FrameVisible = visible; return this; }
 
     /// <summary>Adds a chart panel.</summary>
     public VisualGrid Add(Chart chart, int columnSpan = 1, int rowSpan = 1) {

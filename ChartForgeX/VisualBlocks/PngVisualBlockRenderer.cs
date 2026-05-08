@@ -24,6 +24,7 @@ public sealed class PngVisualBlockRenderer {
         if (options.ShowCard && theme.UseCard) {
             canvas.FillRoundedRect(0, 0, options.Size.Width, options.Size.Height, theme.CornerRadius, theme.CardBackground);
             canvas.StrokeRoundedRect(0.5, 0.5, Math.Max(1, options.Size.Width - 1), Math.Max(1, options.Size.Height - 1), theme.CornerRadius, theme.CardBorder, 1);
+            canvas.StrokeRoundedRect(1.5, 1.5, Math.Max(1, options.Size.Width - 3), Math.Max(1, options.Size.Height - 3), Math.Max(0, theme.CornerRadius - 1.5), ChartColor.FromRgba(255, 255, 255, 92), 1);
         }
 
         if (block is ChartTable table) DrawTable(canvas, table);
@@ -154,6 +155,8 @@ public sealed class PngVisualBlockRenderer {
         canvas.DrawTextEmphasized(content.X, content.Y + labelSize + 18 + valueYOffset, FitText(card.Value, valueSize, valueWidth), theme.Text, valueSize);
         if (card.MiniSparkline.Count > 0) DrawMetricMiniSparkline(canvas, card, content.X + content.Width - microWidth, content.Y + labelSize + Math.Max(20, valueSize * 0.52) + valueYOffset, microWidth, microHeight);
         else if (card.MiniBars.Count > 0) DrawMetricMiniBars(canvas, card, content.X + content.Width - microWidth, content.Y + labelSize + Math.Max(20, valueSize * 0.52) + valueYOffset, microWidth, microHeight);
+        var detailsTop = content.Y + labelSize + valueSize + 24 + valueYOffset;
+        DrawMetricDetails(canvas, card, content, detailsTop, detailBottom);
         DrawMetricDetail(canvas, card, detailBottom, content.X, content.Width);
         if (hasAction) DrawMetricAction(canvas, card, footerY, footerHeight, content.X, content.Width);
     }
@@ -200,6 +203,33 @@ public sealed class PngVisualBlockRenderer {
         canvas.FillPolygon(sparkline.Area, sparkline.FillColor);
         for (var i = 1; i < sparkline.Points.Length; i++) canvas.DrawLine(sparkline.Points[i - 1].X, sparkline.Points[i - 1].Y, sparkline.Points[i].X, sparkline.Points[i].Y, sparkline.LineColor, sparkline.StrokeWidth);
         canvas.DrawCircle(sparkline.Current.X, sparkline.Current.Y, sparkline.CurrentRadius, sparkline.LineColor);
+    }
+
+    private static void DrawMetricDetails(RgbaCanvas canvas, MetricCard card, ChartRect content, double top, double bottom) {
+        if (card.Details.Count == 0 || bottom <= top + 18) return;
+        var theme = card.Options.Theme;
+        var count = Math.Min(card.Details.Count, 4);
+        var columns = count <= 2 ? count : 2;
+        var rows = (int)Math.Ceiling(count / (double)columns);
+        var rowHeight = Math.Min(28, Math.Max(21, (bottom - top) / rows));
+        var gap = 8.0;
+        var cellWidth = (content.Width - gap * (columns - 1)) / columns;
+        var labelSize = Math.Max(9, theme.SubtitleFontSize - 3);
+        var valueSize = Math.Max(10, theme.SubtitleFontSize - 1);
+        for (var i = 0; i < count; i++) {
+            var detail = card.Details[i];
+            var column = i % columns;
+            var row = i / columns;
+            var x = content.X + column * (cellWidth + gap);
+            var y = top + row * rowHeight;
+            var height = rowHeight - 4;
+            var marker = VisualBlockRendering.StatusColor(theme, detail.Status);
+            canvas.FillRoundedRect(x, y, cellWidth, height, Math.Min(8, height / 2), theme.PlotBackground.WithAlpha(150));
+            canvas.StrokeRoundedRect(x, y, cellWidth, height, Math.Min(8, height / 2), theme.CardBorder.WithAlpha(120));
+            canvas.DrawCircle(x + 10, y + rowHeight / 2 - 2, 3.2, marker);
+            canvas.DrawTextEmphasized(x + 18, y + rowHeight / 2 - labelSize * 0.45, FitText(detail.Label, labelSize, cellWidth * 0.55), theme.MutedText, labelSize);
+            DrawAlignedText(canvas, detail.Value, x + cellWidth * 0.58, y + rowHeight / 2 - valueSize * 0.35, cellWidth * 0.36, VisualTextAlignment.Right, theme.Text, valueSize, true);
+        }
     }
 
     private static void DrawRadialMetric(RgbaCanvas canvas, RadialMetricCard card) {

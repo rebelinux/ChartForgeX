@@ -55,11 +55,14 @@ internal static partial class SmokeTests {
             .WithCaption("since previous run")
             .WithAction("Open details", url: "#coverage")
             .WithStatus(VisualStatus.Positive)
+            .AddDetail("Ready", "84%", VisualStatus.Positive)
+            .AddDetail("Risk", "6%", VisualStatus.Warning)
             .WithMiniBars(new[] { 72d, 78d, 83d, 80d, 98d }, maximum: 100)
             .WithTheme(ChartTheme.ReportLight())
             .WithSize(360, 190);
         var metricSvg = metric.ToSvg("visual-block-metric");
         Assert(metricSvg.Contains("data-cfx-role=\"metric-status-bar\"", StringComparison.Ordinal), "MetricCard should render status styling.");
+        Assert(metricSvg.Contains("data-cfx-role=\"metric-detail\"", StringComparison.Ordinal), "MetricCard should render reusable supporting details.");
         Assert(metricSvg.Contains("data-cfx-role=\"visual-icon\"", StringComparison.Ordinal), "MetricCard should render reusable built-in icons.");
         Assert(metricSvg.Contains("data-cfx-placement=\"top-left\"", StringComparison.Ordinal), "MetricCard should render configurable badge placement.");
         Assert(metricSvg.Contains("data-cfx-role=\"metric-action-label\"", StringComparison.Ordinal), "MetricCard should render optional footer action text.");
@@ -112,15 +115,17 @@ internal static partial class SmokeTests {
             .WithTheme(ChartTheme.ReportDark())
             .WithColumns(2)
             .WithPanelSize(420, 260)
+            .WithFrame()
             .Add(chart)
             .Add(table)
             .Add(metric, columnSpan: 2);
 
         var svg = grid.ToSvg("visual-grid-smoke");
+        Assert(svg.Contains("data-cfx-role=\"visual-grid-frame\"", StringComparison.Ordinal), "VisualGrid should render optional premium frames in SVG.");
         Assert(svg.Contains("data-cfx-role=\"visual-grid-panel\"", StringComparison.Ordinal), "VisualGrid should mark child panels.");
         Assert(svg.Contains("data-cfx-role=\"metric-value\"", StringComparison.Ordinal), "VisualGrid should embed visual block SVG.");
         Assert(svg.Contains("Trend", StringComparison.Ordinal), "VisualGrid should embed chart SVG.");
-        Assert(grid.ToHtmlPage().Contains("chartforgex-visual-grid", StringComparison.Ordinal), "VisualGrid should render a static HTML page.");
+        Assert(grid.ToHtmlPage().Contains("chartforgex-visual-grid has-fixed-panels has-frame", StringComparison.Ordinal), "VisualGrid should render optional premium frames in static HTML pages.");
         Assert(grid.ToPng().Length > 64, "VisualGrid should render PNG output.");
 
         var sparseGrid = VisualGrid.Create()

@@ -226,6 +226,246 @@
       }
     },
     {
+      "name": "dashboard-attendance-hexbin-heatmap",
+      "width": 760,
+      "height": 520,
+      "svg": {
+        "minVisualNodes": 44,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 721682,
+        "minDistinctColors": 1287,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-chart-portfolio-grid",
+      "width": 1224,
+      "height": 1775,
+      "svg": {
+        "minVisualNodes": 427,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 4345200,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-device-progress-bars",
+      "width": 520,
+      "height": 260,
+      "svg": {
+        "minVisualNodes": 11,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 228682,
+        "minDistinctColors": 705,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-hr-overview-grid",
+      "width": 1292,
+      "height": 1009,
+      "svg": {
+        "minVisualNodes": 138,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 2607256,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-kpi-bar-sparkline",
+      "width": 520,
+      "height": 260,
+      "svg": {
+        "minVisualNodes": 29,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 228682,
+        "minDistinctColors": 666,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-mrr-driver-bars",
+      "width": 920,
+      "height": 480,
+      "svg": {
+        "minVisualNodes": 36,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 808002,
+        "minDistinctColors": 1014,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-mrr-trend-card",
+      "width": 920,
+      "height": 520,
+      "svg": {
+        "minVisualNodes": 36,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 879442,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-project-activity-sparkline",
+      "width": 520,
+      "height": 260,
+      "svg": {
+        "minVisualNodes": 31,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 228682,
+        "minDistinctColors": 783,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-restaurant-customers-hexbin",
+      "width": 420,
+      "height": 300,
+      "svg": {
+        "minVisualNodes": 76,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 213522,
+        "minDistinctColors": 748,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-restaurant-occupation-bars",
+      "width": 420,
+      "height": 300,
+      "svg": {
+        "minVisualNodes": 23,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 213522,
+        "minDistinctColors": 558,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-restaurant-order-status",
+      "width": 420,
+      "height": 300,
+      "svg": {
+        "minVisualNodes": 17,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 213522,
+        "minDistinctColors": 663,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-restaurant-overview-grid",
+      "width": 1352,
+      "height": 751,
+      "svg": {
+        "minVisualNodes": 238,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 2030704,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-restaurant-reports-range-strip",
+      "width": 860,
+      "height": 320,
+      "svg": {
+        "minVisualNodes": 93,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 487082,
+        "minDistinctColors": 778,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-restaurant-weekly-summary",
+      "width": 420,
+      "height": 300,
+      "svg": {
+        "minVisualNodes": 25,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 213522,
+        "minDistinctColors": 1229,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "dashboard-saas-mrr-grid",
+      "width": 1364,
+      "height": 1171,
+      "svg": {
+        "minVisualNodes": 92,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 3194488,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
       "name": "data-label-placement-showcase-grid",
       "width": 668,
       "height": 782,
