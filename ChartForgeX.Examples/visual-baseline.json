@@ -582,14 +582,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 189,
+        "minVisualNodes": 94,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1598,
+        "minDistinctColors": 1684,
         "maxEdgeInkPixels": 0
       }
     },
@@ -598,14 +598,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 181,
+        "minVisualNodes": 90,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1437,
+        "minDistinctColors": 1523,
         "maxEdgeInkPixels": 0
       }
     },
@@ -614,14 +614,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 144,
+        "minVisualNodes": 72,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1336,
+        "minDistinctColors": 1408,
         "maxEdgeInkPixels": 0
       }
     },
@@ -630,14 +630,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 123,
+        "minVisualNodes": 61,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1509,
+        "minDistinctColors": 1505,
         "maxEdgeInkPixels": 0
       }
     },
@@ -646,14 +646,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 100,
+        "minVisualNodes": 50,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1102,
+        "minDistinctColors": 1157,
         "maxEdgeInkPixels": 0
       }
     },
@@ -662,14 +662,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 186,
+        "minVisualNodes": 187,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1190,
+        "minDistinctColors": 1246,
         "maxEdgeInkPixels": 0
       }
     },
@@ -678,14 +678,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 84,
+        "minVisualNodes": 42,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 1434,
+        "minDistinctColors": 1488,
         "maxEdgeInkPixels": 0
       }
     },
@@ -694,7 +694,7 @@
       "width": 1118,
       "height": 1550,
       "svg": {
-        "minVisualNodes": 2130,
+        "minVisualNodes": 1253,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -710,14 +710,14 @@
       "width": 760,
       "height": 460,
       "svg": {
-        "minVisualNodes": 653,
+        "minVisualNodes": 654,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 634496,
-        "minDistinctColors": 951,
+        "minDistinctColors": 969,
         "maxEdgeInkPixels": 0
       }
     },
@@ -882,6 +882,22 @@
       }
     },
     {
+      "name": "powerbginfo-endpoint-snapshot",
+      "width": 1376,
+      "height": 300,
+      "svg": {
+        "minVisualNodes": 33,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 825600,
+        "minDistinctColors": 2008,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
       "name": "remediation-impact-waterfall-dark",
       "width": 920,
       "height": 540,
@@ -914,6 +930,22 @@
       }
     },
     {
+      "name": "report-summary-metric-strip",
+      "width": 980,
+      "height": 294,
+      "svg": {
+        "minVisualNodes": 25,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 2,
+        "minVisiblePixels": 576240,
+        "minDistinctColors": 2027,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
       "name": "result-mix-donut",
       "width": 820,
       "height": 460,
@@ -934,7 +966,7 @@
       "width": 980,
       "height": 560,
       "svg": {
-        "minVisualNodes": 158,
+        "minVisualNodes": 79,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
@@ -950,14 +982,14 @@
       "width": 980,
       "height": 560,
       "svg": {
-        "minVisualNodes": 76,
+        "minVisualNodes": 38,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 1015616,
-        "minDistinctColors": 1024,
+        "minDistinctColors": 1038,
         "maxEdgeInkPixels": 0
       }
     },
@@ -966,14 +998,14 @@
       "width": 980,
       "height": 500,
       "svg": {
-        "minVisualNodes": 96,
+        "minVisualNodes": 63,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 901256,
-        "minDistinctColors": 1857,
+        "minDistinctColors": 1827,
         "maxEdgeInkPixels": 0
       }
     },
@@ -1126,14 +1158,14 @@
       "width": 980,
       "height": 560,
       "svg": {
-        "minVisualNodes": 657,
+        "minVisualNodes": 659,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
         "minVisiblePixels": 1015616,
-        "minDistinctColors": 1375,
+        "minDistinctColors": 1523,
         "maxEdgeInkPixels": 0
       }
     },
@@ -1158,14 +1190,14 @@
       "width": 1164,
       "height": 565,
       "svg": {
-        "minVisualNodes": 48,
+        "minVisualNodes": 30,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
-        "minVisiblePixels": 2500000,
-        "minDistinctColors": 2500,
+        "minVisiblePixels": 1315320,
+        "minDistinctColors": 1714,
         "maxEdgeInkPixels": 0
       }
     },
@@ -1174,14 +1206,14 @@
       "width": 560,
       "height": 560,
       "svg": {
-        "minVisualNodes": 16,
+        "minVisualNodes": 8,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
-        "minVisiblePixels": 1100000,
-        "minDistinctColors": 1200,
+        "minVisiblePixels": 566554,
+        "minDistinctColors": 653,
         "maxEdgeInkPixels": 0
       }
     },
@@ -1190,14 +1222,14 @@
       "width": 560,
       "height": 420,
       "svg": {
-        "minVisualNodes": 16,
+        "minVisualNodes": 8,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
       "png": {
         "outputScale": 2,
-        "minVisiblePixels": 900000,
-        "minDistinctColors": 1200,
+        "minVisiblePixels": 470400,
+        "minDistinctColors": 682,
         "maxEdgeInkPixels": 0
       }
     },
