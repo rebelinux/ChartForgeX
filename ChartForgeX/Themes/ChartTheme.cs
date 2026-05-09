@@ -131,6 +131,11 @@ public sealed partial class ChartTheme {
     }
 
     /// <summary>
+    /// Gets or sets the color used for card shadows.
+    /// </summary>
+    public ChartColor ShadowColor { get; set; } = ChartColor.FromRgb(15,23,42);
+
+    /// <summary>
     /// Gets or sets the title font size used by SVG and HTML renderers.
     /// </summary>
     public double TitleFontSize {
@@ -349,6 +354,16 @@ public sealed partial class ChartTheme {
     /// <returns>The current theme.</returns>
     public ChartTheme WithShadowOpacity(double shadowOpacity) {
         ShadowOpacity = shadowOpacity;
+        return this;
+    }
+
+    /// <summary>
+    /// Applies the card shadow color used by SVG and PNG renderers.
+    /// </summary>
+    /// <param name="shadowColor">The shadow color.</param>
+    /// <returns>The current theme.</returns>
+    public ChartTheme WithShadowColor(ChartColor shadowColor) {
+        ShadowColor = shadowColor;
         return this;
     }
 
