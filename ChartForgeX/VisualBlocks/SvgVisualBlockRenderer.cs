@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Threading;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
+using ChartForgeX.Rendering;
 using ChartForgeX.Svg;
 
 namespace ChartForgeX.VisualBlocks;
@@ -26,6 +27,7 @@ public sealed class SvgVisualBlockRenderer {
         var writer = new SvgMarkupWriter(4096);
         writer.StartElement("svg")
             .Attribute("xmlns", "http://www.w3.org/2000/svg")
+            .Attribute("id", id)
             .Attribute("width", options.Size.Width)
             .Attribute("height", options.Size.Height)
             .Attribute("viewBox", "0 0 " + options.Size.Width.ToString(CultureInfo.InvariantCulture) + " " + options.Size.Height.ToString(CultureInfo.InvariantCulture))
@@ -42,13 +44,20 @@ public sealed class SvgVisualBlockRenderer {
             .StartElement("desc").Attribute("id", id + "-desc").Text("Static ChartForgeX visual block.").EndElement()
             .Line();
 
-        if (!options.TransparentBackground && theme.Background.A > 0) writer.StartElement("rect").Attribute("width", "100%").Attribute("height", "100%").Attribute("fill", theme.Background.ToCss()).EndEmptyElement().Line();
+        writer.StartElement("defs").EndStartElement().Line();
+        SvgSurfacePolish.WriteScopedStrokeStyle(writer, id);
+        SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualBackground", theme.Background);
+        SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualCard", theme.CardBackground);
+        SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualPlot", theme.PlotBackground);
+        writer.EndElement().Line();
+
+        if (!options.TransparentBackground && theme.Background.A > 0) writer.StartElement("rect").Attribute("width", "100%").Attribute("height", "100%").Attribute("fill", "url(#" + id + "-visualBackground)").EndEmptyElement().Line();
         if (options.ShowCard && theme.UseCard) {
-            writer.StartElement("rect").Attribute("data-cfx-role", "visual-card").Attribute("x", 0.5).Attribute("y", 0.5).Attribute("width", Math.Max(0, options.Size.Width - 1)).Attribute("height", Math.Max(0, options.Size.Height - 1)).Attribute("rx", Math.Max(0, theme.CornerRadius - 0.5)).Attribute("fill", theme.CardBackground.ToCss()).Attribute("stroke", theme.CardBorder.ToCss()).EndEmptyElement().Line();
-            writer.StartElement("rect").Attribute("data-cfx-role", "visual-card-highlight").Attribute("x", 1.5).Attribute("y", 1.5).Attribute("width", Math.Max(0, options.Size.Width - 3)).Attribute("height", Math.Max(0, options.Size.Height - 3)).Attribute("rx", Math.Max(0, theme.CornerRadius - 1.5)).Attribute("fill", "none").Attribute("stroke", "#fff").Attribute("stroke-opacity", 0.36).EndEmptyElement().Line();
+            writer.StartElement("rect").Attribute("data-cfx-role", "visual-card").Attribute("class", ChartVisualPrimitives.SvgGuideStrokeClass).Attribute("x", 0.5).Attribute("y", 0.5).Attribute("width", Math.Max(0, options.Size.Width - 1)).Attribute("height", Math.Max(0, options.Size.Height - 1)).Attribute("rx", Math.Max(0, theme.CornerRadius - 0.5)).Attribute("fill", "url(#" + id + "-visualCard)").Attribute("stroke", theme.CardBorder.ToCss()).EndEmptyElement().Line();
+            writer.StartElement("rect").Attribute("data-cfx-role", "visual-card-highlight").Attribute("class", ChartVisualPrimitives.SvgGuideStrokeClass).Attribute("x", ChartVisualPrimitives.CardInnerHighlightInset).Attribute("y", ChartVisualPrimitives.CardInnerHighlightInset).Attribute("width", Math.Max(0, options.Size.Width - ChartVisualPrimitives.CardInnerHighlightInset * 2)).Attribute("height", Math.Max(0, options.Size.Height - ChartVisualPrimitives.CardInnerHighlightInset * 2)).Attribute("rx", Math.Max(0, theme.CornerRadius - ChartVisualPrimitives.CardInnerHighlightInset)).Attribute("fill", "none").Attribute("stroke", "#fff").Attribute("stroke-opacity", ChartVisualPrimitives.CardInnerHighlightOpacity).EndEmptyElement().Line();
         }
 
-        if (block is ChartTable table) RenderTable(writer, table);
+        if (block is ChartTable table) RenderTable(writer, table, id);
         else if (block is ChartList list) RenderList(writer, list);
         else if (block is MetricCard card) RenderMetric(writer, card);
         else if (block is RadialMetricCard radialCard) RenderRadialMetric(writer, radialCard);
@@ -72,7 +81,7 @@ public sealed class SvgVisualBlockRenderer {
         }
     }
 
-    private static void RenderTable(SvgMarkupWriter writer, ChartTable table) {
+    private static void RenderTable(SvgMarkupWriter writer, ChartTable table, string id) {
         var options = table.Options;
         var theme = options.Theme;
         var content = VisualBlockRendering.ContentRect(options);
@@ -82,7 +91,7 @@ public sealed class SvgVisualBlockRenderer {
         var rowHeight = table.Dense ? 24.0 : 31.0;
         var widths = ColumnWidths(table, content.Width);
         if (table.ShowHeader) {
-            writer.StartElement("rect").Attribute("data-cfx-role", "table-header").Attribute("x", content.X).Attribute("y", y).Attribute("width", content.Width).Attribute("height", headerHeight).Attribute("rx", Math.Min(6, theme.PlotCornerRadius)).Attribute("fill", theme.PlotBackground.ToCss()).Attribute("stroke", theme.PlotBorder.ToCss()).EndEmptyElement().Line();
+            writer.StartElement("rect").Attribute("data-cfx-role", "table-header").Attribute("class", ChartVisualPrimitives.SvgGuideStrokeClass).Attribute("x", content.X).Attribute("y", y).Attribute("width", content.Width).Attribute("height", headerHeight).Attribute("rx", Math.Min(6, theme.PlotCornerRadius)).Attribute("fill", "url(#" + id + "-visualPlot)").Attribute("stroke", theme.PlotBorder.ToCss()).EndEmptyElement().Line();
             var x = content.X;
             for (var i = 0; i < table.Columns.Count; i++) {
                 WriteText(writer, table.Columns[i].Header, x + 9, y + headerHeight * 0.66, widths[i] - 18, table.Columns[i].Alignment, theme.Text, theme.FontFamily, theme.SubtitleFontSize, "700");

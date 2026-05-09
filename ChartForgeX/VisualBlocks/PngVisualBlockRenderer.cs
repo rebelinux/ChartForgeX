@@ -2,6 +2,7 @@ using System;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
 using ChartForgeX.Raster;
+using ChartForgeX.Rendering;
 
 namespace ChartForgeX.VisualBlocks;
 
@@ -22,9 +23,9 @@ public sealed class PngVisualBlockRenderer {
         var canvas = new RgbaCanvas(options.Size.Width, options.Size.Height, 2, null, options.PngOutputScale);
         canvas.Clear(VisualBlockRendering.SurfaceBackground(options));
         if (options.ShowCard && theme.UseCard) {
-            canvas.FillRoundedRect(0, 0, options.Size.Width, options.Size.Height, theme.CornerRadius, theme.CardBackground);
+            canvas.FillRoundedRectVerticalGradient(0, 0, options.Size.Width, options.Size.Height, theme.CornerRadius, ChartSurfacePolish.GradientTop(theme.CardBackground), ChartSurfacePolish.GradientBottom(theme.CardBackground));
             canvas.StrokeRoundedRect(0.5, 0.5, Math.Max(1, options.Size.Width - 1), Math.Max(1, options.Size.Height - 1), theme.CornerRadius, theme.CardBorder, 1);
-            canvas.StrokeRoundedRect(1.5, 1.5, Math.Max(1, options.Size.Width - 3), Math.Max(1, options.Size.Height - 3), Math.Max(0, theme.CornerRadius - 1.5), ChartColor.FromRgba(255, 255, 255, 92), 1);
+            canvas.StrokeRoundedRect(ChartVisualPrimitives.CardInnerHighlightInset, ChartVisualPrimitives.CardInnerHighlightInset, Math.Max(1, options.Size.Width - ChartVisualPrimitives.CardInnerHighlightInset * 2), Math.Max(1, options.Size.Height - ChartVisualPrimitives.CardInnerHighlightInset * 2), Math.Max(0, theme.CornerRadius - ChartVisualPrimitives.CardInnerHighlightInset), ApplyOpacity(ChartColor.White, ChartVisualPrimitives.CardInnerHighlightOpacity), 1);
         }
 
         if (block is ChartTable table) DrawTable(canvas, table);
@@ -59,7 +60,7 @@ public sealed class PngVisualBlockRenderer {
         var rowHeight = table.Dense ? 24.0 : 31.0;
         var widths = ColumnWidths(table, content.Width);
         if (table.ShowHeader) {
-            canvas.FillRoundedRect(content.X, y, content.Width, headerHeight, Math.Min(6, theme.PlotCornerRadius), theme.PlotBackground);
+            canvas.FillRoundedRectVerticalGradient(content.X, y, content.Width, headerHeight, Math.Min(6, theme.PlotCornerRadius), ChartSurfacePolish.GradientTop(theme.PlotBackground), ChartSurfacePolish.GradientBottom(theme.PlotBackground));
             canvas.StrokeRoundedRect(content.X, y, content.Width, headerHeight, Math.Min(6, theme.PlotCornerRadius), theme.PlotBorder, 1);
             var x = content.X;
             for (var i = 0; i < table.Columns.Count; i++) {
@@ -224,7 +225,7 @@ public sealed class PngVisualBlockRenderer {
             var y = top + row * rowHeight;
             var height = rowHeight - 4;
             var marker = VisualBlockRendering.StatusColor(theme, detail.Status);
-            canvas.FillRoundedRect(x, y, cellWidth, height, Math.Min(8, height / 2), theme.PlotBackground.WithAlpha(150));
+            canvas.FillRoundedRectVerticalGradient(x, y, cellWidth, height, Math.Min(8, height / 2), ChartSurfacePolish.GradientTop(theme.PlotBackground.WithAlpha(150)), ChartSurfacePolish.GradientBottom(theme.PlotBackground.WithAlpha(150)));
             canvas.StrokeRoundedRect(x, y, cellWidth, height, Math.Min(8, height / 2), theme.CardBorder.WithAlpha(120));
             canvas.DrawCircle(x + 10, y + rowHeight / 2 - 2, 3.2, marker);
             canvas.DrawTextEmphasized(x + 18, y + rowHeight / 2 - labelSize * 0.45, FitText(detail.Label, labelSize, cellWidth * 0.55), theme.MutedText, labelSize);

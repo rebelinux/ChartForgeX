@@ -26,9 +26,10 @@ internal static partial class SmokeTests {
 
         var tableSvg = table.ToSvg("visual-block-table");
         Assert(tableSvg.Contains("<svg", StringComparison.Ordinal), "ChartTable should render SVG.");
+        Assert(tableSvg.Contains("-visualCard", StringComparison.Ordinal) && tableSvg.Contains("class=\"cfx-guide-stroke\"", StringComparison.Ordinal), "Visual block SVG cards should use premium gradient surfaces and crisp strokes.");
         Assert(tableSvg.Contains("data-cfx-role=\"table-status\"", StringComparison.Ordinal), "ChartTable should render status markers.");
         Assert(!tableSvg.Contains("<script", StringComparison.OrdinalIgnoreCase), "Visual block SVG should stay script-free.");
-        Assert(table.ToHtmlPage().Contains("chartforgex-visual-block", StringComparison.Ordinal), "ChartTable should render a static HTML page.");
+        Assert(table.ToHtmlPage().Contains("chartforgex-visual-block", StringComparison.Ordinal) && table.ToHtmlPage().Contains("linear-gradient(180deg", StringComparison.Ordinal), "ChartTable should render a polished static HTML page.");
         Assert(table.ToPng().Length > 64, "ChartTable should render PNG output.");
 
         var list = ChartList.Create()
@@ -122,10 +123,13 @@ internal static partial class SmokeTests {
 
         var svg = grid.ToSvg("visual-grid-smoke");
         Assert(svg.Contains("data-cfx-role=\"visual-grid-frame\"", StringComparison.Ordinal), "VisualGrid should render optional premium frames in SVG.");
+        Assert(svg.Contains("-visualGridSurface", StringComparison.Ordinal) && svg.Contains("class=\"cfx-guide-stroke\"", StringComparison.Ordinal), "VisualGrid SVG should use polished scalable report surfaces and frame strokes.");
         Assert(svg.Contains("data-cfx-role=\"visual-grid-panel\"", StringComparison.Ordinal), "VisualGrid should mark child panels.");
         Assert(svg.Contains("data-cfx-role=\"metric-value\"", StringComparison.Ordinal), "VisualGrid should embed visual block SVG.");
         Assert(svg.Contains("Trend", StringComparison.Ordinal), "VisualGrid should embed chart SVG.");
-        Assert(grid.ToHtmlPage().Contains("chartforgex-visual-grid has-fixed-panels has-frame", StringComparison.Ordinal), "VisualGrid should render optional premium frames in static HTML pages.");
+        var gridHtml = grid.ToHtmlPage();
+        Assert(gridHtml.Contains("chartforgex-visual-grid has-fixed-panels has-frame", StringComparison.Ordinal), "VisualGrid should render optional premium frames in static HTML pages.");
+        Assert(gridHtml.Contains("linear-gradient(180deg", StringComparison.Ordinal) && gridHtml.Contains("overflow:visible", StringComparison.Ordinal), "VisualGrid HTML pages should use polished surfaces without clipping child shadows.");
         Assert(grid.ToPng().Length > 64, "VisualGrid should render PNG output.");
 
         var sparseGrid = VisualGrid.Create()
