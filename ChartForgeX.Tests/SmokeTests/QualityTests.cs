@@ -196,8 +196,8 @@ internal static partial class SmokeTests {
         Assert(!straight.ToPng().SequenceEqual(smooth.ToPng()), "PNG renderer should honor smooth series instead of drawing the same angular path.");
         Assert(cartesian.Contains("c.DrawPolyline(points, color, thickness)", StringComparison.Ordinal), "PNG cartesian lines should render flattened smooth paths as a continuous polyline.");
         Assert(canvas.Contains("DrawLinePixelsButt", StringComparison.Ordinal), "PNG polyline strokes should avoid repeating rounded caps at every flattened curve segment.");
-        Assert(canvas.Contains("HasAdjacentPolylineSegments", StringComparison.Ordinal), "PNG polyline strokes should cover every real segment transition so shallow turns do not notch.");
-        Assert(!canvas.Contains("dot < 0.985", StringComparison.Ordinal), "PNG polyline joins should not skip shallow non-collinear turns.");
+        Assert(canvas.Contains("ShouldRoundPolylineJoin", StringComparison.Ordinal), "PNG polyline strokes should cover real corners without stamping every flattened smooth-curve point.");
+        Assert(canvas.Contains("cosine < 0.985", StringComparison.Ordinal), "PNG polyline joins should skip shallow curve-flattening turns that otherwise create dotted line artifacts.");
     }
 
     private static void PngRendersReportChrome() {
