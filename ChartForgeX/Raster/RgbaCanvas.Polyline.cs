@@ -17,7 +17,7 @@ internal sealed partial class RgbaCanvas {
         var radius = Math.Max(0.5, scaledThickness / 2.0);
         DrawSoftCirclePixels(points[0].X * _scale, points[0].Y * _scale, radius, color);
         for (var i = 1; i < points.Count - 1; i++) {
-            if (ShouldDrawPolylineJoin(points, i)) DrawSoftCirclePixels(points[i].X * _scale, points[i].Y * _scale, radius, color);
+            if (HasAdjacentPolylineSegments(points, i)) DrawSoftCirclePixels(points[i].X * _scale, points[i].Y * _scale, radius, color);
         }
 
         var last = points[points.Count - 1];
@@ -60,15 +60,11 @@ internal sealed partial class RgbaCanvas {
         }
     }
 
-    private static bool ShouldDrawPolylineJoin(IReadOnlyList<ChartPoint> points, int index) {
+    private static bool HasAdjacentPolylineSegments(IReadOnlyList<ChartPoint> points, int index) {
         var ax = points[index].X - points[index - 1].X;
         var ay = points[index].Y - points[index - 1].Y;
         var bx = points[index + 1].X - points[index].X;
         var by = points[index + 1].Y - points[index].Y;
-        var al = Math.Sqrt(ax * ax + ay * ay);
-        var bl = Math.Sqrt(bx * bx + by * by);
-        if (al <= 0.000001 || bl <= 0.000001) return false;
-        var dot = (ax * bx + ay * by) / (al * bl);
-        return dot < 0.985;
+        return ax * ax + ay * ay > 0.000001 && bx * bx + by * by > 0.000001;
     }
 }

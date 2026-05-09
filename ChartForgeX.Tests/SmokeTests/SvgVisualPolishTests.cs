@@ -165,7 +165,13 @@ internal static partial class SmokeTests {
         Assert(html.Contains("linear-gradient(180deg", StringComparison.Ordinal), label + " should use the shared polished surface gradient.");
         Assert(html.Contains("-webkit-font-smoothing:antialiased", StringComparison.Ordinal) && html.Contains("text-rendering:geometricPrecision", StringComparison.Ordinal), label + " should request browser text polish.");
         Assert(html.Contains("@media print{body{min-height:auto", StringComparison.Ordinal) && html.Contains("background:transparent", StringComparison.Ordinal), label + " should include shared print framing.");
-        if (label == "chart HTML page" || label == "visual block HTML page") Assert(html.Contains("style=\"width:100%;box-sizing:border-box;overflow:visible\"", StringComparison.Ordinal), label + " should not keep an inline max-width that blocks print width overrides.");
+        if (label == "chart HTML page" || label == "visual block HTML page") {
+            Assert(html.Contains("style=\"box-sizing:border-box;overflow:visible\"", StringComparison.Ordinal), label + " should not keep inline width or max-width rules that block standalone screen and print sizing.");
+            Assert(html.Contains(" svg{width:100%;height:auto}", StringComparison.Ordinal), label + " should force the embedded SVG to page width in print mode.");
+        }
+
+        if (label == "chart HTML page") Assert(html.Contains(".chartforgex-chart{width:min(100%,360px)", StringComparison.Ordinal), label + " should preserve centered browser previews with stylesheet sizing.");
+        if (label == "visual block HTML page") Assert(html.Contains(".chartforgex-visual-block{width:min(100%,", StringComparison.Ordinal), label + " should preserve centered browser previews with stylesheet sizing.");
         if (centered) Assert(html.Contains("body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center", StringComparison.Ordinal) && html.Contains("padding:clamp(16px,4vmin,52px)", StringComparison.Ordinal), label + " should center preview content with responsive padding.");
         else Assert(!html.Contains("body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center", StringComparison.Ordinal), label + " should keep report body layout top-aligned instead of preview-centered.");
     }
