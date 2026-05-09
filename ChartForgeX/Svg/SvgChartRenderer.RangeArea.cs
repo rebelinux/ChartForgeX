@@ -54,9 +54,10 @@ public sealed partial class SvgChartRenderer {
         }
         WriteRangeAreaPath(writer, "range-area-upper", index, upper.Count, upperLine, "none", color.ToCss(), Math.Max(ChartVisualPrimitives.RangeAreaMinStrokeWidth, series.StrokeWidth), null);
         WriteRangeAreaPath(writer, "range-area-lower", index, lower.Count, lowerLine, "none", color.ToCss(), Math.Max(ChartVisualPrimitives.RangeAreaMinStrokeWidth, series.StrokeWidth), ChartVisualPrimitives.RangeAreaLowerStrokeOpacity);
-        if (style.HighlightOpacity > 0) {
-            WriteRangeAreaPath(writer, "range-area-upper-highlight", index, upper.Count, upperLine, "none", ChartColor.White.ToCss(), Math.Max(1.0, series.StrokeWidth * style.HighlightStrokeRatio), style.HighlightOpacity);
-            WriteRangeAreaPath(writer, "range-area-lower-highlight", index, lower.Count, lowerLine, "none", ChartColor.White.ToCss(), Math.Max(1.0, series.StrokeWidth * style.HighlightStrokeRatio), style.HighlightOpacity);
+        var highlightOpacity = LineHighlightOpacity(color, style);
+        if (highlightOpacity > 0) {
+            WriteRangeAreaPath(writer, "range-area-upper-highlight", index, upper.Count, upperLine, "none", ChartColor.White.ToCss(), Math.Max(1.0, series.StrokeWidth * style.HighlightStrokeRatio), highlightOpacity);
+            WriteRangeAreaPath(writer, "range-area-lower-highlight", index, lower.Count, lowerLine, "none", ChartColor.White.ToCss(), Math.Max(1.0, series.StrokeWidth * style.HighlightStrokeRatio), highlightOpacity);
         }
         writer.EndElement().Line();
         sb.Append(writer.Build());

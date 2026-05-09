@@ -39,10 +39,8 @@ public sealed partial class Chart {
         WithHighlightedXAxisLabel(value, focusColor);
         var left = value - halfWidth;
         var right = value + halfWidth;
-        Options.XAxisFocusGuideValues.Add(left);
-        Options.XAxisFocusGuideValues.Add(right);
-        AddVerticalLine(left, "", focusColor);
-        AddVerticalLine(right, "", focusColor);
+        AddXAxisFocusGuideLine(left, focusColor);
+        AddXAxisFocusGuideLine(right, focusColor);
         return this;
     }
 
@@ -61,15 +59,18 @@ public sealed partial class Chart {
     /// <returns>The current chart.</returns>
     public Chart ClearHighlightedXAxisLabels() {
         Options.XAxisLabelHighlights.Clear();
-        if (Options.XAxisFocusGuideValues.Count > 0) {
-            Annotations.RemoveAll(annotation =>
-                annotation.Kind == ChartAnnotationKind.VerticalLine &&
-                annotation.Label.Length == 0 &&
-                Options.XAxisFocusGuideValues.Exists(value => ChartOptions.AxisValueEquals(annotation.Value, value)));
-            Options.XAxisFocusGuideValues.Clear();
+        if (Options.XAxisFocusGuideAnnotations.Count > 0) {
+            Annotations.RemoveAll(annotation => Options.XAxisFocusGuideAnnotations.Contains(annotation));
+            Options.XAxisFocusGuideAnnotations.Clear();
         }
 
         return this;
+    }
+
+    private void AddXAxisFocusGuideLine(double value, ChartColor color) {
+        var annotation = new ChartAnnotation(ChartAnnotationKind.VerticalLine, value, null, "", color, 1);
+        Annotations.Add(annotation);
+        Options.XAxisFocusGuideAnnotations.Add(annotation);
     }
 
     private ChartColor PaletteColor(int paletteIndex) {

@@ -48,8 +48,14 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("stroke-dasharray=\"4 6\"", StringComparison.Ordinal), "Dashboard grid styles should render dashed guide lines.");
         var axisHighlightOptions = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Core", "ChartOptions.AxisLabels.cs"));
         Assert(axisHighlightOptions.Contains("AxisValueEquals", StringComparison.Ordinal), "X-axis label highlights should resolve generated tick values with a floating-point tolerance.");
+        Assert(ChartOptions.AxisValueEquals(2, 2 + 5e-10) && !ChartOptions.AxisValueEquals(1_000_000_000_000, 1_000_000_000_000 + 0.01), "X-axis label highlight tolerance should cover generated tick drift without bleeding across dense high-magnitude axes.");
         var clearedFocus = Chart.Create().WithFocusedXAxisCategory(2, paletteIndex: 1).ClearHighlightedXAxisLabels();
         Assert(clearedFocus.Options.XAxisLabelHighlights.Count == 0 && clearedFocus.Annotations.Count == 0, "Clearing x-axis label highlights should also clear focus guide annotations.");
+        var keptManualGuide = Chart.Create()
+            .AddVerticalLine(1.5, "", ChartColor.FromHex("#111827"))
+            .WithFocusedXAxisCategory(2, halfWidth: 0.5, color: ChartColor.FromHex("#8B5CF6"))
+            .ClearHighlightedXAxisLabels();
+        Assert(keptManualGuide.Annotations.Count == 1 && Math.Abs(keptManualGuide.Annotations[0].Value - 1.5) < 1e-9, "Clearing x-axis focus should preserve caller-added unlabeled vertical annotations even at the same value.");
 
         var trendSvg = Chart.Create()
             .WithSize(420, 260)
@@ -109,8 +115,14 @@ internal static partial class SmokeTests {
             .AddRangeArea("Band", new[] { new ChartRangeBand(1, 10, 24), new ChartRangeBand(2, 18, 38) }, ChartColor.FromHex("#3B82F6"))
             .ToSvg();
         Assert(rangeAreaSvg.Contains("data-cfx-role=\"range-area-upper-halo\"", StringComparison.Ordinal) && rangeAreaSvg.Contains("stroke-width=\"14\"", StringComparison.Ordinal), "SVG range-area halos should honor reusable line halo width tokens.");
+        var transparentStroke = ChartColor.FromRgba(59, 130, 246, 0);
+        var transparentLineSvg = Chart.Create().WithSize(420, 260).WithLineVisualStyle(ChartLineVisualStyle.Premium()).AddLine("Hidden", Points(10, 20, 30), transparentStroke).ToSvg();
+        var transparentTrendSvg = Chart.Create().WithSize(420, 260).WithLineVisualStyle(ChartLineVisualStyle.Premium()).AddTrendLine("Hidden trend", Points(10, 20, 30), transparentStroke).ToSvg();
+        var transparentRangeSvg = Chart.Create().WithSize(420, 260).WithLineVisualStyle(ChartLineVisualStyle.Premium()).AddRangeArea("Hidden band", new[] { new ChartRangeBand(1, 10, 24), new ChartRangeBand(2, 18, 38) }, transparentStroke).ToSvg();
+        Assert(!transparentLineSvg.Contains("data-cfx-role=\"line-highlight\"", StringComparison.Ordinal) && !transparentTrendSvg.Contains("data-cfx-role=\"trend-line-highlight\"", StringComparison.Ordinal) && !transparentRangeSvg.Contains("data-cfx-role=\"range-area-upper-highlight\"", StringComparison.Ordinal), "Premium SVG highlight layers should stay hidden when the source series stroke is transparent.");
         var pngCartesian = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.Cartesian.cs"));
         Assert(!pngCartesian.Contains("Math.Max(24", StringComparison.Ordinal) && !pngCartesian.Contains("Math.Max(10", StringComparison.Ordinal), "PNG premium line halos should honor low opacity style tokens without renderer-specific alpha floors.");
+        Assert(pngCartesian.Contains("PngLineHighlight(color, style)", StringComparison.Ordinal) && !pngCartesian.Contains("PngLineHighlight(style)", StringComparison.Ordinal), "PNG premium line highlights should derive opacity from the source stroke alpha.");
         var pngRenderer = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX", "Raster", "PngChartRenderer.cs"));
         Assert(pngRenderer.Contains("HorizontalValueGridOpacity", StringComparison.Ordinal) && pngRenderer.Contains("HorizontalCategoryGridOpacity", StringComparison.Ordinal), "PNG horizontal-bar grids should preserve tuned default value/category guide emphasis.");
         var compactSegmentedSvg = Chart.Create()

@@ -35,7 +35,7 @@ public sealed partial class PngChartRenderer {
         if (style.AmbientHaloOpacity > 0 && style.AmbientHaloStrokeExtra > 0) DrawPngLinePath(c, lowerPath, PngStrokeAmbientHalo(color, style), series.StrokeWidth + style.AmbientHaloStrokeExtra);
         if (style.HaloOpacity > 0 && style.HaloStrokeExtra > 0) DrawPngLinePath(c, lowerPath, PngStrokeHalo(color, style.HaloOpacity), series.StrokeWidth + style.HaloStrokeExtra);
         DrawPngLinePath(c, lowerPath, ApplyOpacity(color, ChartVisualPrimitives.RangeAreaLowerStrokeOpacity), Math.Max(ChartVisualPrimitives.RangeAreaMinStrokeWidth, series.StrokeWidth));
-        if (style.HighlightOpacity > 0) DrawPngLinePath(c, lowerPath, PngLineHighlight(style), Math.Max(1.0, series.StrokeWidth * style.HighlightStrokeRatio));
+        if (LineHighlightOpacity(color, style) > 0) DrawPngLinePath(c, lowerPath, PngLineHighlight(color, style), Math.Max(1.0, series.StrokeWidth * style.HighlightStrokeRatio));
 
         if (!ShouldDrawDataLabels(chart, series)) return;
         var reserved = new List<ChartLabelBounds>();

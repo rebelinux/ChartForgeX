@@ -10,7 +10,7 @@ public sealed partial class ChartOptions {
     /// </summary>
     public Dictionary<double, ChartColor> XAxisLabelHighlights { get; } = new();
 
-    internal List<double> XAxisFocusGuideValues { get; } = new();
+    internal List<ChartAnnotation> XAxisFocusGuideAnnotations { get; } = new();
 
     internal bool TryGetXAxisLabelHighlight(double value, out ChartColor color) {
         if (XAxisLabelHighlights.TryGetValue(value, out color)) return true;
@@ -25,7 +25,8 @@ public sealed partial class ChartOptions {
     }
 
     internal static bool AxisValueEquals(double left, double right) {
-        var tolerance = Math.Max(1e-9, Math.Max(Math.Abs(left), Math.Abs(right)) * 1e-9);
+        if (left.Equals(right)) return true;
+        var tolerance = Math.Min(1e-6, Math.Max(1e-9, Math.Max(Math.Abs(left), Math.Abs(right)) * 1e-12));
         return Math.Abs(left - right) <= tolerance;
     }
 }

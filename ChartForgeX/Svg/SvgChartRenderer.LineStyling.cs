@@ -10,7 +10,8 @@ public sealed partial class SvgChartRenderer {
         if (style.AmbientHaloOpacity > 0 && style.AmbientHaloStrokeExtra > 0) DrawSvgLineSegmentLayer(sb, role + "-ambient-halo", seriesIndex, x1, y1, x2, y2, color.ToCss(), strokeWidth + style.AmbientHaloStrokeExtra, style.AmbientHaloOpacity, dashArray);
         if (style.HaloOpacity > 0 && style.HaloStrokeExtra > 0) DrawSvgLineSegmentLayer(sb, role + "-halo", seriesIndex, x1, y1, x2, y2, color.ToCss(), strokeWidth + style.HaloStrokeExtra, style.HaloOpacity, dashArray);
         DrawSvgLineSegmentLayer(sb, role, seriesIndex, x1, y1, x2, y2, color.ToCss(), strokeWidth, 1, dashArray, foregroundAttributes);
-        if (style.HighlightOpacity > 0) DrawSvgLineSegmentLayer(sb, role + "-highlight", seriesIndex, x1, y1, x2, y2, ChartColor.White.ToCss(), Math.Max(1.0, strokeWidth * style.HighlightStrokeRatio), style.HighlightOpacity, dashArray);
+        var highlightOpacity = LineHighlightOpacity(color, style);
+        if (highlightOpacity > 0) DrawSvgLineSegmentLayer(sb, role + "-highlight", seriesIndex, x1, y1, x2, y2, ChartColor.White.ToCss(), Math.Max(1.0, strokeWidth * style.HighlightStrokeRatio), highlightOpacity, dashArray);
     }
 
     private static void DrawSvgLineSegmentLayer(StringBuilder sb, string role, int seriesIndex, double x1, double y1, double x2, double y2, string stroke, double strokeWidth, double opacity, string dashArray, Action<SvgMarkupWriter>? extraAttributes = null) {
@@ -83,7 +84,8 @@ public sealed partial class SvgChartRenderer {
             .Attribute("stroke-linejoin", "round")
             .EndEmptyElement()
             .Line());
-        if (style.HighlightOpacity > 0) {
+        var highlightOpacity = LineHighlightOpacity(color, style);
+        if (highlightOpacity > 0) {
             AppendSvg(sb, writer => writer
                 .StartElement("path")
                 .Attribute("data-cfx-role", role + "-highlight")
@@ -95,9 +97,13 @@ public sealed partial class SvgChartRenderer {
                 .Attribute("stroke-width", highlightWidth)
                 .Attribute("stroke-linecap", "round")
                 .Attribute("stroke-linejoin", "round")
-                .Attribute("opacity", style.HighlightOpacity)
+                .Attribute("opacity", highlightOpacity)
                 .EndEmptyElement()
                 .Line());
         }
+    }
+
+    private static double LineHighlightOpacity(ChartColor color, ChartLineVisualStyle style) {
+        return color.A == 0 ? 0 : style.HighlightOpacity * (color.A / 255.0);
     }
 }
