@@ -26,6 +26,7 @@ dotnet test .\ChartForgeX.sln -c Release
 - Keep project package references private unless they are part of the core package contract.
 - Keep SVG/HTML output static and self-contained.
 - Preserve `net472`, `netstandard2.0`, `net8.0`, and `net10.0` support.
+- Breaking changes are allowed when they bring a cleaner architecture, better usability, or a simpler public API. Document the migration path instead of keeping compatibility shims that lock in poor design.
 - Do not suppress warnings with `NoWarn`.
 
 ## CI Runner

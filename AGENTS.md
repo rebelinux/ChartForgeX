@@ -17,6 +17,7 @@ ChartForgeX is a dependency-free rendering engine. Keep changes generic, testabl
 - Add or update generated examples when a change affects visible output.
 - Preserve SVG and PNG parity for visual polish.
 - Preserve `net472`, `netstandard2.0`, `net8.0`, and `net10.0` support.
+- Breaking changes are allowed when they produce a cleaner architecture, better usability, or a simpler public API. Prefer intentional migration notes over compatibility layers that preserve awkward designs.
 - Do not add `NoWarn` suppressions.
 - Keep production source files under the repository line-budget expectation.
 - Prefer shared helpers for color math, mark surfaces, line layers, text fitting, map surfaces, and validation instead of local renderer copies.
