@@ -66,6 +66,7 @@ internal static partial class SmokeTests {
         ("Static HTML shells share premium preview polish", StaticHtmlShellsSharePremiumPreviewPolish),
         ("Specialized chart layouts keep content inside plot frame", SpecializedChartLayoutsKeepContentInsidePlotFrame),
         ("Metric status bars respect rounded cards", MetricStatusBarsRespectRoundedCards),
+        ("Transparent surfaces keep their alpha contract", TransparentSurfacesKeepTheirAlphaContract),
         ("PNG font path falls back gracefully", PngFontPathFallsBackGracefully),
         ("PNG font path supports TrueType collections", PngFontPathSupportsTrueTypeCollections),
         ("PNG font diagnostics describe fallback decisions", PngFontDiagnosticsDescribeFallbackDecisions),

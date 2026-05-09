@@ -116,11 +116,42 @@ internal static partial class SmokeTests {
         Assert(metric.ToPng().Length > 64, "Metric status cards should render PNG output with the same rounded accent treatment.");
     }
 
+    private static void TransparentSurfacesKeepTheirAlphaContract() {
+        var overlayChart = Chart.Create()
+            .WithSize(360, 220)
+            .WithTheme(ChartTheme.TransparentOverlayDark())
+            .WithPlotBackground()
+            .AddLine("Signal", Points(12, 24, 18), ChartColor.FromRgb(96, 165, 250));
+        Assert(!overlayChart.ToSvg().Contains("data-cfx-role=\"plot-inner-highlight\"", StringComparison.Ordinal), "Transparent plot backgrounds should not receive a visible SVG inner highlight.");
+        Assert(overlayChart.ToPng().Length > 64, "Transparent plot backgrounds should still render PNG output.");
+
+        var translucentTheme = ChartTheme.ReportLight();
+        translucentTheme.Background = ChartColor.FromRgba(15, 23, 42, 96);
+        var chartGrid = ChartGrid.Create()
+            .WithTheme(translucentTheme)
+            .WithColumns(1)
+            .WithPadding(32)
+            .Add(Chart.Create().WithSize(160, 90).WithTransparentBackground().AddLine("Values", Points(1, 2, 3)));
+        var chartGridPixels = ReadPngRgba(chartGrid.ToPng(), out var chartGridWidth, out _);
+        Assert(AlphaAt(chartGridPixels, chartGridWidth, 16, 16) == 96, "PNG chart grids should not compound translucent background alpha when adding polish.");
+
+        var visualGrid = VisualGrid.Create()
+            .WithTheme(translucentTheme)
+            .WithColumns(1)
+            .WithPadding(32)
+            .Add(ChartList.Create().WithTheme(ChartTheme.ReportLight()).WithSize(160, 90).AddItem("Ready"));
+        var visualGridPixels = ReadPngRgba(visualGrid.ToPng(), out var visualGridWidth, out _);
+        Assert(AlphaAt(visualGridPixels, visualGridWidth, 16, 16) == 96, "PNG visual grids should not compound translucent background alpha when adding polish.");
+    }
+
+    private static byte AlphaAt(byte[] rgba, int width, int x, int y) => rgba[(y * width + x) * 4 + 3];
+
     private static void AssertPremiumHtmlShell(string html, bool centered, string label) {
         Assert(html.Contains("body{margin:0;min-height:100vh;min-height:100svh", StringComparison.Ordinal), label + " should use the shared viewport-safe body shell.");
         Assert(html.Contains("linear-gradient(180deg", StringComparison.Ordinal), label + " should use the shared polished surface gradient.");
         Assert(html.Contains("-webkit-font-smoothing:antialiased", StringComparison.Ordinal) && html.Contains("text-rendering:geometricPrecision", StringComparison.Ordinal), label + " should request browser text polish.");
         Assert(html.Contains("@media print{body{min-height:auto", StringComparison.Ordinal) && html.Contains("background:transparent", StringComparison.Ordinal), label + " should include shared print framing.");
+        if (label == "chart HTML page") Assert(html.Contains("style=\"width:100%;box-sizing:border-box;overflow:visible\"", StringComparison.Ordinal), label + " should not keep an inline max-width that blocks print width overrides.");
         if (centered) Assert(html.Contains("body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center", StringComparison.Ordinal) && html.Contains("padding:clamp(16px,4vmin,52px)", StringComparison.Ordinal), label + " should center preview content with responsive padding.");
         else Assert(!html.Contains("body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center", StringComparison.Ordinal), label + " should keep report body layout top-aligned instead of preview-centered.");
     }

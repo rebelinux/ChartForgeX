@@ -223,12 +223,12 @@ internal static class ExpressiveExamples {
         .WithDashboardPanelStyle()
         .WithLegend(false)
         .WithPadding(36, 30, 26, 58)
-            .WithSize(840, 360)
-            .WithXLabels("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-            .WithYAxisBounds(0, 100)
-            .WithHighlightedXAxisLabel(4, paletteIndex: 0)
-            .AddSmoothArea("Saved", Points(24, 36, 48, 58, 46, 68, 76))
-            .AddSmoothLine("Outreach", Points(18, 28, 36, 48, 40, 58, 66));
+        .WithSize(920, 360)
+        .WithXLabels("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+        .WithYAxisBounds(0, 100)
+        .WithHighlightedXAxisLabel(4, paletteIndex: 0)
+        .AddSmoothArea("Saved", Points(24, 36, 48, 58, 46, 68, 76))
+        .AddSmoothLine("Outreach", Points(18, 28, 36, 48, 40, 58, 66));
 
     private static ChartGrid CreatePictorialSymbolShowcaseGrid() {
         var shapes = new[] {
@@ -250,7 +250,7 @@ internal static class ExpressiveExamples {
             .WithTheme(ChartTheme.Candy().WithCornerRadius(14, 8))
             .WithColumns(3)
             .WithPadding(24)
-            .WithPanelSize(360, 240);
+            .WithPanelSize(340, 220);
         for (var i = 0; i < shapes.Length; i++) {
             grid.Add(CreatePictorialShapePreview(shapes[i], palette[i % palette.Length]));
         }
@@ -262,7 +262,7 @@ internal static class ExpressiveExamples {
         .WithTitle(shape.ToString())
         .WithSubtitle("Built-in symbol")
         .WithTheme(ChartTheme.Candy().WithCornerRadius(14, 8))
-        .WithSize(360, 240)
+        .WithSize(340, 220)
         .WithValueFormatter(value => value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "/5")
         .WithPictorialColumns(5)
         .WithPictorialMaximum(5)

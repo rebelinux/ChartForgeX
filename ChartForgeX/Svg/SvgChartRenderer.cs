@@ -188,7 +188,7 @@ public sealed partial class SvgChartRenderer {
         if (o.ShowPlotBackground) {
             AppendSvg(sb, writer => writer.StartElement("rect").Attribute("x", plot.X).Attribute("y", plot.Y).Attribute("width", plot.Width).Attribute("height", plot.Height).Attribute("rx", t.PlotCornerRadius).Attribute("fill", $"url(#{id}-plotSurface)").EndEmptyElement().Line());
             AppendSvg(sb, writer => writer.StartElement("rect").Attribute("class", "cfx-crisp-stroke").Attribute("x", plot.X + 0.5).Attribute("y", plot.Y + 0.5).Attribute("width", Math.Max(0, plot.Width - 1)).Attribute("height", Math.Max(0, plot.Height - 1)).Attribute("rx", Math.Max(0, t.PlotCornerRadius - 0.5)).Attribute("fill", "none").Attribute("stroke", t.PlotBorder.ToCss()).EndEmptyElement().Line());
-            DrawSvgSurfaceHighlight(sb, plot.X, plot.Y, plot.Width, plot.Height, t.PlotCornerRadius, ChartVisualPrimitives.PlotInnerHighlightInset, ChartVisualPrimitives.PlotInnerHighlightOpacity, "plot-inner-highlight");
+            if (t.PlotBackground.A > 0) DrawSvgSurfaceHighlight(sb, plot.X, plot.Y, plot.Width, plot.Height, t.PlotCornerRadius, ChartVisualPrimitives.PlotInnerHighlightInset, ChartVisualPrimitives.PlotInnerHighlightOpacity, "plot-inner-highlight");
         }
         if (o.ShowHeader) DrawHeader(sb, chart);
         if (IsPieLike(chart)) {

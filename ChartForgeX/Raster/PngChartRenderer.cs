@@ -278,7 +278,7 @@ public sealed partial class PngChartRenderer {
     private static void DrawPlotSurface(RgbaCanvas c, ChartOptions options, ChartTheme theme, ChartRect plot) {
         if (options.ShowPlotBackground) c.FillRoundedRectVerticalGradient(plot.X, plot.Y, plot.Width, plot.Height, theme.PlotCornerRadius, ChartSurfacePolish.GradientTop(theme.PlotBackground), ChartSurfacePolish.GradientBottom(theme.PlotBackground));
         if (options.ShowPlotBackground && theme.PlotBorder.A > 0) c.StrokeRoundedRect(plot.X, plot.Y, plot.Width, plot.Height, theme.PlotCornerRadius, theme.PlotBorder);
-        if (options.ShowPlotBackground) DrawPngSurfaceHighlight(c, plot.X, plot.Y, plot.Width, plot.Height, theme.PlotCornerRadius, ChartVisualPrimitives.PlotInnerHighlightInset, ChartVisualPrimitives.PlotInnerHighlightOpacity);
+        if (options.ShowPlotBackground && theme.PlotBackground.A > 0) DrawPngSurfaceHighlight(c, plot.X, plot.Y, plot.Width, plot.Height, theme.PlotCornerRadius, ChartVisualPrimitives.PlotInnerHighlightInset, ChartVisualPrimitives.PlotInnerHighlightOpacity);
     }
 
     private static void DrawPngGridLine(RgbaCanvas c, double x1, double y1, double x2, double y2, ChartColor color, ChartGridLineStyle style) {
