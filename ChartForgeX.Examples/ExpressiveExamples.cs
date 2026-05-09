@@ -247,10 +247,10 @@ internal static class ExpressiveExamples {
         var grid = ChartGrid.Create()
             .WithTitle("Pictorial Symbol Showcase")
             .WithSubtitle("Built-in pictorial symbols for scorecards, ratings, audience mixes, and friendly summaries")
-            .WithTheme(ChartTheme.Candy().WithCornerRadius(14, 8))
+            .WithTheme(ChartTheme.Candy().WithCornerRadius(8, 4))
             .WithColumns(3)
             .WithPadding(24)
-            .WithPanelSize(340, 220);
+            .WithPanelSize(360, 190);
         for (var i = 0; i < shapes.Length; i++) {
             grid.Add(CreatePictorialShapePreview(shapes[i], palette[i % palette.Length]));
         }
@@ -261,12 +261,13 @@ internal static class ExpressiveExamples {
     private static Chart CreatePictorialShapePreview(ChartPictorialShape shape, ChartColor color) => Chart.Create()
         .WithTitle(shape.ToString())
         .WithSubtitle("Built-in symbol")
-        .WithTheme(ChartTheme.Candy().WithCornerRadius(14, 8))
-        .WithSize(340, 220)
+        .WithTheme(ChartTheme.Candy().WithCornerRadius(8, 4))
+        .WithSize(360, 190)
+        .WithLegend(false).WithPlotBackground(false)
+        .WithPadding(44, 30, 24, 34)
         .WithValueFormatter(value => value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "/5")
-        .WithPictorialColumns(5)
-        .WithPictorialMaximum(5)
-        .WithPictorialSymbolScale(1.28)
+        .WithPictorialColumns(5).WithPictorialMaximum(5)
+        .WithPictorialSymbolScale(1.36)
         .AddPictorial("Shape", new[] { new ChartPictorialItem(shape.ToString(), 4.5, color) }, shape);
 
     private static ChartGrid CreatePictorialIsotypeShowcaseGrid() {
