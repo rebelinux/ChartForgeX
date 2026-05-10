@@ -57,8 +57,7 @@ internal static class TopologyIconPackRefreshCommand {
     private static void ValidateSidecarFiles(TopologyIconPack pack, string packRoot) {
         foreach (var icon in pack.Icons) {
             if (icon.Artwork == null || !icon.Artwork.HasSvgPath) throw new InvalidOperationException("Icon '" + icon.QualifiedId + "' does not reference artwork.svgPath.");
-            var path = Path.Combine(packRoot, icon.Artwork.SvgPath!.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(path)) throw new FileNotFoundException("Icon SVG sidecar was not found for '" + icon.QualifiedId + "'.", path);
+            ResolvePackAssetPath(packRoot, icon.Artwork.SvgPath!, icon.QualifiedId + ".artwork.svgPath", requireExists: true);
         }
     }
 
@@ -132,8 +131,9 @@ internal static class TopologyIconPackRefreshCommand {
             var rect = new SKRect(x, y, x + cellWidth - 20, y + cellHeight - 18);
             canvas.DrawRoundRect(rect, 8, 8, cardPaint);
             canvas.DrawRoundRect(rect, 8, 8, borderPaint);
-            var previewPath = Path.Combine(packRoot, (icon.Artwork?.PreviewPath ?? ("previews/" + icon.Id + ".png")).Replace('/', Path.DirectorySeparatorChar));
+            var previewPath = ResolvePackAssetPath(packRoot, icon.Artwork?.PreviewPath ?? ("previews/" + icon.Id + ".png"), icon.QualifiedId + ".artwork.previewPath", requireExists: false);
             if (File.Exists(previewPath)) {
+                RejectReparsePointPath(packRoot, previewPath, icon.QualifiedId + ".artwork.previewPath");
                 using var preview = SKBitmap.Decode(previewPath);
                 if (preview != null) {
                     var size = Math.Min(options.PreviewSize, Math.Min(cellWidth - 52, cellHeight - 86));
@@ -146,11 +146,43 @@ internal static class TopologyIconPackRefreshCommand {
             canvas.DrawText(Trim(icon.Label, 24), x + 12, y + cellHeight - 35, labelPaint);
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        var outputDirectory = Path.GetDirectoryName(outputPath);
+        if (!string.IsNullOrWhiteSpace(outputDirectory)) Directory.CreateDirectory(outputDirectory!);
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = File.Create(outputPath);
         data.SaveTo(stream);
+    }
+
+    private static string ResolvePackAssetPath(string packRoot, string assetPath, string pathName, bool requireExists) {
+        if (!TopologyIconArtwork.IsSafeAssetPath(assetPath)) throw new ArgumentException("Unsafe topology icon asset path: " + pathName);
+        var baseDirectory = Path.GetFullPath(packRoot);
+        var normalizedAssetPath = assetPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, normalizedAssetPath));
+        var baseWithSeparator = AppendDirectorySeparator(baseDirectory);
+        if (!fullPath.StartsWith(baseWithSeparator, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Topology icon asset path escapes its pack directory: " + pathName);
+        if (requireExists && !File.Exists(fullPath)) throw new FileNotFoundException("Topology icon asset was not found.", fullPath);
+        if (File.Exists(fullPath)) RejectReparsePointPath(baseDirectory, fullPath, pathName);
+        return fullPath;
+    }
+
+    private static void RejectReparsePointPath(string baseDirectory, string fullPath, string pathName) {
+        var current = Path.GetFullPath(baseDirectory);
+        var relative = MakeRelativePath(current, fullPath);
+        foreach (var part in relative.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)) {
+            current = Path.Combine(current, part);
+            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new ArgumentException("Topology icon asset path uses a reparse point: " + pathName);
+        }
+    }
+
+    private static string MakeRelativePath(string baseDirectory, string fullPath) {
+        var baseUri = new Uri(AppendDirectorySeparator(Path.GetFullPath(baseDirectory)), UriKind.Absolute);
+        var fileUri = new Uri(Path.GetFullPath(fullPath), UriKind.Absolute);
+        return Uri.UnescapeDataString(baseUri.MakeRelativeUri(fileUri).ToString()).Replace('/', Path.DirectorySeparatorChar);
+    }
+
+    private static string AppendDirectorySeparator(string path) {
+        return path.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal) ? path : path + Path.DirectorySeparatorChar;
     }
 
     private static string Trim(string value, int maxLength) {

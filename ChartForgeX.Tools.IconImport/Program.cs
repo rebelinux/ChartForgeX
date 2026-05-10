@@ -141,7 +141,11 @@ internal static partial class Program {
         if (picture == null) throw new InvalidOperationException("SVG could not be loaded by Svg.Skia.");
 
         var bounds = picture.CullRect;
-        if (bounds.Width <= 0 || bounds.Height <= 0) bounds = ReadSvgViewBoxBounds(sourcePath);
+        if (bounds.Width <= 0 || bounds.Height <= 0) {
+            var viewBoxBounds = ReadSvgViewBoxBounds(sourcePath);
+            if (!viewBoxBounds.HasValue) throw new InvalidOperationException("SVG has no drawable bounds or valid viewBox.");
+            bounds = viewBoxBounds.Value;
+        }
         if (bounds.Width <= 0 || bounds.Height <= 0) throw new InvalidOperationException("SVG has no drawable bounds.");
 
         var info = new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -164,7 +168,7 @@ internal static partial class Program {
         data.SaveTo(stream);
     }
 
-    private static SKRect ReadSvgViewBoxBounds(string sourcePath) {
+    private static SKRect? ReadSvgViewBoxBounds(string sourcePath) {
         var settings = new XmlReaderSettings {
             DtdProcessing = DtdProcessing.Ignore,
             XmlResolver = null
@@ -174,13 +178,14 @@ internal static partial class Program {
         var document = XDocument.Load(reader);
         var root = document.Root;
         var viewBox = root?.Attribute("viewBox")?.Value ?? root?.Attribute("viewbox")?.Value;
-        if (string.IsNullOrWhiteSpace(viewBox)) return new SKRect(0, 0, 96, 96);
+        if (string.IsNullOrWhiteSpace(viewBox)) return null;
         var parts = viewBox!.Split(new[] { ' ', '\t', '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 4) return new SKRect(0, 0, 96, 96);
-        if (!float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)) return new SKRect(0, 0, 96, 96);
-        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)) return new SKRect(0, 0, 96, 96);
-        if (!float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var width)) return new SKRect(0, 0, 96, 96);
-        if (!float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var height)) return new SKRect(0, 0, 96, 96);
+        if (parts.Length != 4) return null;
+        if (!float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)) return null;
+        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)) return null;
+        if (!float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var width)) return null;
+        if (!float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var height)) return null;
+        if (width <= 0 || height <= 0) return null;
         return new SKRect(x, y, x + width, y + height);
     }
 
