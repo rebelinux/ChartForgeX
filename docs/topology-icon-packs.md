@@ -58,6 +58,22 @@ Use `artwork.svgPath` for pack-local SVG sidecars and `artwork.previewPath` for 
 
 Asset paths are intentionally relative to the manifest directory. Do not use absolute paths, parent-directory traversal, file URLs, or remote URLs for sidecar artwork. ChartForgeX validates paths before resolving them and loads sidecar SVGs through the same SVG sanitizer used by the importer.
 
+## Curated Packs
+
+The repository ships first-party curated packs under `assets/topology-icons/` using the same auditable layout. For curated packs, `svg/*.svg` is the authored source of truth. After changing SVG artwork, use the .NET icon-import tool to refresh derived PNG previews and validation reports:
+
+```powershell
+dotnet run --project .\ChartForgeX.Tools.IconImport\ChartForgeX.Tools.IconImport.csproj -c Release -- --refresh-pack .\assets\topology-icons\chartforgex-ad-network-premium --preview-size 128
+```
+
+- `chartforgex-ad-network-premium` covers richer AD/network diagrams: Forest, Domain, Child Domain, Domain Controller, Read-Only Domain Controller, Global Catalog, FSMO roles, AD Site, AD Site Link, Site Link Bridge, Subnet, Bridgehead Server, Replication Connection, KCC, GPO, OU, Trust, DNS Zone, DNS Record, Certificate Authority, Certificate Template, ADFS, LAPS, users, privileged/disabled users, security/distribution/dynamic groups, computers, server computers, domain-joined devices, contacts, service accounts, MSA/gMSA/dMSA, foreign security principals, containers, printers, shares, password settings objects, BitLocker recovery keys, service connection points, AdminSDHolder, schema classes, and Sites and Services.
+- `backup` covers generic backup and recovery roles such as backup server, proxy, repository, scale-out repository, hardened repository, recovery lab, backup manager, mount server, and WAN accelerator.
+- `network-security` covers generic network security roles such as firewall, switch, access point, security manager, log analyzer, VPN, SD-WAN, authenticator, MFA token, WAF, mail security, endpoint detection, sandbox, SIEM, cloud security, and security fabric.
+- `cloud-productivity` covers generic cloud productivity roles such as tenant, cloud identity, conditional access, mail service, content sites, team collaboration, cloud drive, governance, threat protection, device management, low-code platform, subscription, resource group, secret vault, private endpoint, private circuit, and security analytics.
+- `network-infrastructure` covers device-like physical infrastructure roles such as rack switch, core switch, layer 3 switch, PoE switch, edge router, branch router, wireless AP, mesh AP, firewall appliance, load balancer appliance, VPN gateway, patch panel, fiber uplink, and SFP transceiver.
+
+Each curated pack keeps `manifest.json`, `svg/*.svg`, generated `previews/*.png`, `SOURCE.md`, `LICENSE`, and `_reports/refresh-report.json` beside each other. Vendor or product names should only be used for truly branded or imported packs with explicit provenance and license notes; generic first-party artwork should stay under neutral pack ids.
+
 ## Import Tool
 
 `ChartForgeX.Tools.IconImport` converts a folder tree of SVG files into ChartForgeX-compatible packs. It is tooling only; SkiaSharp and Svg.Skia are not runtime dependencies of `ChartForgeX`.
@@ -96,6 +112,8 @@ For a generated vendor pack PR, verify:
 
 - the upstream source revision is pinned
 - the source license is copied or clearly linked
+- vendor/product names are used only when the artwork is truly branded or imported from a licensed/provenance-tracked source
+- generic original artwork uses neutral pack ids and labels instead of vendor/product names
 - generated manifests do not contain local machine paths
 - generated manifests use `artwork.svgPath` instead of large inline `artwork.svg` payloads
 - `svg/*.svg` files are sanitized, pack-local, and reviewable

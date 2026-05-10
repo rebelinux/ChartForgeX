@@ -5,13 +5,15 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 using ChartForgeX.Topology;
 using SkiaSharp;
 using Svg.Skia;
 
 namespace ChartForgeX.Tools.IconImport;
 
-internal static class Program {
+internal static partial class Program {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private static readonly string[] ExcludedTopLevelFolders = {
@@ -26,6 +28,10 @@ internal static class Program {
             if (ToolOptions.IsHelp(args)) {
                 Console.WriteLine(ToolOptions.Usage);
                 return 0;
+            }
+
+            if (ToolOptions.IsPackRefresh(args)) {
+                return TopologyIconPackRefreshCommand.Run(args);
             }
 
             var options = ToolOptions.Parse(args);
@@ -89,7 +95,7 @@ internal static class Program {
         }
     }
 
-    private static int WriteSvgSidecars(TopologyIconPack pack, string packOutput) {
+    internal static int WriteSvgSidecars(TopologyIconPack pack, string packOutput) {
         var svgRoot = Path.Combine(packOutput, "svg");
         Directory.CreateDirectory(svgRoot);
         var written = 0;
@@ -108,7 +114,7 @@ internal static class Program {
         return written;
     }
 
-    private static PreviewReport GeneratePreviews(TopologyIconPack pack, string packOutput, int size) {
+    internal static PreviewReport GeneratePreviews(TopologyIconPack pack, string packOutput, int size) {
         var previewRoot = Path.Combine(packOutput, "previews");
         Directory.CreateDirectory(previewRoot);
         var written = 0;
@@ -117,7 +123,7 @@ internal static class Program {
         foreach (var icon in pack.Icons.Where(icon => icon.Artwork != null && icon.Artwork.HasSvgPath)) {
             var outputPath = Path.Combine(previewRoot, icon.Id + ".png");
             try {
-                RenderSvgToPng(Path.Combine(packOutput, icon.Artwork!.SvgPath!.Replace('/', Path.DirectorySeparatorChar)), outputPath, size);
+                RenderSvgToPng(Path.Combine(packOutput, NormalizeAssetPath(icon.Artwork!.SvgPath!)), outputPath, size);
                 icon.Artwork!.PreviewPath = "previews/" + icon.Id + ".png";
                 written++;
             } catch (Exception exception) when (exception is InvalidOperationException || exception is IOException || exception is ArgumentException) {
@@ -129,12 +135,21 @@ internal static class Program {
         return new PreviewReport(written, failed, errors);
     }
 
+    private static string NormalizeAssetPath(string path) {
+        return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+    }
+
     private static void RenderSvgToPng(string sourcePath, string outputPath, int size) {
         using var svg = new SKSvg();
         var picture = svg.Load(sourcePath);
         if (picture == null) throw new InvalidOperationException("SVG could not be loaded by Svg.Skia.");
 
         var bounds = picture.CullRect;
+        if (bounds.Width <= 0 || bounds.Height <= 0) {
+            var viewBoxBounds = ReadSvgViewBoxBounds(sourcePath);
+            if (!viewBoxBounds.HasValue) throw new InvalidOperationException("SVG has no drawable bounds or valid viewBox.");
+            bounds = viewBoxBounds.Value;
+        }
         if (bounds.Width <= 0 || bounds.Height <= 0) throw new InvalidOperationException("SVG has no drawable bounds.");
 
         var info = new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -155,6 +170,27 @@ internal static class Program {
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = File.Create(outputPath);
         data.SaveTo(stream);
+    }
+
+    private static SKRect? ReadSvgViewBoxBounds(string sourcePath) {
+        var settings = new XmlReaderSettings {
+            DtdProcessing = DtdProcessing.Ignore,
+            XmlResolver = null
+        };
+        using var stream = File.OpenRead(sourcePath);
+        using var reader = XmlReader.Create(stream, settings);
+        var document = XDocument.Load(reader);
+        var root = document.Root;
+        var viewBox = root?.Attribute("viewBox")?.Value ?? root?.Attribute("viewbox")?.Value;
+        if (string.IsNullOrWhiteSpace(viewBox)) return null;
+        var parts = viewBox!.Split(new[] { ' ', '\t', '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 4) return null;
+        if (!float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)) return null;
+        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)) return null;
+        if (!float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var width)) return null;
+        if (!float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var height)) return null;
+        if (width <= 0 || height <= 0) return null;
+        return new SKRect(x, y, x + width, y + height);
     }
 
     private static void CopyLicense(string sourceRoot, string outputRoot, string licensePath) {
@@ -254,7 +290,7 @@ internal static class Program {
         return value.Replace("&", "&amp;").Replace("\"", "&quot;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
 
-    private static void WriteUtf8NoBomFile(string path, string content) {
+    internal static void WriteUtf8NoBomFile(string path, string content) {
         File.WriteAllText(path, NormalizeNewLines(content), Utf8NoBom);
     }
 
@@ -320,12 +356,16 @@ internal static class Program {
             "Generated packs use manifest.json plus pack-local svg/*.svg sidecars and optional previews/*.png thumbnails.\n" +
             "\n" +
             "Usage:\n" +
-            "  dotnet run --project ChartForgeX.Tools.IconImport -- --source <folder> [options]\n" +
+            "  dotnet run --project ChartForgeX.Tools.IconImport -- --source <folder> [import options]\n" +
+            "  dotnet run --project ChartForgeX.Tools.IconImport -- --refresh-pack <folder> [refresh options]\n" +
             "\n" +
-            "Required:\n" +
+            "Import mode required:\n" +
             "  --source <folder>              Source folder containing one or more category folders with SVG files.\n" +
             "\n" +
-            "Options:\n" +
+            "Refresh mode required:\n" +
+            "  --refresh-pack <folder>        Existing sidecar pack folder containing manifest.json plus svg/*.svg.\n" +
+            "\n" +
+            "Import options:\n" +
             "  --output <folder>              Output folder. Default: assets/topology-icons/imported-svg-pack\n" +
             "  --source-revision <revision>   Source revision. Defaults to git rev-parse HEAD when source is a git repo.\n" +
             "  --source-url <url>             Upstream URL stored in generated provenance metadata.\n" +
@@ -336,7 +376,14 @@ internal static class Program {
             "  --pack-id-prefix <prefix>      Prefix for generated pack ids.\n" +
             "  --pack-label-prefix <prefix>   Prefix for generated pack labels.\n" +
             "  --generate-png                 Generate preview PNG thumbnails beside SVG sidecars.\n" +
+            "\n" +
+            "Refresh options:\n" +
             "  --preview-size <pixels>        Preview PNG size from 32 to 512. Default: 128.\n" +
+            "  --validate-only                Validate a sidecar pack without writing previews or reports.\n" +
+            "  --contact-sheet <path>         Write a PNG contact sheet from refreshed or existing previews.\n" +
+            "  --contact-sheet-columns <n>    Contact sheet column count from 1 to 12. Default: 8.\n" +
+            "\n" +
+            "Common options:\n" +
             "  --help                         Show this help.\n";
 
         public string SourceDirectory { get; private set; } = string.Empty;
@@ -354,6 +401,10 @@ internal static class Program {
 
         public static bool IsHelp(string[] args) {
             return args.Any(arg => string.Equals(arg, "--help", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "-h", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "/?", StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static bool IsPackRefresh(string[] args) {
+            return args.Any(arg => string.Equals(arg, "--refresh-pack", StringComparison.OrdinalIgnoreCase));
         }
 
         public static ToolOptions Parse(string[] args) {
@@ -433,7 +484,7 @@ internal static class Program {
         }
     }
 
-    private sealed record PreviewReport(int Written, int Failed, IReadOnlyList<string> Errors);
+    internal sealed record PreviewReport(int Written, int Failed, IReadOnlyList<string> Errors);
 
     private sealed record PackImportReport(string Category, string PackId, int SourceSvgFiles, int ImportedIcons, int SkippedFiles, int SvgFiles, int PreviewPngFiles, int PreviewFailures, IReadOnlyList<string> Issues);
 }
