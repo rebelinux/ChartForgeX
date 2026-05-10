@@ -194,7 +194,8 @@ internal static partial class SmokeTests {
             .WithXLabels("Opened", "Deferred", "Closed")
             .AddFunnel("Review flow", Points(100, 0, 18));
         var svg = chart.ToSvg("zero-stage-funnel");
-        Assert(svg.Contains("data-cfx-role=\"funnel-zero-label-backdrop\"", StringComparison.Ordinal), "Zero-value funnel stages should render as an intentional compact label chip.");
+        Assert(svg.Contains("data-cfx-role=\"funnel-zero-label\"", StringComparison.Ordinal), "Zero-value funnel stages should render as an inline stage label.");
+        Assert(!svg.Contains("data-cfx-role=\"funnel-zero-label-backdrop\"", StringComparison.Ordinal), "Zero-value funnel labels should avoid floating callout panels.");
         Assert(!svg.Contains("prev stage was 0", StringComparison.Ordinal), "Funnel stages after a zero stage should not show fake previous-stage drop-off text.");
         Assert(CountOccurrences(svg, "data-cfx-role=\"funnel-dropoff-line\"") == 1, "Funnel drop-off guide lines should be omitted when the previous stage is zero.");
         Assert(chart.ToPng().Length > 64, "Zero-value funnel stage polish should render PNG output.");

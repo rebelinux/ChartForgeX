@@ -90,26 +90,9 @@ public sealed partial class SvgChartRenderer {
             if (showLabels) {
                 var labelWriter = new StringBuilder();
                 if (values[i].Y <= 0) {
-                    var zeroLabelX = topRight + 24;
+                    var zeroLabelX = topRight + 18;
                     var zeroLabelMaxWidth = Math.Max(44, Math.Min(metricsX - zeroLabelX - 12, plot.Right - zeroLabelX));
-                    var zeroLabelPreferredWidth = Math.Max(72, Math.Max(EstimateTextWidth(label, labelFontSize), EstimateTextWidth(value, valueFontSize)) + 18);
-                    var zeroLabelWidth = Math.Min(zeroLabelMaxWidth, zeroLabelPreferredWidth);
-                    writer
-                        .StartElement("rect")
-                        .Attribute("data-cfx-role", "funnel-zero-label-backdrop")
-                        .Attribute("x", zeroLabelX - 8)
-                        .Attribute("y", centerY - 20)
-                        .Attribute("width", zeroLabelWidth + 16)
-                        .Attribute("height", 39)
-                        .Attribute("rx", 9)
-                        .Attribute("fill", t.CardBackground.ToCss())
-                        .Attribute("fill-opacity", t.CardBackground.A == 0 ? 0 : 0.78)
-                        .Attribute("stroke", t.PlotBorder.ToCss())
-                        .Attribute("stroke-opacity", t.PlotBorder.A == 0 ? 0 : 0.55)
-                        .EndEmptyElement()
-                        .Line();
-                    DrawSvgTextLeft(labelWriter, chart, "funnel-label", label, zeroLabelX, centerY - 6, t.Text, labelFontSize, zeroLabelWidth, "800");
-                    DrawSvgTextLeft(labelWriter, chart, "funnel-value", value, zeroLabelX, centerY + 13, t.MutedText, valueFontSize, zeroLabelWidth, "750");
+                    DrawSvgTextLeft(labelWriter, chart, "funnel-zero-label", label + ": " + value, zeroLabelX, centerY + 4, t.MutedText, Math.Min(12.5, labelFontSize), zeroLabelMaxWidth, "750");
                 } else {
                     DrawSvgTextCenteredX(labelWriter, chart, "funnel-label", label, centerX, centerY - 4, labelColor, labelFontSize, labelWidth, "800", labelStroke, ChartVisualPrimitives.FunnelLabelHaloStrokeWidth);
                     DrawSvgTextCenteredX(labelWriter, chart, "funnel-value", value, centerX, centerY + 15, labelColor, valueFontSize, labelWidth, "750", labelStroke, ChartVisualPrimitives.FunnelLabelHaloStrokeWidth);

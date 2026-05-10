@@ -1574,7 +1574,7 @@
       "width": 920,
       "height": 560,
       "svg": {
-        "minVisualNodes": 19,
+        "minVisualNodes": 18,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },

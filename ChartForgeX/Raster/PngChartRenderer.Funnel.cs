@@ -71,19 +71,10 @@ public sealed partial class PngChartRenderer {
             var halo = FunnelTextHalo(labelColor, chart.Options.Theme.CardBackground);
             if (showLabels) {
                 if (values[i].Y <= 0) {
-                    var zeroLabelX = topRight + 24;
+                    var zeroLabelX = topRight + 18;
                     var zeroLabelMaxWidth = Math.Max(44, Math.Min(metricsX - zeroLabelX - 12, plot.Right - zeroLabelX));
-                    var zeroLabelFontSize = TextFontSizeForEmphasizedWidth(label, zeroLabelMaxWidth, FunnelLabelFontSize(chart.Options.Theme.LegendFontSize));
-                    var zeroValueFontSize = TextFontSizeForEmphasizedWidth(value, zeroLabelMaxWidth, FunnelValueFontSize(chart.Options.Theme.DataLabelFontSize));
-                    var zeroLabelPreferredWidth = Math.Max(72, Math.Max(EstimatePngEmphasizedTextWidth(label, zeroLabelFontSize), EstimatePngEmphasizedTextWidth(value, zeroValueFontSize)) + 18);
-                    var zeroLabelWidth = Math.Min(zeroLabelMaxWidth, zeroLabelPreferredWidth);
-                    var zeroStackHeight = zeroLabelFontSize + zeroValueFontSize + 18;
-                    var zeroBounds = new ChartRect(zeroLabelX, centerY - zeroStackHeight / 2.0, zeroLabelWidth, zeroStackHeight);
-                    var backdrop = ChartColorMath.WithOpacity(chart.Options.Theme.CardBackground, chart.Options.Theme.CardBackground.A == 0 ? 0 : 0.78);
-                    if (backdrop.A > 0) c.FillRoundedRect(zeroBounds.Left - 8, zeroBounds.Top - 5, zeroBounds.Width + 16, zeroBounds.Height + 10, 9, backdrop);
-                    if (chart.Options.Theme.PlotBorder.A > 0) c.StrokeRoundedRect(zeroBounds.Left - 8, zeroBounds.Top - 5, zeroBounds.Width + 16, zeroBounds.Height + 10, 9, ChartColorMath.WithOpacity(chart.Options.Theme.PlotBorder, 0.55), 1);
-                    DrawReadablePngLabel(c, zeroBounds, zeroBounds.Left, zeroBounds.Top, label, chart.Options.Theme.Text, ReadableLabelHalo(chart), zeroLabelFontSize);
-                    DrawReadablePngLabel(c, zeroBounds, zeroBounds.Left, zeroBounds.Top + zeroLabelFontSize + 12, value, chart.Options.Theme.MutedText, ReadableLabelHalo(chart), zeroValueFontSize);
+                    var zeroLabel = TrimReadablePngLabelToWidth(label + ": " + value, Math.Min(12.5, labelFontSize), zeroLabelMaxWidth);
+                    if (zeroLabel.Length > 0) c.DrawTextEmphasized(zeroLabelX, centerY - Math.Min(12.5, labelFontSize) / 2.0, zeroLabel, chart.Options.Theme.MutedText, Math.Min(12.5, labelFontSize));
                 } else {
                     DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(label, labelFontSize) / 2.0, labelY, label, labelColor, halo, labelFontSize);
                     DrawReadablePngLabel(c, centerX - EstimatePngEmphasizedTextWidth(value, valueFontSize) / 2.0, valueY, value, labelColor, halo, valueFontSize);
