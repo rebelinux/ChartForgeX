@@ -217,7 +217,10 @@ internal static partial class SmokeTests {
         if (svgSnap == null || pngSnap == null) throw new InvalidOperationException("Guide stroke snapping helpers were not found.");
         Assert(Math.Abs((double)svgSnap.Invoke(null, new object[] { 100.9, 1.0 })! - 100.5) < 0.000001, "SVG odd-width guide strokes should snap to the nearest half-pixel center, not always upward.");
         Assert(Math.Abs((double)svgSnap.Invoke(null, new object[] { 100.1, 1.0 })! - 100.5) < 0.000001, "SVG odd-width guide strokes should snap to the nearest half-pixel center from either side.");
+        Assert(Math.Abs((double)svgSnap.Invoke(null, new object[] { 100.0, 1.0 })! - 100.5) < 0.000001, "SVG integer guide strokes should snap to their own half-pixel center.");
+        Assert(Math.Abs((double)svgSnap.Invoke(null, new object[] { 101.0, 1.0 })! - 101.5) < 0.000001, "SVG integer guide strokes should not collapse with neighboring guide lines.");
         Assert(Math.Abs((double)pngSnap.Invoke(null, new object[] { 100.9, 1.0 })! - 100.5) < 0.000001, "PNG guide strokes should use the same nearest half-pixel snapping.");
+        Assert(Math.Abs((double)pngSnap.Invoke(null, new object[] { 101.0, 1.0 })! - 101.5) < 0.000001, "PNG guide strokes should use non-banker half-pixel snapping at integer ties.");
     }
 
     private static void FunnelZeroStageAvoidsFakeDropoffGuide() {
@@ -244,6 +247,8 @@ internal static partial class SmokeTests {
         if (label == "chart HTML page" || label == "visual block HTML page") {
             Assert(html.Contains("style=\"box-sizing:border-box;overflow:visible\"", StringComparison.Ordinal), label + " should not keep inline width or max-width rules that block standalone screen and print sizing.");
             Assert(html.Contains(" svg{width:100%;height:auto}", StringComparison.Ordinal), label + " should force the embedded SVG to page width in print mode.");
+            Assert(CountOccurrences(html, "<meta charset=\"utf-8\"") == 1, label + " should emit one canonical document head.");
+            Assert(CountOccurrences(html, "<style>body{margin:0") == 1, label + " should not duplicate the standalone stylesheet.");
         }
 
         if (label == "chart HTML page") Assert(html.Contains(".chartforgex-chart{width:min(100%,360px)", StringComparison.Ordinal), label + " should preserve centered browser previews with stylesheet sizing.");
