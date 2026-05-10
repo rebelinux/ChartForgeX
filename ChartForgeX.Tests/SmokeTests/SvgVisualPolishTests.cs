@@ -142,6 +142,21 @@ internal static partial class SmokeTests {
         Assert(!overlayChart.ToSvg().Contains("data-cfx-role=\"plot-inner-highlight\"", StringComparison.Ordinal), "Transparent plot backgrounds should not receive a visible SVG inner highlight.");
         Assert(overlayChart.ToPng().Length > 64, "Transparent plot backgrounds should still render PNG output.");
 
+        var transparentCardTheme = ChartTheme.ReportLight().WithSurfaceColors(ChartColor.Transparent, ChartColor.Transparent, ChartColor.Transparent, ChartColor.Transparent, ChartColor.Transparent);
+        var transparentCardChart = Chart.Create()
+            .WithSize(360, 220)
+            .WithTheme(transparentCardTheme)
+            .AddLine("Signal", Points(12, 24, 18), ChartColor.FromRgb(96, 165, 250));
+        Assert(!transparentCardChart.ToSvg().Contains("data-cfx-role=\"card-inner-highlight\"", StringComparison.Ordinal), "Transparent card backgrounds should not receive a visible SVG inner highlight.");
+        Assert(transparentCardChart.ToPng().Length > 64, "Transparent card backgrounds should still render PNG output.");
+
+        var transparentCardMetric = MetricCard.Create()
+            .WithMetric("MRR", "$120K")
+            .WithTheme(transparentCardTheme)
+            .WithSize(260, 140);
+        Assert(!transparentCardMetric.ToSvg("transparent-card-metric").Contains("data-cfx-role=\"visual-card-highlight\"", StringComparison.Ordinal), "Transparent visual block cards should not receive a visible SVG inner highlight.");
+        Assert(transparentCardMetric.ToPng().Length > 64, "Transparent visual block cards should still render PNG output.");
+
         var translucentTheme = ChartTheme.ReportLight();
         translucentTheme.Background = ChartColor.FromRgba(15, 23, 42, 96);
         var chartGrid = ChartGrid.Create()

@@ -412,7 +412,9 @@ public sealed partial class SvgChartRenderer {
             .Attribute("stroke", theme.CardBorder.ToCss())
             .EndEmptyElement()
             .Line());
-        DrawSvgSurfaceHighlight(sb, cardInset, cardInset, width - cardInset * 2, height - cardInset * 2, theme.CornerRadius, ChartVisualPrimitives.CardInnerHighlightInset, ChartVisualPrimitives.CardInnerHighlightOpacity, "card-inner-highlight");
+        if (theme.CardBackground.A > 0) {
+            DrawSvgSurfaceHighlight(sb, cardInset, cardInset, width - cardInset * 2, height - cardInset * 2, theme.CornerRadius, ChartVisualPrimitives.CardInnerHighlightInset, ChartVisualPrimitives.CardInnerHighlightOpacity, "card-inner-highlight");
+        }
     }
 
     private static void DrawGrid(StringBuilder sb, Chart chart, ChartRect plot, IReadOnlyList<double> xTicks, IReadOnlyList<double> yTicks, ChartMapper map) {

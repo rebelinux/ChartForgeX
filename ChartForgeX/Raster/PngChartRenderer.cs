@@ -251,7 +251,9 @@ public sealed partial class PngChartRenderer {
             var borderInset = ChartVisualPrimitives.CardBorderInset;
             c.StrokeRoundedRect(x + borderInset, y + borderInset, width - borderInset * 2, height - borderInset * 2, Math.Max(0, theme.CornerRadius - borderInset), theme.CardBorder);
         }
-        DrawPngSurfaceHighlight(c, x, y, width, height, theme.CornerRadius, ChartVisualPrimitives.CardInnerHighlightInset, ChartVisualPrimitives.CardInnerHighlightOpacity);
+        if (theme.CardBackground.A > 0) {
+            DrawPngSurfaceHighlight(c, x, y, width, height, theme.CornerRadius, ChartVisualPrimitives.CardInnerHighlightInset, ChartVisualPrimitives.CardInnerHighlightOpacity);
+        }
     }
 
     private static void DrawPngCardShadow(RgbaCanvas c, double x, double y, double width, double height, double radius, ChartColor shadow, double opacity) {
