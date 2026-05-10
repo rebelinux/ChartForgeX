@@ -102,7 +102,13 @@ public sealed class ChartMapDefinition {
             return false;
         }
 
-        return _aliases.TryGetValue(region.Trim(), out code!);
+        var key = region.Trim();
+        if (_ambiguousAliases.Contains(key) && !_canonicalAliases.Contains(key)) {
+            code = string.Empty;
+            return false;
+        }
+
+        return _aliases.TryGetValue(key, out code!);
     }
 
     private void AddAlias(string alias, string code, bool isCanonical = false) {
@@ -117,7 +123,6 @@ public sealed class ChartMapDefinition {
         if (_canonicalAliases.Contains(alias)) return;
         if (_ambiguousAliases.Contains(alias)) return;
         if (_aliases.TryGetValue(alias, out var existing) && !string.Equals(existing, code, StringComparison.OrdinalIgnoreCase)) {
-            _aliases.Remove(alias);
             _ambiguousAliases.Add(alias);
             return;
         }
