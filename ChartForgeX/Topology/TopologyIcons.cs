@@ -114,7 +114,8 @@ public sealed class TopologyIconCatalog {
             .AddIcon("load-balancer", "Load Balancer", TopologyNodeKind.Gateway, TopologyIconShape.LoadBalancer, "LB", "#7C3AED", "Network")
             .AddIcon("subnet", "Subnet", TopologyNodeKind.NetworkSegment, TopologyIconShape.NetworkSegment, "NET", "#0891B2", "Network")
             .AddIcon("wan-link", "WAN Link", TopologyNodeKind.Network, TopologyIconShape.Network, "WAN", "#2563EB", "Network")
-            .WithIconTags("load-balancer", "loadbalancer", "lb");
+            .WithIconTags("load-balancer", "loadbalancer", "lb")
+            .WithIconTags("subnet", "cidr", "network-segment");
     }
 
     private static TopologyIconPack BuiltInActiveDirectory() {
@@ -126,7 +127,15 @@ public sealed class TopologyIconCatalog {
             .AddIcon("read-only-domain-controller", "Read Only Domain Controller", TopologyNodeKind.Server, TopologyIconShape.ReadOnlyDomainController, "RODC", "#7C3AED", "Directory")
             .AddIcon("global-catalog", "Global Catalog", TopologyNodeKind.Server, TopologyIconShape.DomainController, "GC", "#0F766E", "Directory")
             .AddIcon("site", "AD Site", TopologyNodeKind.Location, TopologyIconShape.Site, "SITE", "#16A34A", "Directory")
-            .AddIcon("site-link", "AD Site Link", TopologyNodeKind.Network, TopologyIconShape.Network, "LINK", "#2563EB", "Directory");
+            .AddIcon("site-link", "AD Site Link", TopologyNodeKind.Network, TopologyIconShape.Network, "LINK", "#2563EB", "Directory")
+            .AddIcon("subnet", "AD Subnet", TopologyNodeKind.NetworkSegment, TopologyIconShape.NetworkSegment, "NET", "#0891B2", "Directory")
+            .AddIcon("bridgehead", "Bridgehead Server", TopologyNodeKind.Server, TopologyIconShape.DomainController, "BH", "#0F766E", "Directory")
+            .WithIconTags("domain-controller", "dc", "ldap", "kerberos")
+            .WithIconTags("read-only-domain-controller", "rodc", "read-only")
+            .WithIconTags("global-catalog", "gc")
+            .WithIconTags("site-link", "replication", "transport")
+            .WithIconTags("subnet", "cidr", "network-segment")
+            .WithIconTags("bridgehead", "replication", "inter-site");
     }
 
     private static TopologyIconPack BuiltInCloud() {

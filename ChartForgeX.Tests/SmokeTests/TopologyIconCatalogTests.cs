@@ -274,6 +274,72 @@ internal static partial class SmokeTests {
         }
     }
 
+    private static void TopologyCuratedIconPacksLoadSidecarArtwork() {
+        var root = Path.Combine(FindRepositoryRoot(), "assets", "topology-icons");
+        var packIds = new[] {
+            "chartforgex-ad-network-premium",
+            "backup",
+            "network-security",
+            "cloud-productivity",
+            "network-infrastructure"
+        };
+        var catalog = new TopologyIconCatalog();
+        foreach (var packId in packIds) {
+            var packRoot = Path.Combine(root, packId);
+            var manifestPath = Path.Combine(packRoot, "manifest.json");
+            Assert(File.Exists(manifestPath), "Curated icon pack should include a manifest: " + packId + ".");
+            Assert(File.Exists(Path.Combine(packRoot, "SOURCE.md")), "Curated icon pack should include provenance notes: " + packId + ".");
+            Assert(File.Exists(Path.Combine(packRoot, "LICENSE")), "Curated icon pack should include license notes: " + packId + ".");
+            Assert(Directory.GetFiles(Path.Combine(packRoot, "previews"), "*.png").Length > 0, "Curated icon pack should include preview PNG thumbnails: " + packId + ".");
+            var pack = TopologyIconPackJson.LoadJsonManifest(manifestPath);
+            Assert(pack.Validate().IsValid, "Curated icon pack should validate cleanly: " + packId + ".");
+            Assert(pack.Metadata.TryGetValue("artwork.origin", out var origin) && origin == "original-chartforgex", "Curated icon packs should carry original-artwork provenance.");
+            Assert(pack.Metadata.TryGetValue("artwork.workflow", out var workflow) && workflow == "svg-authored", "Curated icon packs should keep SVG artwork as the source of truth.");
+            Assert(File.Exists(Path.Combine(packRoot, "_reports", "refresh-report.json")), "Curated icon packs should include a refresh report: " + packId + ".");
+            Assert(pack.Icons.All(icon => icon.Artwork != null && icon.Artwork.HasSvgBody && icon.Artwork.HasSvgPath && icon.Artwork.HasPreviewPath), "Curated icon packs should load SVG bodies while preserving sidecar paths: " + packId + ".");
+            Assert(pack.Icons.All(icon => File.Exists(Path.Combine(packRoot, icon.Artwork!.PreviewPath!.Replace('/', Path.DirectorySeparatorChar)))), "Curated icon preview paths should resolve beside the manifest: " + packId + ".");
+            catalog.AddPack(pack);
+        }
+
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:bridgehead") != null, "Curated AD pack should include bridgehead artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:read-only-domain-controller") != null, "Curated AD pack should include RODC artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:user") != null, "Curated AD pack should include user artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:security-group") != null, "Curated AD pack should include group artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:computer") != null, "Curated AD pack should include computer artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:contact") != null, "Curated AD pack should include contact artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:group-managed-service-account") != null, "Curated AD pack should include gMSA artwork.");
+        Assert(catalog.Resolve("chartforgex-ad-network-premium:password-settings-object") != null, "Curated AD pack should include fine-grained password policy artwork.");
+        Assert(catalog.Resolve("backup:backup-proxy") != null, "Curated backup pack should include backup proxy artwork.");
+        Assert(catalog.Resolve("network-security:firewall") != null, "Curated network security pack should include firewall artwork.");
+        Assert(catalog.Resolve("cloud-productivity:conditional-access") != null, "Curated cloud productivity pack should include Conditional Access artwork.");
+        Assert(catalog.Resolve("network-infrastructure:rack-switch") != null, "Curated network infrastructure pack should include rack switch artwork.");
+        Assert(catalog.Resolve("network-infrastructure:edge-router") != null, "Curated network infrastructure pack should include router artwork.");
+        Assert(catalog.Resolve("network-infrastructure:patch-panel") != null, "Curated network infrastructure pack should include patch panel artwork.");
+
+        var palette = catalog.ToPaletteChart(new TopologyIconPaletteOptions {
+            Id = "curated-pack-palette",
+            Title = "Curated Icon Packs",
+            IncludeBuiltInPacks = false,
+            PacksPerRow = 2,
+            ColumnsPerPack = 4
+        });
+        var svg = palette.ToSvg(new TopologyRenderOptions {
+            IconCatalog = catalog,
+            IncludeLegend = false
+        });
+        Assert(svg.Contains("data-node-icon-artwork=\"svg\"", StringComparison.Ordinal), "Curated sidecar artwork should render through the SVG palette.");
+        Assert(svg.Contains("data-cfx-role=\"topology-icon-artwork\"", StringComparison.Ordinal), "Curated artwork-backed icons should render as SVG artwork rather than shape-only fallback nodes.");
+    }
+
+    private static void TopologyDefaultAdCatalogExposesAdvancedDirectoryAliases() {
+        var catalog = TopologyIconCatalog.Default();
+        Assert(catalog.Resolve("microsoft-ad:bridgehead") != null, "Built-in AD catalog should include a bridgehead icon.");
+        Assert(catalog.Resolve("microsoft-ad:subnet") != null, "Built-in AD catalog should include an AD subnet icon.");
+        Assert(catalog.Search(new TopologyIconCatalogQuery { SearchText = "rodc" }).Any(item => item.QualifiedId == "microsoft-ad:read-only-domain-controller"), "Built-in AD catalog should make RODC searchable.");
+        Assert(catalog.Search(new TopologyIconCatalogQuery { SearchText = "cidr" }).Any(item => item.QualifiedId == "microsoft-ad:subnet" || item.QualifiedId == "network:subnet"), "Subnet aliases should be searchable by CIDR vocabulary.");
+        Assert(catalog.Search(new TopologyIconCatalogQuery { SearchText = "inter-site" }).Any(item => item.QualifiedId == "microsoft-ad:bridgehead"), "Bridgehead aliases should support replication-oriented picker searches.");
+    }
+
     private static void TopologyIconCatalogsSearchAndFilterPaletteCharts() {
         var vendorPack = new TopologyIconPack("fortinet", "Fortinet", vendor: "Fortinet", version: "2026.1")
             .AddIcon("firewall", "FortiGate Firewall", TopologyNodeKind.Gateway, TopologyIconShape.Firewall, "FG", "#DA291C", "Security")

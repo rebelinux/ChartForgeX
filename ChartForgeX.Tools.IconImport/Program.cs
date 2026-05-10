@@ -5,13 +5,15 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 using ChartForgeX.Topology;
 using SkiaSharp;
 using Svg.Skia;
 
 namespace ChartForgeX.Tools.IconImport;
 
-internal static class Program {
+internal static partial class Program {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private static readonly string[] ExcludedTopLevelFolders = {
@@ -26,6 +28,10 @@ internal static class Program {
             if (ToolOptions.IsHelp(args)) {
                 Console.WriteLine(ToolOptions.Usage);
                 return 0;
+            }
+
+            if (ToolOptions.IsPackRefresh(args)) {
+                return TopologyIconPackRefreshCommand.Run(args);
             }
 
             var options = ToolOptions.Parse(args);
@@ -89,7 +95,7 @@ internal static class Program {
         }
     }
 
-    private static int WriteSvgSidecars(TopologyIconPack pack, string packOutput) {
+    internal static int WriteSvgSidecars(TopologyIconPack pack, string packOutput) {
         var svgRoot = Path.Combine(packOutput, "svg");
         Directory.CreateDirectory(svgRoot);
         var written = 0;
@@ -108,7 +114,7 @@ internal static class Program {
         return written;
     }
 
-    private static PreviewReport GeneratePreviews(TopologyIconPack pack, string packOutput, int size) {
+    internal static PreviewReport GeneratePreviews(TopologyIconPack pack, string packOutput, int size) {
         var previewRoot = Path.Combine(packOutput, "previews");
         Directory.CreateDirectory(previewRoot);
         var written = 0;
@@ -135,6 +141,7 @@ internal static class Program {
         if (picture == null) throw new InvalidOperationException("SVG could not be loaded by Svg.Skia.");
 
         var bounds = picture.CullRect;
+        if (bounds.Width <= 0 || bounds.Height <= 0) bounds = ReadSvgViewBoxBounds(sourcePath);
         if (bounds.Width <= 0 || bounds.Height <= 0) throw new InvalidOperationException("SVG has no drawable bounds.");
 
         var info = new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -155,6 +162,26 @@ internal static class Program {
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = File.Create(outputPath);
         data.SaveTo(stream);
+    }
+
+    private static SKRect ReadSvgViewBoxBounds(string sourcePath) {
+        var settings = new XmlReaderSettings {
+            DtdProcessing = DtdProcessing.Ignore,
+            XmlResolver = null
+        };
+        using var stream = File.OpenRead(sourcePath);
+        using var reader = XmlReader.Create(stream, settings);
+        var document = XDocument.Load(reader);
+        var root = document.Root;
+        var viewBox = root?.Attribute("viewBox")?.Value ?? root?.Attribute("viewbox")?.Value;
+        if (string.IsNullOrWhiteSpace(viewBox)) return new SKRect(0, 0, 96, 96);
+        var parts = viewBox!.Split(new[] { ' ', '\t', '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 4) return new SKRect(0, 0, 96, 96);
+        if (!float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)) return new SKRect(0, 0, 96, 96);
+        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)) return new SKRect(0, 0, 96, 96);
+        if (!float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var width)) return new SKRect(0, 0, 96, 96);
+        if (!float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var height)) return new SKRect(0, 0, 96, 96);
+        return new SKRect(x, y, x + width, y + height);
     }
 
     private static void CopyLicense(string sourceRoot, string outputRoot, string licensePath) {
@@ -254,7 +281,7 @@ internal static class Program {
         return value.Replace("&", "&amp;").Replace("\"", "&quot;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
 
-    private static void WriteUtf8NoBomFile(string path, string content) {
+    internal static void WriteUtf8NoBomFile(string path, string content) {
         File.WriteAllText(path, NormalizeNewLines(content), Utf8NoBom);
     }
 
@@ -321,6 +348,7 @@ internal static class Program {
             "\n" +
             "Usage:\n" +
             "  dotnet run --project ChartForgeX.Tools.IconImport -- --source <folder> [options]\n" +
+            "  dotnet run --project ChartForgeX.Tools.IconImport -- --refresh-pack <folder> [options]\n" +
             "\n" +
             "Required:\n" +
             "  --source <folder>              Source folder containing one or more category folders with SVG files.\n" +
@@ -337,6 +365,9 @@ internal static class Program {
             "  --pack-label-prefix <prefix>   Prefix for generated pack labels.\n" +
             "  --generate-png                 Generate preview PNG thumbnails beside SVG sidecars.\n" +
             "  --preview-size <pixels>        Preview PNG size from 32 to 512. Default: 128.\n" +
+            "  --refresh-pack <folder>        Refresh one existing sidecar pack from manifest.json plus svg/*.svg.\n" +
+            "  --validate-only                Validate a sidecar pack without writing previews or reports.\n" +
+            "  --contact-sheet <path>         Write a PNG contact sheet from refreshed or existing previews.\n" +
             "  --help                         Show this help.\n";
 
         public string SourceDirectory { get; private set; } = string.Empty;
@@ -354,6 +385,10 @@ internal static class Program {
 
         public static bool IsHelp(string[] args) {
             return args.Any(arg => string.Equals(arg, "--help", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "-h", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "/?", StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static bool IsPackRefresh(string[] args) {
+            return args.Any(arg => string.Equals(arg, "--refresh-pack", StringComparison.OrdinalIgnoreCase));
         }
 
         public static ToolOptions Parse(string[] args) {
@@ -433,7 +468,7 @@ internal static class Program {
         }
     }
 
-    private sealed record PreviewReport(int Written, int Failed, IReadOnlyList<string> Errors);
+    internal sealed record PreviewReport(int Written, int Failed, IReadOnlyList<string> Errors);
 
     private sealed record PackImportReport(string Category, string PackId, int SourceSvgFiles, int ImportedIcons, int SkippedFiles, int SvgFiles, int PreviewPngFiles, int PreviewFailures, IReadOnlyList<string> Issues);
 }

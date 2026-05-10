@@ -199,6 +199,8 @@ internal static partial class SmokeTests {
         ("Topology icon artwork renders vendor SVG assets", TopologyIconArtworkRendersVendorSvgAssets),
         ("Topology icon stencil browser renders searchable picker", TopologyIconStencilBrowserRendersSearchablePicker),
         ("Topology icon SVG pack importer builds auditable packs", TopologyIconSvgPackImporterBuildsAuditablePacks),
+        ("Topology curated icon packs load sidecar artwork", TopologyCuratedIconPacksLoadSidecarArtwork),
+        ("Topology default AD catalog exposes advanced directory aliases", TopologyDefaultAdCatalogExposesAdvancedDirectoryAliases),
         ("Topology icon catalogs search and filter palette charts", TopologyIconCatalogsSearchAndFilterPaletteCharts),
         ("Topology icon catalogs expose picker facets and metadata", TopologyIconCatalogsExposePickerFacetsAndMetadata),
         ("Topology icon pack manifests round trip vendor packs", TopologyIconPackManifestsRoundTripVendorPacks),
