@@ -74,6 +74,8 @@ internal sealed class GeoJsonValue {
         return null;
     }
 
+    public bool IsNull => _value == null;
+
     public static GeoJsonValue Object(Dictionary<string, GeoJsonValue> values) => new(values);
     public static GeoJsonValue Array(List<GeoJsonValue> values) => new(values);
     public static GeoJsonValue String(string value) => new(value);
@@ -87,7 +89,7 @@ internal static class GeoJsonValueExtensions {
         values.TryGetValue(name, out var value) ? value.AsOptionalString() : null;
 
     public static Dictionary<string, GeoJsonValue>? OptionalObject(this Dictionary<string, GeoJsonValue> values, string name) =>
-        values.TryGetValue(name, out var value) ? value.AsObject(name) : null;
+        values.TryGetValue(name, out var value) && !value.IsNull ? value.AsObject(name) : null;
 
     public static List<GeoJsonValue> RequiredArray(this Dictionary<string, GeoJsonValue> values, string name) {
         if (!values.TryGetValue(name, out var value)) throw new ArgumentException("Missing required JSON array: " + name + ".");

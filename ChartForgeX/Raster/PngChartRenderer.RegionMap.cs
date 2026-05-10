@@ -44,10 +44,12 @@ public sealed partial class PngChartRenderer {
             var color = hasValue ? ChartHeatmapSurface.MapColor(chart, entry.Color, series.Color ?? t.Palette[0], value, min, max) : ChartHeatmapSurface.MapNoDataColor(chart);
             var rings = ProjectMapRings(region.Path, sourceBounds, map, out var regionBounds);
             c.FillCompoundPolygon(rings, color);
-            foreach (var points in rings) {
-                for (var i = 0; i < points.Count; i++) {
-                    var next = points[(i + 1) % points.Count];
-                    c.DrawLine(points[i].X, points[i].Y, next.X, next.Y, regionStroke, regionStrokeWidth);
+            if (regionStrokeWidth > 0) {
+                foreach (var points in rings) {
+                    for (var i = 0; i < points.Count; i++) {
+                        var next = points[(i + 1) % points.Count];
+                        c.DrawLine(points[i].X, points[i].Y, next.X, next.Y, regionStroke, regionStrokeWidth);
+                    }
                 }
             }
             if (chart.Options.ShowMapLabels) {
