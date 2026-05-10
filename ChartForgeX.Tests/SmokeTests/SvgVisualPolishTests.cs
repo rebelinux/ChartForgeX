@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Reflection;
 using ChartForgeX;
 using ChartForgeX.Core;
 using ChartForgeX.Primitives;
@@ -81,6 +82,18 @@ internal static partial class SmokeTests {
         var bulletLabelX = double.Parse(GetStringAttribute(bullet, "data-cfx-role=\"bullet-row-label\"", "x"), CultureInfo.InvariantCulture);
         Assert(bulletLabelX >= 90, "Bullet row labels should honor internal content padding instead of touching the plot frame.");
 
+        var narrowBulletChart = Chart.Create()
+            .WithSize(180, 140)
+            .WithLegend(false)
+            .WithPadding(24, 24, 24, 24)
+            .AddBullet("Compact control posture label", 74, 90, 0, 100, new[] { 45d, 70d }, ChartColor.FromRgb(96, 165, 250));
+        narrowBulletChart.Series[0].WithDataLabels(false);
+        var narrowBullet = narrowBulletChart.ToSvg("narrow-bullet");
+        var valueX = double.Parse(GetStringAttribute(narrowBullet, "data-cfx-role=\"bullet-value\"", "x"), CultureInfo.InvariantCulture);
+        var valueWidth = double.Parse(GetStringAttribute(narrowBullet, "data-cfx-role=\"bullet-value\"", "width"), CultureInfo.InvariantCulture);
+        Assert(valueX >= 0 && valueX + valueWidth <= 180, "Narrow bullet charts should keep bars inside the chart viewport after internal padding.");
+        Assert(narrowBulletChart.ToPng().Length > 64, "Narrow bullet chart bounds should render in PNG output.");
+
         var tree = Chart.Create()
             .WithSize(1040, 600)
             .WithTheme(ChartTheme.ReportLight())
@@ -115,9 +128,19 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("-visualCardClip", StringComparison.Ordinal), "Metric visual blocks should define a rounded card clipping path.");
         Assert(svg.Contains("clip-path=\"url(#", StringComparison.Ordinal), "Metric status bars should be clipped by the card radius instead of painting square corners.");
         Assert(GetStringAttribute(svg, "data-cfx-role=\"metric-status-bar\"", "x") == "1.5", "Carded metric status bars should sit inside the card border instead of covering the rounded frame.");
-        Assert(!svg.Contains("-visualBackground)", StringComparison.Ordinal), "Carded visual blocks should not paint a square SVG background behind rounded card corners.");
+        Assert(svg.Contains("-visualBackground", StringComparison.Ordinal), "Opaque carded visual blocks should keep their configured SVG page background behind rounded card corners.");
         var metricPng = ReadPngRgba(metric.ToPng(), out var metricPngWidth, out var metricPngHeight);
-        Assert(AlphaAt(metricPng, metricPngWidth, 1, metricPngHeight - 2) == 0, "Carded visual block PNG output should leave the outside of rounded card corners transparent.");
+        Assert(AlphaAt(metricPng, metricPngWidth, 1, metricPngHeight - 2) == 255, "Opaque carded visual block PNG output should keep the outside of rounded card corners on the theme background.");
+
+        var transparentMetric = MetricCard.Create()
+            .WithMetric("Monthly Recurring Revenue", "$120,400")
+            .WithStatus(VisualStatus.Positive)
+            .WithTransparentBackground()
+            .WithTheme(ChartTheme.ReportLight().WithCornerRadius(26, 12))
+            .WithSize(420, 190);
+        Assert(!transparentMetric.ToSvg("transparent-rounded-status-bar").Contains("-visualBackground)", StringComparison.Ordinal), "Transparent visual blocks should not paint a square SVG page background behind rounded card corners.");
+        var transparentPng = ReadPngRgba(transparentMetric.ToPng(), out var transparentPngWidth, out var transparentPngHeight);
+        Assert(AlphaAt(transparentPng, transparentPngWidth, 1, transparentPngHeight - 2) == 0, "Transparent visual block PNG output should leave the outside of rounded card corners transparent.");
 
         var noCard = MetricCard.Create()
             .WithMetric("Monthly Recurring Revenue", "$120,400")
@@ -185,6 +208,16 @@ internal static partial class SmokeTests {
             .Add(ChartList.Create().WithTheme(ChartTheme.ReportLight()).WithSize(160, 90).AddItem("Ready"));
         var visualGridPixels = ReadPngRgba(visualGrid.ToPng(), out var visualGridWidth, out _);
         Assert(AlphaAt(visualGridPixels, visualGridWidth, 16, 16) == 96, "PNG visual grids should not compound translucent background alpha when adding polish.");
+    }
+
+    private static void GuideStrokeCoordinatesSnapToNearestPixelCenter() {
+        var svgSnap = typeof(ChartForgeX.Svg.SvgChartRenderer).GetMethod("CrispStrokeCoordinate", BindingFlags.NonPublic | BindingFlags.Static);
+        var pngSnap = typeof(ChartForgeX.Raster.PngChartRenderer).GetMethod("CrispStrokeCoordinate", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert(svgSnap != null && pngSnap != null, "Guide stroke snapping helpers should remain available for SVG and PNG renderers.");
+        if (svgSnap == null || pngSnap == null) throw new InvalidOperationException("Guide stroke snapping helpers were not found.");
+        Assert(Math.Abs((double)svgSnap.Invoke(null, new object[] { 100.9, 1.0 })! - 100.5) < 0.000001, "SVG odd-width guide strokes should snap to the nearest half-pixel center, not always upward.");
+        Assert(Math.Abs((double)svgSnap.Invoke(null, new object[] { 100.1, 1.0 })! - 100.5) < 0.000001, "SVG odd-width guide strokes should snap to the nearest half-pixel center from either side.");
+        Assert(Math.Abs((double)pngSnap.Invoke(null, new object[] { 100.9, 1.0 })! - 100.5) < 0.000001, "PNG guide strokes should use the same nearest half-pixel snapping.");
     }
 
     private static void FunnelZeroStageAvoidsFakeDropoffGuide() {

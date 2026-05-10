@@ -133,7 +133,8 @@ internal static class VisualBlockRendering {
             Math.Max(1, options.Size.Height - options.Padding.Top - options.Padding.Bottom));
     }
 
-    public static ChartColor SurfaceBackground(VisualBlockOptions options) => options.TransparentBackground ? ChartColor.Transparent : options.Theme.Background;
+    public static ChartColor SurfaceBackground(VisualBlockOptions options) =>
+        options.TransparentBackground ? ChartColor.Transparent : options.Theme.Background.A == 0 ? options.Theme.CardBackground : options.Theme.Background;
 
     public static ChartColor CardBackground(VisualBlockOptions options) => options.Theme.CardBackground;
 

@@ -141,7 +141,7 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("Trend", StringComparison.Ordinal), "VisualGrid should embed chart SVG.");
         var gridHtml = grid.ToHtmlPage();
         Assert(gridHtml.Contains("chartforgex-visual-grid has-fixed-panels has-frame", StringComparison.Ordinal), "VisualGrid should render optional premium frames in static HTML pages.");
-        Assert(gridHtml.Contains("linear-gradient(180deg", StringComparison.Ordinal) && gridHtml.Contains("overflow:visible", StringComparison.Ordinal), "VisualGrid HTML pages should use polished surfaces without clipping child shadows.");
+        Assert(gridHtml.Contains("linear-gradient(180deg", StringComparison.Ordinal) && gridHtml.Contains(".chartforgex-visual-grid-panel{min-width:0;width:100%;min-height:var(--cfx-visual-grid-panel-height,auto);display:grid;place-items:center;overflow:hidden}", StringComparison.Ordinal), "VisualGrid HTML pages should use polished surfaces while keeping child content inside each panel.");
         Assert(grid.ToPng().Length > 64, "VisualGrid should render PNG output.");
 
         var sparseGrid = VisualGrid.Create()

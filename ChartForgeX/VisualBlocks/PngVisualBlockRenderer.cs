@@ -21,7 +21,7 @@ public sealed class PngVisualBlockRenderer {
         var options = block.Options;
         var theme = options.Theme;
         var canvas = new RgbaCanvas(options.Size.Width, options.Size.Height, 2, null, options.PngOutputScale);
-        canvas.Clear(options.ShowCard && theme.UseCard ? ChartColor.Transparent : VisualBlockRendering.SurfaceBackground(options));
+        canvas.Clear(VisualBlockRendering.SurfaceBackground(options));
         if (options.ShowCard && theme.UseCard) {
             canvas.FillRoundedRectVerticalGradient(0, 0, options.Size.Width, options.Size.Height, theme.CornerRadius, ChartSurfacePolish.GradientTop(theme.CardBackground), ChartSurfacePolish.GradientBottom(theme.CardBackground));
             canvas.StrokeRoundedRect(0.5, 0.5, Math.Max(1, options.Size.Width - 1), Math.Max(1, options.Size.Height - 1), theme.CornerRadius, theme.CardBorder, 1);
@@ -152,7 +152,7 @@ public sealed class PngVisualBlockRenderer {
             else {
                 var symbolMaxWidth = badgeRadius * 1.62;
                 var symbolSize = MetricSymbolFontSize(card.Symbol, Math.Max(10, badgeRadius * 0.46), symbolMaxWidth);
-                DrawCenteredText(canvas, card.Symbol, cx, cy, symbolSize, ChartColorMath.TextOnBackground(badgeColor), true, symbolMaxWidth);
+                DrawCenteredTextMiddle(canvas, card.Symbol, cx, cy, symbolSize, ChartColorMath.TextOnBackground(badgeColor), true, symbolMaxWidth);
             }
         }
 
@@ -373,6 +373,13 @@ public sealed class PngVisualBlockRenderer {
     }
 
     private static void DrawCenteredText(RgbaCanvas canvas, string text, double x, double y, double size, ChartColor color, bool emphasized, double? maxWidth = null) {
+        var fitted = FitText(text, size, Math.Max(1, maxWidth ?? x * 2));
+        var width = emphasized ? RgbaCanvas.MeasureTextEmphasizedWidth(fitted, size, null) : RgbaCanvas.MeasureTextWidth(fitted, size, null);
+        if (emphasized) canvas.DrawTextEmphasized(x - width / 2, y, fitted, color, size);
+        else canvas.DrawText(x - width / 2, y, fitted, color, size);
+    }
+
+    private static void DrawCenteredTextMiddle(RgbaCanvas canvas, string text, double x, double y, double size, ChartColor color, bool emphasized, double? maxWidth = null) {
         var fitted = FitText(text, size, Math.Max(1, maxWidth ?? x * 2));
         var width = emphasized ? RgbaCanvas.MeasureTextEmphasizedWidth(fitted, size, null) : RgbaCanvas.MeasureTextWidth(fitted, size, null);
         var height = RgbaCanvas.MeasureTextHeight(size, null);

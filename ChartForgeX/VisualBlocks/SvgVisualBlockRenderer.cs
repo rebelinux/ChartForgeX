@@ -23,6 +23,7 @@ public sealed class SvgVisualBlockRenderer {
         VisualBlockRendering.Validate(block);
         var options = block.Options;
         var theme = options.Theme;
+        var surfaceBackground = VisualBlockRendering.SurfaceBackground(options);
         var id = "cfx-visual-" + VisualBlockRendering.StableHash(idScope ?? string.Empty, block.AccessibleName, options.Size.Width.ToString(CultureInfo.InvariantCulture), options.Size.Height.ToString(CultureInfo.InvariantCulture));
         var writer = new SvgMarkupWriter(4096);
         writer.StartElement("svg")
@@ -46,7 +47,7 @@ public sealed class SvgVisualBlockRenderer {
 
         writer.StartElement("defs").EndStartElement().Line();
         SvgSurfacePolish.WriteScopedStrokeStyle(writer, id);
-        SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualBackground", theme.Background);
+        SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualBackground", surfaceBackground);
         SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualCard", theme.CardBackground);
         SvgSurfacePolish.WriteSurfaceGradient(writer, id, "visualPlot", theme.PlotBackground);
         writer.StartElement("clipPath").Attribute("id", id + "-visualCardClip").EndStartElement()
@@ -55,7 +56,7 @@ public sealed class SvgVisualBlockRenderer {
             .Line();
         writer.EndElement().Line();
 
-        if (!options.TransparentBackground && theme.Background.A > 0 && !(options.ShowCard && theme.UseCard)) writer.StartElement("rect").Attribute("width", "100%").Attribute("height", "100%").Attribute("fill", "url(#" + id + "-visualBackground)").EndEmptyElement().Line();
+        if (!options.TransparentBackground && surfaceBackground.A > 0) writer.StartElement("rect").Attribute("width", "100%").Attribute("height", "100%").Attribute("fill", "url(#" + id + "-visualBackground)").EndEmptyElement().Line();
         if (options.ShowCard && theme.UseCard) {
             writer.StartElement("rect").Attribute("data-cfx-role", "visual-card").Attribute("class", ChartVisualPrimitives.SvgGuideStrokeClass).Attribute("x", 0.5).Attribute("y", 0.5).Attribute("width", Math.Max(0, options.Size.Width - 1)).Attribute("height", Math.Max(0, options.Size.Height - 1)).Attribute("rx", Math.Max(0, theme.CornerRadius - 0.5)).Attribute("fill", "url(#" + id + "-visualCard)").Attribute("stroke", theme.CardBorder.ToCss()).EndEmptyElement().Line();
             if (theme.CardBackground.A > 0) writer.StartElement("rect").Attribute("data-cfx-role", "visual-card-highlight").Attribute("class", ChartVisualPrimitives.SvgGuideStrokeClass).Attribute("x", ChartVisualPrimitives.CardInnerHighlightInset).Attribute("y", ChartVisualPrimitives.CardInnerHighlightInset).Attribute("width", Math.Max(0, options.Size.Width - ChartVisualPrimitives.CardInnerHighlightInset * 2)).Attribute("height", Math.Max(0, options.Size.Height - ChartVisualPrimitives.CardInnerHighlightInset * 2)).Attribute("rx", Math.Max(0, theme.CornerRadius - ChartVisualPrimitives.CardInnerHighlightInset)).Attribute("fill", "none").Attribute("stroke", "#fff").Attribute("stroke-opacity", ChartVisualPrimitives.CardInnerHighlightOpacity).EndEmptyElement().Line();

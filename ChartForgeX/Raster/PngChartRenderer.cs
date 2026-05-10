@@ -314,7 +314,7 @@ public sealed partial class PngChartRenderer {
     private static double CrispStrokeCoordinate(double value, double strokeWidth) {
         if (double.IsNaN(value) || double.IsInfinity(value)) return value;
         var roundedStroke = Math.Max(1, (int)Math.Round(strokeWidth));
-        return Math.Round(value) + (roundedStroke % 2 == 0 ? 0 : 0.5);
+        return roundedStroke % 2 == 0 ? Math.Round(value) : Math.Round(value - 0.5) + 0.5;
     }
 
     private static void DrawHeader(RgbaCanvas c, Chart chart) {
