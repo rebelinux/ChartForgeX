@@ -336,7 +336,6 @@ Refresh visual baselines only after reviewing the generated gallery:
 ## Documentation
 
 - [Architecture notes](docs/architecture.md)
-- [Chart release boundaries](docs/chart-release-boundaries.md)
 - [Export API](docs/export-api.md)
 - [Topology reference](docs/topology.md)
 - [Visual blocks reference](docs/visual-blocks.md)
