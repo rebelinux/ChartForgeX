@@ -27,6 +27,22 @@ ChartForgeX is for generated reports, documentation, email, static websites, das
 
 The core package renders SVG, static HTML, PNG, BMP, PPM, and baseline TIFF. Static HTML is script-free by default. Optional interactions are split into separate adapter packages so a static report can stay static, while a dashboard can opt into tooltips, selection, zoom, pan, brush ranges, synchronized charts, and export controls.
 
+## Visual Tour
+
+The examples are generated from `ChartForgeX.Examples` and checked into the project site so reviewers can inspect the visual output without running a browser chart runtime. The dedicated examples page keeps SVG, PNG, HTML, and C# snippets together; the repository gallery keeps the wider catalog grouped by chart family.
+
+| Dashboard grid | Heatmap | Topology |
+| --- | --- | --- |
+| [![Dashboard chart portfolio](Website/static/examples/generated/dashboard-chart-portfolio-grid.svg)](Website/static/examples/generated/dashboard-chart-portfolio-grid.svg) | [![Control coverage heatmap](Website/static/examples/generated/control-coverage-heatmap-dark.svg)](Website/static/examples/generated/control-coverage-heatmap-dark.svg) | [![Geographic topology map](Website/static/examples/generated/visual-geographic-topology-map.svg)](Website/static/examples/generated/visual-geographic-topology-map.svg) |
+| [SVG](Website/static/examples/generated/dashboard-chart-portfolio-grid.svg) | [HTML](Website/static/examples/generated/control-coverage-heatmap-dark.html) / [SVG](Website/static/examples/generated/control-coverage-heatmap-dark.svg) / [PNG](Website/static/examples/generated/control-coverage-heatmap-dark.png) | [SVG](Website/static/examples/generated/visual-geographic-topology-map.svg) |
+
+## Generated Examples
+
+- Run `dotnet run --project .\ChartForgeX.Examples\ChartForgeX.Examples.csproj -c Release` to refresh `ChartForgeX.Examples/bin/Release/net8.0/output/`.
+- Open `index.html` for the full generated gallery, `catalog.html` for grouped chart families, and `svg-png-comparison.html` for side-by-side SVG/PNG review.
+- Generated cards link HTML, SVG, PNG, and C# sidecar snippets when the example has a checked source sample.
+- The dedicated site uses `Website/data/showcase.json` and `Website/static/examples/promoted-cases.json` to keep promoted visuals source-linked and easy to copy.
+
 ## Install
 
 ```powershell

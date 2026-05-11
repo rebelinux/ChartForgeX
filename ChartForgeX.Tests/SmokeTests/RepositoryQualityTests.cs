@@ -227,6 +227,11 @@ internal static partial class SmokeTests {
 
     private static void ReadmeDocumentsChartCatalog() {
         var readme = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "README.md"));
+        Assert(readme.Contains("## Visual Tour", StringComparison.Ordinal), "README should include rendered visuals near the top of the page.");
+        Assert(readme.Contains("Website/static/examples/generated/dashboard-chart-portfolio-grid.svg", StringComparison.Ordinal), "README should show a dashboard visual preview.");
+        Assert(readme.Contains("Website/static/examples/generated/control-coverage-heatmap-dark.svg", StringComparison.Ordinal) && readme.Contains("Website/static/examples/generated/control-coverage-heatmap-dark.png", StringComparison.Ordinal), "README should link both SVG and PNG output for at least one generated visual.");
+        Assert(readme.Contains("Website/static/examples/generated/visual-geographic-topology-map.svg", StringComparison.Ordinal), "README should show a topology visual preview.");
+        Assert(readme.Contains("## Generated Examples", StringComparison.Ordinal) && readme.Contains("svg-png-comparison.html", StringComparison.Ordinal) && readme.Contains("C# sidecar snippets", StringComparison.Ordinal), "README should explain how generated examples expose SVG, PNG, HTML, and C# source snippets.");
         Assert(readme.Contains("## Chart catalog", StringComparison.Ordinal), "README should include a chart catalog.");
         Assert(readme.Contains("validates chart data before rendering", StringComparison.Ordinal), "README should document render-time validation behavior.");
         Assert(readme.Contains("cyclic Sankey flows", StringComparison.Ordinal), "README should document Sankey cycle rejection.");
