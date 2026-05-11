@@ -320,6 +320,7 @@ Refresh visual baselines only after reviewing the generated gallery:
 ## Documentation
 
 - [Architecture notes](docs/architecture.md)
+- [Chart release boundaries](docs/chart-release-boundaries.md)
 - [Topology reference](docs/topology.md)
 - [Visual blocks reference](docs/visual-blocks.md)
 - [Rendering engine benchmarking](docs/rendering-engine-benchmarking.md)
