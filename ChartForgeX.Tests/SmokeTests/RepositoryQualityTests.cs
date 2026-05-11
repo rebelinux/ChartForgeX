@@ -207,6 +207,9 @@ internal static partial class SmokeTests {
         Assert(File.Exists(Path.Combine(FindRepositoryRoot(), "TODO.md")), "Repository should include centralized follow-up guidance.");
         Assert(File.Exists(Path.Combine(FindRepositoryRoot(), "AGENTS.md")), "Repository should include agent guidance.");
         Assert(File.Exists(Path.Combine(FindRepositoryRoot(), "LICENSE")), "Repository should include a root license file.");
+        Assert(!File.Exists(Path.Combine(FindRepositoryRoot(), "CHANGELOG.md")), "GitHub Releases should be the release-note source of truth instead of a second repository changelog.");
+        Assert(!File.Exists(Path.Combine(FindRepositoryRoot(), "docs", "dashboard-pattern-expansion-plan.md")), "Completed dashboard implementation plans should be folded into TODO or focused docs instead of staying as stale plan files.");
+        Assert(!Directory.Exists(Path.Combine(FindRepositoryRoot(), "experiments")), "Release branches should not ship loose experiment folders; keep durable decisions in docs or TODO.");
         foreach (var packageProject in new[] {
             libraryProject,
             Path.Combine(FindRepositoryRoot(), "ChartForgeX.Interactivity", "ChartForgeX.Interactivity.csproj"),
@@ -244,6 +247,7 @@ internal static partial class SmokeTests {
         Assert(readme.Contains("ChartBrandKit", StringComparison.Ordinal) && readme.Contains("WithBrandKit", StringComparison.Ordinal), "README should document reusable brand kits.");
         Assert(readme.Contains("ChartBrandKit.Executive()", StringComparison.Ordinal) && readme.Contains("PeopleInfographic()", StringComparison.Ordinal) && readme.Contains("Accessible()", StringComparison.Ordinal), "README should document brand kit presets.");
         Assert(readme.Contains("Report intent", StringComparison.Ordinal) && readme.Contains("Theme starting point", StringComparison.Ordinal) && readme.Contains("Brand kit starting point", StringComparison.Ordinal), "README should help users choose between themes and brand kits.");
+        Assert(readme.Contains("GitHub Releases", StringComparison.Ordinal) && readme.Contains("NuGet", StringComparison.Ordinal), "README should explain where release notes belong.");
         Assert(readme.Contains("WithPanelSpan", StringComparison.Ordinal) && readme.Contains("columnSpan", StringComparison.Ordinal), "README should document grid panel spans.");
         Assert(readme.Contains("ChartColor.FromHex", StringComparison.Ordinal) && readme.Contains("ChartPalettes.FromHex", StringComparison.Ordinal), "README should document pasted hex color customization.");
         Assert(readme.Contains("WithSurfaceColors", StringComparison.Ordinal) && readme.Contains("WithSemanticColors", StringComparison.Ordinal) && readme.Contains("WithSurfaceStyle", StringComparison.Ordinal), "README should document theme color and surface customization helpers.");

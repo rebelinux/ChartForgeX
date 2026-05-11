@@ -57,6 +57,8 @@ The first release should be treated as a broad preview with a serious stability 
 
 No chart type is marked for removal in this release pass. Active follow-up work belongs in `TODO.md` until it becomes durable reference documentation.
 
+Release notes should be published through GitHub Releases. Keep NuGet `PackageReleaseNotes` short and package-focused, and avoid maintaining a second long-form changelog in the repository.
+
 ## Quick Start
 
 ```csharp

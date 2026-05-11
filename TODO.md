@@ -28,6 +28,8 @@ dotnet run --project ChartForgeX.Benchmarks -c Release -- 500
 
 - Broaden table, list, and metric-card style presets from real PowerBGInfo, ImagePlayground, email, Word, and wallpaper examples.
 - Add small icon/status symbol options only when they stay renderer-owned and dependency-free.
+- Add grouped capsule-bar polish only if repeated dashboard examples need it outside ordinary grouped `Bar` output.
+- Promote shared chips, badges, delta pills, and avatar stacks into reusable primitives only where multiple blocks need the same bounded geometry.
 - Add reusable status palettes and compact infographic snippets that reuse shared primitive layout/styling instead of arbitrary markup.
 - Add more examples and visual-baseline candidates once layouts stabilize.
 
@@ -40,7 +42,7 @@ dotnet run --project ChartForgeX.Benchmarks -c Release -- 500
 ## Release Readiness
 
 - Keep the first-release public surface stable where it represents real charting concepts; make pre-release breaking changes only for clearer naming, stronger typing, dependency boundaries, or product-neutral API design.
-- Keep `CHANGELOG.md` as the release ledger and keep package release notes short enough for NuGet.
+- Use GitHub Releases as the release-note source of truth; keep package release notes short enough for NuGet and do not maintain a second long-form repository changelog.
 - Keep package license metadata aligned across `ChartForgeX`, `ChartForgeX.Interactivity`, and `ChartForgeX.Interactivity.Html`.
 - Update package versions and release metadata in all package projects when preparing a release.
 - Run the full quality loop and inspect generated examples before publishing packages.
