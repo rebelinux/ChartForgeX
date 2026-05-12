@@ -22,6 +22,8 @@
     <Description>Self-contained HTML and SVG interaction adapter for ChartForgeX charts.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>ChartForgeX.png</PackageIcon>
+    <PackageIconUrl>https://raw.githubusercontent.com/EvotecIT/ChartForgeX/main/assets/ChartForgeX.png</PackageIconUrl>
     <PackageTags>charts;interactive;html;svg;reports;dashboard;zero-dependency;aot;nativeaot;trimming</PackageTags>
     <PackageProjectUrl>https://github.com/EvotecIT/ChartForgeX</PackageProjectUrl>
     <RepositoryUrl>https://github.com/EvotecIT/ChartForgeX</RepositoryUrl>
@@ -40,6 +42,7 @@
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\assets\ChartForgeX.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

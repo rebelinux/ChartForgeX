@@ -22,6 +22,8 @@
     <Description>Host-neutral interaction contracts for ChartForgeX chart renderers and adapters.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>ChartForgeX.png</PackageIcon>
+    <PackageIconUrl>https://raw.githubusercontent.com/EvotecIT/ChartForgeX/main/assets/ChartForgeX.png</PackageIconUrl>
     <PackageTags>charts;interactivity;svg;html;reports;dashboard;zero-dependency;aot;nativeaot;trimming</PackageTags>
     <PackageProjectUrl>https://github.com/EvotecIT/ChartForgeX</PackageProjectUrl>
     <RepositoryUrl>https://github.com/EvotecIT/ChartForgeX</RepositoryUrl>
@@ -35,5 +37,6 @@
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\assets\ChartForgeX.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
