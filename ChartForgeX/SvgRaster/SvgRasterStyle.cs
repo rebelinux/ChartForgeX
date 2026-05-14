@@ -7,8 +7,8 @@ namespace ChartForgeX.SvgRaster;
 
 internal sealed class SvgRasterStyle {
     public static SvgRasterStyle Default => new() {
-        Fill = ChartColor.Black,
-        Stroke = null,
+        Fill = SvgRasterPaint.Solid(ChartColor.Black),
+        Stroke = SvgRasterPaint.None,
         Color = ChartColor.Black,
         Opacity = 1,
         FillOpacity = 1,
@@ -20,8 +20,8 @@ internal sealed class SvgRasterStyle {
         Visible = true
     };
 
-    public ChartColor? Fill { get; set; }
-    public ChartColor? Stroke { get; set; }
+    public SvgRasterPaint Fill { get; set; }
+    public SvgRasterPaint Stroke { get; set; }
     public ChartColor Color { get; set; }
     public double Opacity { get; set; }
     public double FillOpacity { get; set; }
@@ -60,9 +60,9 @@ internal sealed class SvgRasterStyle {
         return style;
     }
 
-    public ChartColor FillColor() => WithOpacity(Fill ?? ChartColor.Transparent, Opacity * FillOpacity);
+    public ChartColor FillColor() => WithOpacity(Fill.Color ?? ChartColor.Transparent, Opacity * FillOpacity);
 
-    public ChartColor StrokeColor() => WithOpacity(Stroke ?? ChartColor.Transparent, Opacity * StrokeOpacity);
+    public ChartColor StrokeColor() => WithOpacity(Stroke.Color ?? ChartColor.Transparent, Opacity * StrokeOpacity);
 
     private static void ApplyPresentation(SvgRasterStyle style, SvgRasterElement element) {
         ApplyAttribute(style, element, "color");
@@ -87,13 +87,14 @@ internal sealed class SvgRasterStyle {
         if (string.IsNullOrWhiteSpace(value)) return;
         switch (name) {
             case "color":
-                style.Color = ParsePaint(value, style.Color) ?? style.Color;
+                var colorPaint = SvgRasterPaint.Parse(value, style.Color, SvgRasterPaint.Solid(style.Color));
+                style.Color = colorPaint.Color ?? style.Color;
                 break;
             case "fill":
-                style.Fill = ParsePaint(value, style.Color);
+                style.Fill = SvgRasterPaint.Parse(value, style.Color, style.Fill);
                 break;
             case "stroke":
-                style.Stroke = ParsePaint(value, style.Color);
+                style.Stroke = SvgRasterPaint.Parse(value, style.Color, style.Stroke);
                 break;
             case "stroke-width":
                 style.StrokeWidth = Math.Max(0, ParseLength(value, style.StrokeWidth));
@@ -123,14 +124,6 @@ internal sealed class SvgRasterStyle {
                 if (string.Equals(value.Trim(), "hidden", StringComparison.OrdinalIgnoreCase) || string.Equals(value.Trim(), "collapse", StringComparison.OrdinalIgnoreCase)) style.Visible = false;
                 break;
         }
-    }
-
-    private static ChartColor? ParsePaint(string value, ChartColor currentColor) {
-        var trimmed = value.Trim();
-        if (string.Equals(trimmed, "none", StringComparison.OrdinalIgnoreCase)) return null;
-        if (string.Equals(trimmed, "currentColor", StringComparison.OrdinalIgnoreCase)) return currentColor;
-        if (ChartColor.TryParse(trimmed, out var color)) return color;
-        return null;
     }
 
     private static double ParseOpacity(string value, double fallback) {

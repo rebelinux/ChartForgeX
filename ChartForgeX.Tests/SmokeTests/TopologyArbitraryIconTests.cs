@@ -116,6 +116,17 @@ internal static partial class SmokeTests {
         Assert(CountPixelsNear(rasterPixels, 0, 0, 255) > 280, "PNG topology artwork should rasterize non-rectangular inline SVG nodes.");
         Assert(CountPixelsNear(rasterPixels, 0, 170, 0) > 120, "PNG topology artwork should rasterize inline SVG strokes.");
 
+        var gradientArtwork = TopologyIconArtwork.InlineSvg("<defs><linearGradient id=\"brand\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"><stop offset=\"0%\" stop-color=\"#FF0000\"/><stop offset=\"100%\" stop-color=\"#0000FF\"/></linearGradient></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"url(#brand)\"/><svg x=\"11\" y=\"11\" width=\"22\" height=\"22\" viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"5\" fill=\"#00FF00\"/></svg>", "0 0 44 44");
+        var gradientPng = TopologyChart.Create()
+            .WithId("png-svg-raster-gradient-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", gradientArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var gradientPixels = ReadPngRgba(gradientPng, out _, out _);
+        Assert(CountPixelsNear(gradientPixels, 255, 0, 0) > 160, "PNG topology artwork should rasterize SVG linearGradient fills from defs.");
+        Assert(CountPixelsNear(gradientPixels, 0, 0, 255) > 160, "PNG topology artwork should preserve both sides of a linearGradient fill.");
+        Assert(CountPixelsNear(gradientPixels, 0, 255, 0) > 520, "PNG topology artwork should apply nested SVG viewBox scaling instead of treating nested SVG as an unscaled group.");
+
         var artworkFallbackPng = TopologyChart.Create()
             .WithId("png-artwork-fallback")
             .WithViewport(220, 150, 12)
