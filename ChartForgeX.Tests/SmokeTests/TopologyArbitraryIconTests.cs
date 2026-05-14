@@ -128,6 +128,18 @@ internal static partial class SmokeTests {
         Assert(CountPixelsNear(clippedPixels, 0, 255, 0) < 80, "PNG topology artwork should not paint clipPath geometry from defs as visible artwork.");
         Assert(CountPixelsNear(clippedPixels, clippedWidth, 80, 18, 44, 88, 0, 0, 255) > 900, "PNG topology artwork should continue rendering unclipped siblings after a clipped element.");
 
+        var maskedArtwork = TopologyIconArtwork.InlineSvg("<defs><mask id=\"left-mask\"><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"#000000\"/><rect x=\"0\" y=\"0\" width=\"22\" height=\"44\" fill=\"#FFFFFF\"/></mask></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"#FF0000\" mask=\"url(#left-mask)\"/><rect x=\"22\" y=\"0\" width=\"22\" height=\"44\" fill=\"#0000FF\"/>", "0 0 44 44");
+        var maskedPng = TopologyChart.Create()
+            .WithId("png-svg-raster-masked-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", maskedArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var maskedPixels = ReadPngRgba(maskedPng, out var maskedWidth, out _);
+        Assert(CountPixelsNear(maskedPixels, maskedWidth, 36, 18, 44, 88, 255, 0, 0) > 900, "PNG topology artwork should reveal masked SVG content through white mask regions.");
+        Assert(CountPixelsNear(maskedPixels, maskedWidth, 80, 18, 44, 88, 255, 0, 0) < 80, "PNG topology artwork should hide masked SVG content through black mask regions.");
+        Assert(CountPixelsNear(maskedPixels, maskedWidth, 36, 18, 88, 88, 255, 255, 255) < 80, "PNG topology artwork should not paint mask geometry from defs as visible artwork.");
+        Assert(CountPixelsNear(maskedPixels, maskedWidth, 80, 18, 44, 88, 0, 0, 255) > 900, "PNG topology artwork should continue rendering siblings after a masked element.");
+
         var gradientArtwork = TopologyIconArtwork.InlineSvg("<defs><linearGradient id=\"brand-stops\"><stop offset=\"0%\" stop-color=\"#FF0000\"/><stop offset=\"100%\" stop-color=\"#0000FF\"/></linearGradient><linearGradient id=\"brand\" href=\"#brand-stops\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"/></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"url(#brand)\"/><svg x=\"11\" y=\"11\" width=\"22\" height=\"22\" viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"5\" fill=\"#00FF00\"/></svg>", "0 0 44 44");
         var gradientPng = TopologyChart.Create()
             .WithId("png-svg-raster-gradient-artwork")

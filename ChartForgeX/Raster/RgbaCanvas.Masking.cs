@@ -17,7 +17,8 @@ internal sealed partial class RgbaCanvas {
             var dy = targetY0 + yy;
             if (dx < 0 || dy < 0 || dx >= _pixelWidth || dy >= _pixelHeight) continue;
             var source = (yy * width + xx) * 4;
-            var alpha = rgba[source + 3] * maskRgba[source + 3] / 255;
+            var luminance = (maskRgba[source] * 299 + maskRgba[source + 1] * 587 + maskRgba[source + 2] * 114) / 1000;
+            var alpha = rgba[source + 3] * maskRgba[source + 3] * luminance / (255 * 255);
             if (alpha == 0) continue;
             BlendPixel(dx, dy, ChartColor.FromRgba(rgba[source], rgba[source + 1], rgba[source + 2], (byte)alpha));
         }

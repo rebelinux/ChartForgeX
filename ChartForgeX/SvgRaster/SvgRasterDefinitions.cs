@@ -10,6 +10,7 @@ namespace ChartForgeX.SvgRaster;
 internal sealed class SvgRasterDefinitions {
     private readonly Dictionary<string, SvgRasterElement> _gradientElements = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterClipPath> _clipPaths = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SvgRasterMask> _masks = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterLinearGradient> _linearGradients = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterRadialGradient> _radialGradients = new(StringComparer.Ordinal);
 
@@ -34,6 +35,12 @@ internal sealed class SvgRasterDefinitions {
     public bool TryGetClipPath(string? id, out SvgRasterClipPath clipPath) {
         if (id != null && _clipPaths.TryGetValue(id, out clipPath!)) return true;
         clipPath = null!;
+        return false;
+    }
+
+    public bool TryGetMask(string? id, out SvgRasterMask mask) {
+        if (id != null && _masks.TryGetValue(id, out mask!)) return true;
+        mask = null!;
         return false;
     }
 
@@ -78,6 +85,10 @@ internal sealed class SvgRasterDefinitions {
             _clipPaths[clipId] = new SvgRasterClipPath(element);
         }
 
+        if (string.Equals(element.Name, "mask", StringComparison.Ordinal) && element.TryGet("id", out var maskId) && !string.IsNullOrWhiteSpace(maskId)) {
+            _masks[maskId] = new SvgRasterMask(element);
+        }
+
         foreach (var child in element.Children) Collect(child);
     }
 
@@ -90,6 +101,14 @@ internal sealed class SvgRasterDefinitions {
 
 internal sealed class SvgRasterClipPath {
     public SvgRasterClipPath(SvgRasterElement element) {
+        Element = element;
+    }
+
+    public SvgRasterElement Element { get; }
+}
+
+internal sealed class SvgRasterMask {
+    public SvgRasterMask(SvgRasterElement element) {
         Element = element;
     }
 

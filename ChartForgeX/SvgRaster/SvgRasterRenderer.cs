@@ -31,13 +31,27 @@ internal static class SvgRasterRenderer {
         var matrix = parentMatrix.Multiply(SvgRasterMatrix.ParseTransform(element.Get("transform")));
         if (string.Equals(element.Name, "svg", StringComparison.Ordinal)) matrix = ApplyNestedSvgViewport(element, matrix);
         if (IsDefinitionElement(element.Name)) return;
-        var clipPathId = ClipPathId(element);
-        if (clipPathId != null && definitions.TryGetClipPath(clipPathId, out var clipPath)) {
+        var hasClipPath = definitions.TryGetClipPath(ReferenceId(element, "clip-path"), out var clipPath);
+        var hasMask = definitions.TryGetMask(ReferenceId(element, "mask"), out var maskDefinition);
+        if (hasClipPath || hasMask) {
             var content = new RgbaCanvas(width, height, 1);
             RenderElementCore(content, element, style, matrix, definitions, width, height);
-            var mask = new RgbaCanvas(width, height, 1);
-            RenderClipPath(mask, clipPath, matrix);
-            canvas.DrawImageMasked(0, 0, width, height, content.Pixels, mask.Pixels);
+            if (hasClipPath) {
+                var clippedContent = new RgbaCanvas(width, height, 1);
+                var clipMask = new RgbaCanvas(width, height, 1);
+                RenderClipPath(clipMask, clipPath, matrix);
+                clippedContent.DrawImageMasked(0, 0, width, height, content.Pixels, clipMask.Pixels);
+                content = clippedContent;
+            }
+
+            if (hasMask) {
+                var mask = new RgbaCanvas(width, height, 1);
+                RenderMask(mask, maskDefinition, matrix, definitions, width, height);
+                canvas.DrawImageMasked(0, 0, width, height, content.Pixels, mask.Pixels);
+            } else {
+                canvas.DrawImage(0, 0, width, height, content.Pixels);
+            }
+
             return;
         }
 
@@ -181,6 +195,11 @@ internal static class SvgRasterRenderer {
         foreach (var child in clipPath.Element.Children) RenderClipElement(mask, child, clipMatrix);
     }
 
+    private static void RenderMask(RgbaCanvas mask, SvgRasterMask maskDefinition, SvgRasterMatrix matrix, SvgRasterDefinitions definitions, int width, int height) {
+        var maskMatrix = matrix.Multiply(SvgRasterMatrix.ParseTransform(maskDefinition.Element.Get("transform")));
+        foreach (var child in maskDefinition.Element.Children) RenderElement(mask, child, SvgRasterStyle.Default, maskMatrix, definitions, width, height);
+    }
+
     private static void RenderClipElement(RgbaCanvas mask, SvgRasterElement element, SvgRasterMatrix parentMatrix) {
         if (IsDefinitionElement(element.Name)) return;
         var matrix = parentMatrix.Multiply(SvgRasterMatrix.ParseTransform(element.Get("transform")));
@@ -289,14 +308,14 @@ internal static class SvgRasterRenderer {
         pathData.IndexOf('z') >= 0 || pathData.IndexOf('Z') >= 0;
 
     private static bool IsDefinitionElement(string name) =>
-        string.Equals(name, "defs", StringComparison.Ordinal) || string.Equals(name, "userDefs", StringComparison.Ordinal) || string.Equals(name, "clipPath", StringComparison.Ordinal) || string.Equals(name, "title", StringComparison.Ordinal) || string.Equals(name, "desc", StringComparison.Ordinal);
+        string.Equals(name, "defs", StringComparison.Ordinal) || string.Equals(name, "userDefs", StringComparison.Ordinal) || string.Equals(name, "clipPath", StringComparison.Ordinal) || string.Equals(name, "mask", StringComparison.Ordinal) || string.Equals(name, "title", StringComparison.Ordinal) || string.Equals(name, "desc", StringComparison.Ordinal);
 
-    private static string? ClipPathId(SvgRasterElement element) {
-        var value = element.Get("clip-path");
+    private static string? ReferenceId(SvgRasterElement element, string propertyName) {
+        var value = element.Get(propertyName);
         var inline = element.Get("style");
         if (!string.IsNullOrWhiteSpace(inline)) {
             foreach (var declaration in ChartForgeX.Svg.SvgStyleDeclarationList.Parse(inline!).Declarations) {
-                if (string.Equals(declaration.Name, "clip-path", StringComparison.Ordinal)) value = declaration.Value;
+                if (string.Equals(declaration.Name, propertyName, StringComparison.Ordinal)) value = declaration.Value;
             }
         }
 
