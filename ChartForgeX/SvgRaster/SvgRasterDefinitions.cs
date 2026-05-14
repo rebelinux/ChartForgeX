@@ -16,12 +16,18 @@ internal sealed class SvgRasterDefinitions {
     private readonly Dictionary<string, SvgRasterLinearGradient> _linearGradients = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterRadialGradient> _radialGradients = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterPattern> _patterns = new(StringComparer.Ordinal);
+    private readonly List<string> _styleBlocks = new();
+
+    private SvgRasterStyleSheet _styleSheet = SvgRasterStyleSheet.Empty;
 
     public static SvgRasterDefinitions From(SvgRasterDocument document) {
         var definitions = new SvgRasterDefinitions();
         foreach (var child in document.Children) definitions.Collect(child);
+        definitions._styleSheet = SvgRasterStyleSheet.Parse(definitions._styleBlocks);
         return definitions;
     }
+
+    public SvgRasterStyleSheet StyleSheet => _styleSheet;
 
     public bool TryGetLinearGradient(string? id, out SvgRasterLinearGradient gradient) {
         if (id != null && ResolveLinearGradient(id, new HashSet<string>(StringComparer.Ordinal), out gradient!)) return true;
@@ -69,7 +75,7 @@ internal sealed class SvgRasterDefinitions {
         SvgRasterLinearGradient? inherited = null;
         var referenceId = ReferenceId(element);
         if (referenceId != null) ResolveLinearGradient(referenceId, visiting, out inherited!);
-        gradient = SvgRasterLinearGradient.From(element, inherited);
+        gradient = SvgRasterLinearGradient.From(element, inherited, StyleSheet);
         _linearGradients[id] = gradient;
         visiting.Remove(id);
         return true;
@@ -85,7 +91,7 @@ internal sealed class SvgRasterDefinitions {
         SvgRasterRadialGradient? inherited = null;
         var referenceId = ReferenceId(element);
         if (referenceId != null) ResolveRadialGradient(referenceId, visiting, out inherited!);
-        gradient = SvgRasterRadialGradient.From(element, inherited);
+        gradient = SvgRasterRadialGradient.From(element, inherited, StyleSheet);
         _radialGradients[id] = gradient;
         visiting.Remove(id);
         return true;
@@ -108,6 +114,10 @@ internal sealed class SvgRasterDefinitions {
     }
 
     private void Collect(SvgRasterElement element) {
+        if (string.Equals(element.Name, "style", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(element.Text)) {
+            _styleBlocks.Add(element.Text);
+        }
+
         if (IsReusableElement(element) && element.TryGet("id", out var reusableId) && !string.IsNullOrWhiteSpace(reusableId)) {
             _elements[reusableId] = element;
         }
@@ -146,6 +156,7 @@ internal sealed class SvgRasterDefinitions {
         !string.Equals(element.Name, "clipPath", StringComparison.Ordinal) &&
         !string.Equals(element.Name, "mask", StringComparison.Ordinal) &&
         !string.Equals(element.Name, "stop", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "style", StringComparison.Ordinal) &&
         !string.Equals(element.Name, "title", StringComparison.Ordinal) &&
         !string.Equals(element.Name, "desc", StringComparison.Ordinal);
 }
@@ -230,9 +241,9 @@ internal sealed class SvgRasterLinearGradient {
     public RasterGradientSpreadMethod SpreadMethod { get; }
     public IReadOnlyList<RasterGradientStop> Stops { get; }
 
-    public static SvgRasterLinearGradient From(SvgRasterElement element, SvgRasterLinearGradient? inherited) {
+    public static SvgRasterLinearGradient From(SvgRasterElement element, SvgRasterLinearGradient? inherited, SvgRasterStyleSheet styleSheet) {
         var userSpace = string.Equals(element.Get("gradientUnits"), "userSpaceOnUse", StringComparison.Ordinal) || (element.Get("gradientUnits") == null && inherited?.UserSpaceOnUse == true);
-        var stops = SvgRasterGradientValues.ReadStops(element);
+        var stops = SvgRasterGradientValues.ReadStops(element, styleSheet);
         if (stops.Count == 0) stops = inherited?.Stops ?? SvgRasterGradientValues.BlackStops;
         var transform = element.Get("gradientTransform") == null ? inherited?.Transform ?? SvgRasterMatrix.Identity : SvgRasterMatrix.ParseTransform(element.Get("gradientTransform"));
         return new SvgRasterLinearGradient(
@@ -279,9 +290,9 @@ internal sealed class SvgRasterRadialGradient {
     public RasterGradientSpreadMethod SpreadMethod { get; }
     public IReadOnlyList<RasterGradientStop> Stops { get; }
 
-    public static SvgRasterRadialGradient From(SvgRasterElement element, SvgRasterRadialGradient? inherited) {
+    public static SvgRasterRadialGradient From(SvgRasterElement element, SvgRasterRadialGradient? inherited, SvgRasterStyleSheet styleSheet) {
         var userSpace = string.Equals(element.Get("gradientUnits"), "userSpaceOnUse", StringComparison.Ordinal) || (element.Get("gradientUnits") == null && inherited?.UserSpaceOnUse == true);
-        var stops = SvgRasterGradientValues.ReadStops(element);
+        var stops = SvgRasterGradientValues.ReadStops(element, styleSheet);
         if (stops.Count == 0) stops = inherited?.Stops ?? SvgRasterGradientValues.BlackStops;
         var transform = element.Get("gradientTransform") == null ? inherited?.Transform ?? SvgRasterMatrix.Identity : SvgRasterMatrix.ParseTransform(element.Get("gradientTransform"));
         return new SvgRasterRadialGradient(
@@ -314,10 +325,10 @@ internal sealed class SvgRasterRadialGradient {
 internal static class SvgRasterGradientValues {
     public static readonly IReadOnlyList<RasterGradientStop> BlackStops = new[] { new RasterGradientStop(0, ChartColor.Black), new RasterGradientStop(1, ChartColor.Black) };
 
-    public static IReadOnlyList<RasterGradientStop> ReadStops(SvgRasterElement element) {
+    public static IReadOnlyList<RasterGradientStop> ReadStops(SvgRasterElement element, SvgRasterStyleSheet styleSheet) {
         return element.Children
             .Where(child => string.Equals(child.Name, "stop", StringComparison.Ordinal))
-            .Select(ReadStop)
+            .Select(child => ReadStop(child, styleSheet))
             .OrderBy(stop => stop.Offset)
             .ToArray();
     }
@@ -358,9 +369,14 @@ internal static class SvgRasterGradientValues {
         return new GradientBounds(left, top, Math.Max(0.000001, right - left), Math.Max(0.000001, bottom - top));
     }
 
-    private static RasterGradientStop ReadStop(SvgRasterElement element) {
+    private static RasterGradientStop ReadStop(SvgRasterElement element, SvgRasterStyleSheet styleSheet) {
         var stopColor = element.Get("stop-color");
         var stopOpacity = element.Get("stop-opacity");
+        foreach (var declaration in styleSheet.DeclarationsFor(element)) {
+            if (string.Equals(declaration.Name, "stop-color", StringComparison.Ordinal)) stopColor = declaration.Value;
+            else if (string.Equals(declaration.Name, "stop-opacity", StringComparison.Ordinal)) stopOpacity = declaration.Value;
+        }
+
         var inline = element.Get("style");
         if (!string.IsNullOrWhiteSpace(inline)) {
             foreach (var declaration in ChartForgeX.Svg.SvgStyleDeclarationList.Parse(inline!).Declarations) {
