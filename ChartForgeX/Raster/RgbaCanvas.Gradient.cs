@@ -29,6 +29,20 @@ internal sealed partial class RgbaCanvas {
         FillContoursLinearGradientPixels(scaledContours, new ChartPoint(start.X * _scale, start.Y * _scale), new ChartPoint(end.X * _scale, end.Y * _scale), stops);
     }
 
+    internal void FillContoursRadialGradient(IReadOnlyList<List<ChartPoint>> contours, ChartPoint center, double radius, IReadOnlyList<RasterGradientStop> stops) {
+        if (contours.Count == 0 || radius <= 0 || stops.Count == 0) return;
+        var scaledContours = new List<List<ChartPoint>>(contours.Count);
+        foreach (var contour in contours) {
+            if (contour.Count < 3) continue;
+            var scaled = new List<ChartPoint>(contour.Count);
+            foreach (var point in contour) scaled.Add(new ChartPoint(point.X * _scale, point.Y * _scale));
+            scaledContours.Add(scaled);
+        }
+
+        if (scaledContours.Count == 0) return;
+        FillContoursRadialGradientPixels(scaledContours, new ChartPoint(center.X * _scale, center.Y * _scale), radius * _scale, stops);
+    }
+
     private void FillContoursLinearGradientPixels(IReadOnlyList<List<ChartPoint>> contours, ChartPoint start, ChartPoint end, IReadOnlyList<RasterGradientStop> stops) {
         var minY = double.PositiveInfinity;
         var maxY = double.NegativeInfinity;
@@ -68,6 +82,48 @@ internal sealed partial class RgbaCanvas {
                     if (coverage <= 0) continue;
                     var amount = gradientLengthSquared <= 0.000001 ? 0 : ((x + 0.5 - start.X) * gradientX + (scanY - start.Y) * gradientY) / gradientLengthSquared;
                     var color = SampleGradient(stops, amount);
+                    BlendPixel(x, y, coverage >= 1 ? color : WithOpacity(color, coverage));
+                }
+            }
+        }
+    }
+
+    private void FillContoursRadialGradientPixels(IReadOnlyList<List<ChartPoint>> contours, ChartPoint center, double radius, IReadOnlyList<RasterGradientStop> stops) {
+        var minY = double.PositiveInfinity;
+        var maxY = double.NegativeInfinity;
+        foreach (var contour in contours) foreach (var point in contour) {
+            minY = Math.Min(minY, point.Y);
+            maxY = Math.Max(maxY, point.Y);
+        }
+
+        var yStart = Math.Max(0, (int)Math.Floor(minY));
+        var yEnd = Math.Min(_pixelHeight - 1, (int)Math.Ceiling(maxY));
+        var intersections = new List<double>();
+        for (var y = yStart; y <= yEnd; y++) {
+            var scanY = y + 0.5;
+            intersections.Clear();
+            foreach (var contour in contours) {
+                for (var i = 0; i < contour.Count; i++) {
+                    var a = contour[i];
+                    var b = contour[(i + 1) % contour.Count];
+                    if ((a.Y <= scanY && b.Y > scanY) || (b.Y <= scanY && a.Y > scanY)) {
+                        intersections.Add(a.X + (scanY - a.Y) * (b.X - a.X) / (b.Y - a.Y));
+                    }
+                }
+            }
+
+            intersections.Sort();
+            for (var i = 0; i + 1 < intersections.Count; i += 2) {
+                var left = intersections[i];
+                var right = intersections[i + 1];
+                var xStart = Math.Max(0, (int)Math.Floor(left));
+                var xEnd = Math.Min(_pixelWidth - 1, (int)Math.Ceiling(right));
+                for (var x = xStart; x <= xEnd; x++) {
+                    var coverage = Math.Min(x + 1.0, right) - Math.Max(x, left);
+                    if (coverage <= 0) continue;
+                    var dx = x + 0.5 - center.X;
+                    var dy = scanY - center.Y;
+                    var color = SampleGradient(stops, Math.Sqrt(dx * dx + dy * dy) / radius);
                     BlendPixel(x, y, coverage >= 1 ? color : WithOpacity(color, coverage));
                 }
             }

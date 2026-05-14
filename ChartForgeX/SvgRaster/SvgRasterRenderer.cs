@@ -140,6 +140,11 @@ internal static class SvgRasterRenderer {
             canvas.FillContoursLinearGradient(contours, start, end, gradient.Stops);
             return;
         }
+        if (style.Fill.IsReference && definitions.TryGetRadialGradient(style.Fill.ReferenceId, out var radialGradient)) {
+            radialGradient.Circle(contours, matrix, out var center, out var radius);
+            canvas.FillContoursRadialGradient(contours, center, radius, radialGradient.Stops);
+            return;
+        }
 
         var fill = style.FillColor();
         if (fill.A != 0) canvas.FillCompoundPolygon(contours, fill);
@@ -155,6 +160,7 @@ internal static class SvgRasterRenderer {
         if (paint.IsNone) return ChartColor.Transparent;
         if (paint.Color.HasValue) return WithOpacity(paint.Color.Value, opacity);
         if (paint.IsReference && definitions.TryGetLinearGradient(paint.ReferenceId, out var gradient) && gradient.Stops.Count > 0) return WithOpacity(gradient.Stops[0].Color, opacity);
+        if (paint.IsReference && definitions.TryGetRadialGradient(paint.ReferenceId, out var radialGradient) && radialGradient.Stops.Count > 0) return WithOpacity(radialGradient.Stops[0].Color, opacity);
         return ChartColor.Transparent;
     }
 
