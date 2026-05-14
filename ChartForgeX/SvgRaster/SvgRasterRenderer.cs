@@ -16,7 +16,7 @@ internal static class SvgRasterRenderer {
             var definitions = SvgRasterDefinitions.From(document);
             var canvas = new RgbaCanvas(width, height, 1);
             var matrix = SvgRasterMatrix.FromFit(document.ViewBox, width, height, preserveAspectRatio);
-            foreach (var child in document.Children) RenderElement(canvas, child, SvgRasterStyle.Default, matrix, definitions, width, height);
+            foreach (var child in document.Children) RenderElement(canvas, child, SvgRasterStyle.Default, matrix, definitions, width, height, 0);
             rgba = canvas.Pixels;
             return HasVisiblePixel(rgba);
         } catch (Exception ex) when (ex is FormatException || ex is InvalidOperationException || ex is ArgumentException || ex is System.Xml.XmlException) {
@@ -24,7 +24,7 @@ internal static class SvgRasterRenderer {
         }
     }
 
-    private static void RenderElement(RgbaCanvas canvas, SvgRasterElement element, SvgRasterStyle parentStyle, SvgRasterMatrix parentMatrix, SvgRasterDefinitions definitions, int width, int height) {
+    private static void RenderElement(RgbaCanvas canvas, SvgRasterElement element, SvgRasterStyle parentStyle, SvgRasterMatrix parentMatrix, SvgRasterDefinitions definitions, int width, int height, int referenceDepth) {
         var style = SvgRasterStyle.Resolve(parentStyle, element);
         if (!style.Visible) return;
 
@@ -35,7 +35,7 @@ internal static class SvgRasterRenderer {
         var hasMask = definitions.TryGetMask(ReferenceId(element, "mask"), out var maskDefinition);
         if (hasClipPath || hasMask) {
             var content = new RgbaCanvas(width, height, 1);
-            RenderElementCore(content, element, style, matrix, definitions, width, height);
+            RenderElementCore(content, element, style, matrix, definitions, width, height, referenceDepth);
             if (hasClipPath) {
                 var clippedContent = new RgbaCanvas(width, height, 1);
                 var clipMask = new RgbaCanvas(width, height, 1);
@@ -55,13 +55,16 @@ internal static class SvgRasterRenderer {
             return;
         }
 
-        RenderElementCore(canvas, element, style, matrix, definitions, width, height);
+        RenderElementCore(canvas, element, style, matrix, definitions, width, height, referenceDepth);
     }
 
-    private static void RenderElementCore(RgbaCanvas canvas, SvgRasterElement element, SvgRasterStyle style, SvgRasterMatrix matrix, SvgRasterDefinitions definitions, int width, int height) {
+    private static void RenderElementCore(RgbaCanvas canvas, SvgRasterElement element, SvgRasterStyle style, SvgRasterMatrix matrix, SvgRasterDefinitions definitions, int width, int height, int referenceDepth) {
         switch (element.Name) {
             case "g":
             case "svg":
+                break;
+            case "use":
+                RenderUse(canvas, element, style, matrix, definitions, width, height, referenceDepth);
                 break;
             case "path":
                 RenderPath(canvas, element, style, matrix, definitions);
@@ -89,7 +92,27 @@ internal static class SvgRasterRenderer {
                 break;
         }
 
-        foreach (var child in element.Children) RenderElement(canvas, child, style, matrix, definitions, width, height);
+        foreach (var child in element.Children) RenderElement(canvas, child, style, matrix, definitions, width, height, referenceDepth);
+    }
+
+    private static void RenderUse(RgbaCanvas canvas, SvgRasterElement element, SvgRasterStyle style, SvgRasterMatrix matrix, SvgRasterDefinitions definitions, int width, int height, int referenceDepth) {
+        if (referenceDepth >= 8 || !definitions.TryGetElement(HrefReferenceId(element), out var referenced)) return;
+        var useMatrix = matrix.Multiply(SvgRasterMatrix.Translate(element.GetDouble("x"), element.GetDouble("y")));
+        if (IsSymbolElement(referenced)) {
+            var viewBox = referenced.Get("viewBox");
+            if (!string.IsNullOrWhiteSpace(viewBox)) {
+                var parsed = SvgRasterViewBox.Parse(viewBox);
+                var symbolWidth = element.GetDouble("width", parsed.Width);
+                var symbolHeight = element.GetDouble("height", parsed.Height);
+                if (symbolWidth <= 0 || symbolHeight <= 0) return;
+                useMatrix = useMatrix.Multiply(SvgRasterMatrix.FromFit(parsed, (int)Math.Round(symbolWidth), (int)Math.Round(symbolHeight), referenced.Get("preserveAspectRatio")));
+            }
+
+            foreach (var child in referenced.Children) RenderElement(canvas, child, style, useMatrix, definitions, width, height, referenceDepth + 1);
+            return;
+        }
+
+        RenderElement(canvas, referenced, style, useMatrix, definitions, width, height, referenceDepth + 1);
     }
 
     private static void RenderPath(RgbaCanvas canvas, SvgRasterElement element, SvgRasterStyle style, SvgRasterMatrix matrix, SvgRasterDefinitions definitions) {
@@ -197,7 +220,7 @@ internal static class SvgRasterRenderer {
 
     private static void RenderMask(RgbaCanvas mask, SvgRasterMask maskDefinition, SvgRasterMatrix matrix, SvgRasterDefinitions definitions, int width, int height) {
         var maskMatrix = matrix.Multiply(SvgRasterMatrix.ParseTransform(maskDefinition.Element.Get("transform")));
-        foreach (var child in maskDefinition.Element.Children) RenderElement(mask, child, SvgRasterStyle.Default, maskMatrix, definitions, width, height);
+        foreach (var child in maskDefinition.Element.Children) RenderElement(mask, child, SvgRasterStyle.Default, maskMatrix, definitions, width, height, 0);
     }
 
     private static void RenderClipElement(RgbaCanvas mask, SvgRasterElement element, SvgRasterMatrix parentMatrix) {
@@ -308,7 +331,7 @@ internal static class SvgRasterRenderer {
         pathData.IndexOf('z') >= 0 || pathData.IndexOf('Z') >= 0;
 
     private static bool IsDefinitionElement(string name) =>
-        string.Equals(name, "defs", StringComparison.Ordinal) || string.Equals(name, "userDefs", StringComparison.Ordinal) || string.Equals(name, "clipPath", StringComparison.Ordinal) || string.Equals(name, "mask", StringComparison.Ordinal) || string.Equals(name, "title", StringComparison.Ordinal) || string.Equals(name, "desc", StringComparison.Ordinal);
+        string.Equals(name, "defs", StringComparison.Ordinal) || string.Equals(name, "userDefs", StringComparison.Ordinal) || string.Equals(name, "clipPath", StringComparison.Ordinal) || string.Equals(name, "mask", StringComparison.Ordinal) || IsSymbolElement(name) || string.Equals(name, "title", StringComparison.Ordinal) || string.Equals(name, "desc", StringComparison.Ordinal);
 
     private static string? ReferenceId(SvgRasterElement element, string propertyName) {
         var value = element.Get(propertyName);
@@ -331,6 +354,19 @@ internal static class SvgRasterRenderer {
         var body = trimmed.Substring(4, close - 4).Trim().Trim('\'', '"');
         return body.StartsWith("#", StringComparison.Ordinal) && body.Length > 1 ? body.Substring(1) : null;
     }
+
+    private static string? HrefReferenceId(SvgRasterElement element) {
+        var href = element.Get("href");
+        if (string.IsNullOrWhiteSpace(href)) return null;
+        var trimmed = href!.Trim().Trim('\'', '"');
+        return trimmed.StartsWith("#", StringComparison.Ordinal) && trimmed.Length > 1 ? trimmed.Substring(1) : null;
+    }
+
+    private static bool IsSymbolElement(SvgRasterElement element) =>
+        IsSymbolElement(element.Name);
+
+    private static bool IsSymbolElement(string name) =>
+        string.Equals(name, "symbol", StringComparison.Ordinal);
 
     private static bool IsBold(string value) =>
         string.Equals(value, "bold", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "600", StringComparison.Ordinal) || string.Equals(value, "700", StringComparison.Ordinal) || string.Equals(value, "800", StringComparison.Ordinal) || string.Equals(value, "900", StringComparison.Ordinal);

@@ -8,6 +8,7 @@ using ChartForgeX.Raster;
 namespace ChartForgeX.SvgRaster;
 
 internal sealed class SvgRasterDefinitions {
+    private readonly Dictionary<string, SvgRasterElement> _elements = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterElement> _gradientElements = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterClipPath> _clipPaths = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SvgRasterMask> _masks = new(StringComparer.Ordinal);
@@ -29,6 +30,12 @@ internal sealed class SvgRasterDefinitions {
     public bool TryGetRadialGradient(string? id, out SvgRasterRadialGradient gradient) {
         if (id != null && ResolveRadialGradient(id, new HashSet<string>(StringComparer.Ordinal), out gradient!)) return true;
         gradient = null!;
+        return false;
+    }
+
+    public bool TryGetElement(string? id, out SvgRasterElement element) {
+        if (id != null && _elements.TryGetValue(id, out element!)) return true;
+        element = null!;
         return false;
     }
 
@@ -77,6 +84,10 @@ internal sealed class SvgRasterDefinitions {
     }
 
     private void Collect(SvgRasterElement element) {
+        if (IsReusableElement(element) && element.TryGet("id", out var reusableId) && !string.IsNullOrWhiteSpace(reusableId)) {
+            _elements[reusableId] = element;
+        }
+
         if ((string.Equals(element.Name, "linearGradient", StringComparison.Ordinal) || string.Equals(element.Name, "radialGradient", StringComparison.Ordinal)) && element.TryGet("id", out var id) && !string.IsNullOrWhiteSpace(id)) {
             _gradientElements[id] = element;
         }
@@ -97,6 +108,17 @@ internal sealed class SvgRasterDefinitions {
         if (string.IsNullOrWhiteSpace(href) || !href!.Trim().StartsWith("#", StringComparison.Ordinal)) return null;
         return href.Trim().Substring(1);
     }
+
+    private static bool IsReusableElement(SvgRasterElement element) =>
+        !string.Equals(element.Name, "defs", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "userDefs", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "linearGradient", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "radialGradient", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "clipPath", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "mask", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "stop", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "title", StringComparison.Ordinal) &&
+        !string.Equals(element.Name, "desc", StringComparison.Ordinal);
 }
 
 internal sealed class SvgRasterClipPath {
