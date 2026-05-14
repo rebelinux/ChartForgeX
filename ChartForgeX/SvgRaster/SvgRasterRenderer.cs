@@ -227,7 +227,7 @@ internal static class SvgRasterRenderer {
     private static void Stroke(RgbaCanvas canvas, IReadOnlyList<ChartPoint> points, SvgRasterStyle style, double scale, SvgRasterDefinitions definitions) {
         var stroke = ResolveColor(style.Stroke, style.Opacity * style.StrokeOpacity, definitions);
         if (stroke.A == 0 || style.StrokeWidth <= 0 || points.Count < 2) return;
-        canvas.DrawPolyline(points, stroke, Math.Max(0.5, style.StrokeWidth * scale));
+        canvas.DrawPolyline(points, stroke, Math.Max(0.5, style.StrokeWidth * scale), LineCap(style.StrokeLineCap), LineJoin(style.StrokeLineJoin), ScaledDashArray(style.StrokeDashArray, scale));
     }
 
     private static ChartColor ResolveColor(SvgRasterPaint paint, double opacity, SvgRasterDefinitions definitions) {
@@ -465,6 +465,19 @@ internal static class SvgRasterRenderer {
 
     private static bool IsBold(string value) =>
         string.Equals(value, "bold", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "600", StringComparison.Ordinal) || string.Equals(value, "700", StringComparison.Ordinal) || string.Equals(value, "800", StringComparison.Ordinal) || string.Equals(value, "900", StringComparison.Ordinal);
+
+    private static RasterLineCap LineCap(string value) =>
+        string.Equals(value, "round", StringComparison.OrdinalIgnoreCase) ? RasterLineCap.Round : RasterLineCap.Butt;
+
+    private static RasterLineJoin LineJoin(string value) =>
+        string.Equals(value, "round", StringComparison.OrdinalIgnoreCase) ? RasterLineJoin.Round : string.Equals(value, "bevel", StringComparison.OrdinalIgnoreCase) ? RasterLineJoin.Bevel : RasterLineJoin.Miter;
+
+    private static IReadOnlyList<double>? ScaledDashArray(IReadOnlyList<double>? dashArray, double scale) {
+        if (dashArray == null || dashArray.Count == 0) return null;
+        var scaled = new double[dashArray.Count];
+        for (var i = 0; i < dashArray.Count; i++) scaled[i] = dashArray[i] * scale;
+        return scaled;
+    }
 
     private static double DistanceSquared(ChartPoint a, ChartPoint b) {
         var dx = a.X - b.X;

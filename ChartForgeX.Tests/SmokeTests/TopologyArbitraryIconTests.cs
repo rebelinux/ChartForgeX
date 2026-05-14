@@ -171,6 +171,17 @@ internal static partial class SmokeTests {
         Assert(CountPixelsNear(textSpanPixels, 0, 0, 255) > 20, "PNG topology artwork should apply tspan dx positioning and fill style.");
         Assert(CountPixelsNear(textSpanPixels, 0, 170, 0) > 20, "PNG topology artwork should apply tspan x/dy positioning for multiline labels.");
 
+        var strokedArtwork = TopologyIconArtwork.InlineSvg("<path d=\"M4 10 H40\" fill=\"none\" stroke=\"#FF0000\" stroke-width=\"4\" stroke-dasharray=\"4 4\" stroke-linecap=\"butt\"/><path d=\"M12 30 H32\" fill=\"none\" stroke=\"#0000FF\" stroke-width=\"4\" stroke-linecap=\"round\"/>", "0 0 44 44");
+        var strokedPng = TopologyChart.Create()
+            .WithId("png-svg-raster-stroke-style-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", strokedArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var strokedPixels = ReadPngRgba(strokedPng, out var strokedWidth, out _);
+        Assert(CountPixelsNear(strokedPixels, strokedWidth, 44, 34, 8, 12, 255, 0, 0) > 35, "PNG topology artwork should render visible SVG dashed stroke segments.");
+        Assert(CountPixelsNear(strokedPixels, strokedWidth, 54, 34, 4, 12, 255, 0, 0) < 12, "PNG topology artwork should preserve SVG stroke-dasharray gaps.");
+        Assert(CountPixelsNear(strokedPixels, strokedWidth, 55, 72, 5, 12, 0, 0, 255) > 8, "PNG topology artwork should honor round SVG stroke line caps.");
+
         var gradientArtwork = TopologyIconArtwork.InlineSvg("<defs><linearGradient id=\"brand-stops\"><stop offset=\"0%\" stop-color=\"#FF0000\"/><stop offset=\"100%\" stop-color=\"#0000FF\"/></linearGradient><linearGradient id=\"brand\" href=\"#brand-stops\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"/></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"url(#brand)\"/><svg x=\"11\" y=\"11\" width=\"22\" height=\"22\" viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"5\" fill=\"#00FF00\"/></svg>", "0 0 44 44");
         var gradientPng = TopologyChart.Create()
             .WithId("png-svg-raster-gradient-artwork")

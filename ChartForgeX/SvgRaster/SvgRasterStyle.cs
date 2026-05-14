@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using ChartForgeX.Primitives;
 using ChartForgeX.Svg;
 
@@ -14,6 +16,8 @@ internal sealed class SvgRasterStyle {
         FillOpacity = 1,
         StrokeOpacity = 1,
         StrokeWidth = 1,
+        StrokeLineCap = "butt",
+        StrokeLineJoin = "miter",
         FontSize = 16,
         FontWeight = "normal",
         TextAnchor = "start",
@@ -28,6 +32,9 @@ internal sealed class SvgRasterStyle {
     public double FillOpacity { get; set; }
     public double StrokeOpacity { get; set; }
     public double StrokeWidth { get; set; }
+    public string StrokeLineCap { get; set; } = "butt";
+    public string StrokeLineJoin { get; set; } = "miter";
+    public IReadOnlyList<double>? StrokeDashArray { get; set; }
     public double FontSize { get; set; }
     public string FontWeight { get; set; } = "normal";
     public string TextAnchor { get; set; } = "start";
@@ -43,6 +50,9 @@ internal sealed class SvgRasterStyle {
             FillOpacity = FillOpacity,
             StrokeOpacity = StrokeOpacity,
             StrokeWidth = StrokeWidth,
+            StrokeLineCap = StrokeLineCap,
+            StrokeLineJoin = StrokeLineJoin,
+            StrokeDashArray = StrokeDashArray,
             FontSize = FontSize,
             FontWeight = FontWeight,
             TextAnchor = TextAnchor,
@@ -72,6 +82,9 @@ internal sealed class SvgRasterStyle {
         ApplyAttribute(style, element, "fill");
         ApplyAttribute(style, element, "stroke");
         ApplyAttribute(style, element, "stroke-width");
+        ApplyAttribute(style, element, "stroke-linecap");
+        ApplyAttribute(style, element, "stroke-linejoin");
+        ApplyAttribute(style, element, "stroke-dasharray");
         ApplyAttribute(style, element, "opacity");
         ApplyAttribute(style, element, "fill-opacity");
         ApplyAttribute(style, element, "stroke-opacity");
@@ -103,6 +116,15 @@ internal sealed class SvgRasterStyle {
                 break;
             case "stroke-width":
                 style.StrokeWidth = Math.Max(0, ParseLength(value, style.StrokeWidth));
+                break;
+            case "stroke-linecap":
+                style.StrokeLineCap = value.Trim();
+                break;
+            case "stroke-linejoin":
+                style.StrokeLineJoin = value.Trim();
+                break;
+            case "stroke-dasharray":
+                style.StrokeDashArray = ParseDashArray(value);
                 break;
             case "opacity":
                 style.Opacity = ParseOpacity(value, style.Opacity);
@@ -149,6 +171,12 @@ internal sealed class SvgRasterStyle {
         if (trimmed.EndsWith("px", StringComparison.OrdinalIgnoreCase)) trimmed = trimmed.Substring(0, trimmed.Length - 2);
         if (double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return parsed;
         return fallback;
+    }
+
+    private static IReadOnlyList<double>? ParseDashArray(string value) {
+        if (string.Equals(value.Trim(), "none", StringComparison.OrdinalIgnoreCase)) return null;
+        var values = SvgRasterNumbers.ParseList(value).Where(item => item > 0).ToArray();
+        return values.Length == 0 ? null : values;
     }
 
     private static ChartColor WithOpacity(ChartColor color, double opacity) {
