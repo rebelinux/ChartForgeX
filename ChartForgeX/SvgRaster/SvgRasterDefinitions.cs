@@ -371,21 +371,24 @@ internal static class SvgRasterGradientValues {
     }
 
     private static RasterGradientStop ReadStop(SvgRasterElement element, SvgRasterStyleSheet styleSheet, IReadOnlyList<SvgRasterElement> ancestors) {
+        var customProperties = SvgRasterStyle.ResolveCustomProperties(styleSheet, ancestors, element);
         var stopColor = element.Get("stop-color");
         var stopOpacity = element.Get("stop-opacity");
         foreach (var declaration in styleSheet.DeclarationsFor(element, ancestors)) {
-            if (string.Equals(declaration.Name, "stop-color", StringComparison.Ordinal)) stopColor = declaration.Value;
-            else if (string.Equals(declaration.Name, "stop-opacity", StringComparison.Ordinal)) stopOpacity = declaration.Value;
+            if (string.Equals(declaration.Name, "stop-color", StringComparison.Ordinal)) stopColor = SvgRasterCssVariables.Resolve(declaration.Value, customProperties);
+            else if (string.Equals(declaration.Name, "stop-opacity", StringComparison.Ordinal)) stopOpacity = SvgRasterCssVariables.Resolve(declaration.Value, customProperties);
         }
 
         var inline = element.Get("style");
         if (!string.IsNullOrWhiteSpace(inline)) {
             foreach (var declaration in ChartForgeX.Svg.SvgStyleDeclarationList.Parse(inline!).Declarations) {
-                if (string.Equals(declaration.Name, "stop-color", StringComparison.Ordinal)) stopColor = declaration.Value;
-                else if (string.Equals(declaration.Name, "stop-opacity", StringComparison.Ordinal)) stopOpacity = declaration.Value;
+                if (string.Equals(declaration.Name, "stop-color", StringComparison.Ordinal)) stopColor = SvgRasterCssVariables.Resolve(declaration.Value, customProperties);
+                else if (string.Equals(declaration.Name, "stop-opacity", StringComparison.Ordinal)) stopOpacity = SvgRasterCssVariables.Resolve(declaration.Value, customProperties);
             }
         }
 
+        if (stopColor != null) stopColor = SvgRasterCssVariables.Resolve(stopColor, customProperties);
+        if (stopOpacity != null) stopOpacity = SvgRasterCssVariables.Resolve(stopOpacity, customProperties);
         if (!SvgRasterColor.TryParse(stopColor, out var color)) color = ChartColor.Black;
         return new RasterGradientStop(Math.Max(0, Math.Min(1, ParseCoordinate(element.Get("offset"), 0))), WithOpacity(color, ParseOpacity(stopOpacity, 1)));
     }

@@ -183,6 +183,17 @@ internal static partial class SmokeTests {
         Assert(CountPixelsNear(stylesheetPixels, 0, 170, 0) > 120, "PNG topology artwork should apply descendant id-and-class SVG stylesheet declarations.");
         Assert(CountPixelsNear(stylesheetPixels, 255, 0, 255) < 40, "PNG topology artwork should apply display:none from SVG stylesheet rules.");
 
+        var variableArtwork = TopologyIconArtwork.InlineSvg("<style>.theme{--primary:#FF0000;--line:rgb(0 0 255)}.theme .body{fill:var(--primary)}.theme .line{fill:none;stroke:var(--line);stroke-width:4}.theme .fallback{fill:var(--missing,#00AA00)}.palette{--warm:#FF0000;--cool:rgba(0,0,255,100%)}</style><defs><linearGradient id=\"variable-gradient\" class=\"palette\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"><stop offset=\"0%\" stop-color=\"var(--warm)\"/><stop offset=\"100%\" style=\"stop-color:var(--cool)\"/></linearGradient></defs><g class=\"theme\"><rect class=\"body\" x=\"0\" y=\"0\" width=\"18\" height=\"18\"/><path class=\"line\" d=\"M24 8 H42\"/><circle class=\"fallback\" cx=\"9\" cy=\"33\" r=\"7\"/><rect x=\"24\" y=\"24\" width=\"18\" height=\"16\" fill=\"url(#variable-gradient)\"/></g>", "0 0 44 44");
+        var variablePng = TopologyChart.Create()
+            .WithId("png-svg-raster-css-variable-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", variableArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var variablePixels = ReadPngRgba(variablePng, out _, out _);
+        Assert(CountPixelsNear(variablePixels, 255, 0, 0) > 900, "PNG topology artwork should resolve inherited CSS custom properties for SVG fills and gradient stops.");
+        Assert(CountPixelsNear(variablePixels, 0, 0, 255) > 120, "PNG topology artwork should resolve CSS variables in SVG strokes and inline stop styles.");
+        Assert(CountPixelsNear(variablePixels, 0, 170, 0) > 120, "PNG topology artwork should resolve SVG var() fallback values when custom properties are absent.");
+
         var textSpanArtwork = TopologyIconArtwork.InlineSvg("<text x=\"8\" y=\"14\" font-size=\"10\" font-weight=\"700\" dominant-baseline=\"middle\"><tspan fill=\"#FF0000\">A</tspan><tspan dx=\"12\" fill=\"#0000FF\">B</tspan><tspan x=\"8\" dy=\"16\" fill=\"#00AA00\">C</tspan></text>", "0 0 44 44");
         var textSpanPng = TopologyChart.Create()
             .WithId("png-svg-raster-text-span-artwork")

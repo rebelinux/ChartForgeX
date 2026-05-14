@@ -44,9 +44,10 @@ internal sealed class SvgRasterStyle {
     public string TextAnchor { get; set; } = "start";
     public string DominantBaseline { get; set; } = "auto";
     public bool Visible { get; set; }
+    public Dictionary<string, string> CustomProperties { get; } = new(StringComparer.Ordinal);
 
-    public SvgRasterStyle Inherit() =>
-        new() {
+    public SvgRasterStyle Inherit() {
+        var style = new SvgRasterStyle {
             Fill = Fill,
             Stroke = Stroke,
             Color = Color,
@@ -65,52 +66,97 @@ internal sealed class SvgRasterStyle {
             DominantBaseline = DominantBaseline,
             Visible = Visible
         };
+        foreach (var property in CustomProperties) style.CustomProperties[property.Key] = property.Value;
+        return style;
+    }
 
     public static SvgRasterStyle Resolve(SvgRasterStyle parent, SvgRasterElement element, SvgRasterStyleSheet? styleSheet = null, IReadOnlyList<SvgRasterElement>? ancestors = null) {
         var style = parent.Inherit();
-        ApplyPresentation(style, element);
+        var declarations = new List<SvgStyleDeclaration>();
+        AddPresentation(declarations, element);
         if (styleSheet != null) {
-            foreach (var declaration in styleSheet.DeclarationsFor(element, ancestors)) Apply(style, declaration.Name, declaration.Value);
+            declarations.AddRange(styleSheet.DeclarationsFor(element, ancestors));
         }
 
         var inline = element.Get("style");
         if (!string.IsNullOrWhiteSpace(inline)) {
-            foreach (var declaration in SvgStyleDeclarationList.Parse(inline!).Declarations) {
-                Apply(style, declaration.Name, declaration.Value);
-            }
+            declarations.AddRange(SvgStyleDeclarationList.Parse(inline!).Declarations);
+        }
+
+        ApplyCustomProperties(style, declarations);
+        foreach (var declaration in declarations) {
+            if (SvgRasterCssVariables.IsCustomProperty(declaration.Name)) continue;
+            Apply(style, declaration.Name, SvgRasterCssVariables.Resolve(declaration.Value, style.CustomProperties));
         }
 
         return style;
+    }
+
+    public static IReadOnlyDictionary<string, string> ResolveCustomProperties(SvgRasterStyleSheet styleSheet, IReadOnlyList<SvgRasterElement> ancestors, SvgRasterElement element) {
+        var properties = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < ancestors.Count; i++) {
+            var ancestorDeclarations = new List<SvgStyleDeclaration>();
+            ancestorDeclarations.AddRange(styleSheet.DeclarationsFor(ancestors[i], AncestorsBefore(ancestors, i)));
+            AddInline(ancestorDeclarations, ancestors[i]);
+            ApplyCustomProperties(properties, ancestorDeclarations);
+        }
+
+        var declarations = new List<SvgStyleDeclaration>();
+        declarations.AddRange(styleSheet.DeclarationsFor(element, ancestors));
+        AddInline(declarations, element);
+        ApplyCustomProperties(properties, declarations);
+        return properties;
     }
 
     public ChartColor FillColor() => WithOpacity(Fill.Color ?? ChartColor.Transparent, Opacity * FillOpacity);
 
     public ChartColor StrokeColor() => WithOpacity(Stroke.Color ?? ChartColor.Transparent, Opacity * StrokeOpacity);
 
-    private static void ApplyPresentation(SvgRasterStyle style, SvgRasterElement element) {
-        ApplyAttribute(style, element, "color");
-        ApplyAttribute(style, element, "fill");
-        ApplyAttribute(style, element, "fill-rule");
-        ApplyAttribute(style, element, "clip-rule");
-        ApplyAttribute(style, element, "stroke");
-        ApplyAttribute(style, element, "stroke-width");
-        ApplyAttribute(style, element, "stroke-linecap");
-        ApplyAttribute(style, element, "stroke-linejoin");
-        ApplyAttribute(style, element, "stroke-dasharray");
-        ApplyAttribute(style, element, "opacity");
-        ApplyAttribute(style, element, "fill-opacity");
-        ApplyAttribute(style, element, "stroke-opacity");
-        ApplyAttribute(style, element, "font-size");
-        ApplyAttribute(style, element, "font-weight");
-        ApplyAttribute(style, element, "text-anchor");
-        ApplyAttribute(style, element, "dominant-baseline");
-        ApplyAttribute(style, element, "alignment-baseline");
-        ApplyAttribute(style, element, "display");
-        ApplyAttribute(style, element, "visibility");
+    private static void AddPresentation(List<SvgStyleDeclaration> declarations, SvgRasterElement element) {
+        AddAttribute(declarations, element, "color");
+        AddAttribute(declarations, element, "fill");
+        AddAttribute(declarations, element, "fill-rule");
+        AddAttribute(declarations, element, "clip-rule");
+        AddAttribute(declarations, element, "stroke");
+        AddAttribute(declarations, element, "stroke-width");
+        AddAttribute(declarations, element, "stroke-linecap");
+        AddAttribute(declarations, element, "stroke-linejoin");
+        AddAttribute(declarations, element, "stroke-dasharray");
+        AddAttribute(declarations, element, "opacity");
+        AddAttribute(declarations, element, "fill-opacity");
+        AddAttribute(declarations, element, "stroke-opacity");
+        AddAttribute(declarations, element, "font-size");
+        AddAttribute(declarations, element, "font-weight");
+        AddAttribute(declarations, element, "text-anchor");
+        AddAttribute(declarations, element, "dominant-baseline");
+        AddAttribute(declarations, element, "alignment-baseline");
+        AddAttribute(declarations, element, "display");
+        AddAttribute(declarations, element, "visibility");
     }
 
-    private static void ApplyAttribute(SvgRasterStyle style, SvgRasterElement element, string name) {
-        if (element.TryGet(name, out var value)) Apply(style, name, value);
+    private static void AddAttribute(List<SvgStyleDeclaration> declarations, SvgRasterElement element, string name) {
+        if (element.TryGet(name, out var value)) declarations.Add(new SvgStyleDeclaration(name, value));
+    }
+
+    private static void AddInline(List<SvgStyleDeclaration> declarations, SvgRasterElement element) {
+        var inline = element.Get("style");
+        if (!string.IsNullOrWhiteSpace(inline)) declarations.AddRange(SvgStyleDeclarationList.Parse(inline!).Declarations);
+    }
+
+    private static IReadOnlyList<SvgRasterElement> AncestorsBefore(IReadOnlyList<SvgRasterElement> ancestors, int count) {
+        if (count <= 0) return Array.Empty<SvgRasterElement>();
+        var before = new SvgRasterElement[count];
+        for (var i = 0; i < count; i++) before[i] = ancestors[i];
+        return before;
+    }
+
+    private static void ApplyCustomProperties(SvgRasterStyle style, IEnumerable<SvgStyleDeclaration> declarations) =>
+        ApplyCustomProperties(style.CustomProperties, declarations);
+
+    private static void ApplyCustomProperties(Dictionary<string, string> properties, IEnumerable<SvgStyleDeclaration> declarations) {
+        foreach (var declaration in declarations) {
+            if (SvgRasterCssVariables.IsCustomProperty(declaration.Name)) properties[declaration.Name] = declaration.Value;
+        }
     }
 
     private static void Apply(SvgRasterStyle style, string name, string value) {
