@@ -1,11 +1,15 @@
+using System;
 using ChartForgeX.Primitives;
 using ChartForgeX.Raster;
+using ChartForgeX.SvgRaster;
 using static ChartForgeX.Topology.TopologyRenderPrimitives;
 
 namespace ChartForgeX.Topology;
 
 public sealed partial class TopologyPngRenderer {
     private static void DrawArtworkNodeFallback(RgbaCanvas canvas, TopologyNode node, TopologyTheme theme, ChartColor accent, bool isSelected, bool isHighlighted, TopologyHighlightState highlight, TopologyRenderOptions options) {
+        if (TryDrawArtworkNode(canvas, node, theme, accent, isSelected, isHighlighted, highlight, options)) return;
+
         if (node.Kind == TopologyNodeKind.Cloud || EffectiveIconShape(node, options) == TopologyIconShape.Cloud) {
             DrawCloudArtworkFallback(canvas, node, accent, isSelected);
         } else {
@@ -17,6 +21,24 @@ public sealed partial class TopologyPngRenderer {
 
         if (!isHighlighted && highlight.IsActive) canvas.FillRoundedRect(node.X, node.Y, node.Width, node.Height, 16, WithAlpha(Color(theme.Background), 185));
         DrawNodeBadge(canvas, node, theme, accent, TopologyNodeDisplayMode.Artwork);
+    }
+
+    private static bool TryDrawArtworkNode(RgbaCanvas canvas, TopologyNode node, TopologyTheme theme, ChartColor accent, bool isSelected, bool isHighlighted, TopologyHighlightState highlight, TopologyRenderOptions options) {
+        var artwork = ResolveRenderableNodeArtwork(node, options);
+        if (artwork == null || !artwork.HasSvgBody) return false;
+
+        var scale = Math.Max(1, options.PngSupersamplingScale) * Math.Max(1, options.PngOutputScale);
+        var destinationWidth = Math.Max(1, (int)Math.Round(node.Width));
+        var destinationHeight = Math.Max(1, (int)Math.Round(node.Height));
+        var sourceWidth = Math.Max(1, destinationWidth * scale);
+        var sourceHeight = Math.Max(1, destinationHeight * scale);
+        if (!SvgRasterRenderer.TryRenderFragment(artwork.SvgBody!, artwork.SvgViewBox, artwork.PreserveAspectRatio, sourceWidth, sourceHeight, out var rgba)) return false;
+
+        canvas.DrawImageScaled((int)Math.Round(node.X), (int)Math.Round(node.Y), destinationWidth, destinationHeight, sourceWidth, sourceHeight, rgba);
+        if (isSelected) canvas.StrokeRoundedRect(node.X, node.Y, node.Width, node.Height, Math.Min(18, Math.Min(node.Width, node.Height) / 5.0), WithAlpha(accent, 190), 1.8);
+        if (!isHighlighted && highlight.IsActive) canvas.FillRoundedRect(node.X, node.Y, node.Width, node.Height, 16, WithAlpha(Color(theme.Background), 185));
+        DrawNodeBadge(canvas, node, theme, accent, TopologyNodeDisplayMode.Artwork);
+        return true;
     }
 
     private static void DrawCloudArtworkFallback(RgbaCanvas canvas, TopologyNode node, ChartColor accent, bool isSelected) {

@@ -103,7 +103,18 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentException>(() => TopologyIconArtwork.InlineSvg("<path/>").WithPreserveAspectRatio(" "), "Artwork preserveAspectRatio helpers should reject empty values.");
         AssertThrows<ArgumentException>(() => TopologyChart.Create().AddArtworkNode("bad", "Bad", TopologyIconArtwork.SvgFile("icons/bad.svg"), 0, 0), "Artwork node helper should reject non-embeddable sidecar SVG references.");
         var png = chart.ToPng(options);
-        Assert(png.Length > 64 && ReadBigEndianInt32(png, 16) > 0 && ReadBigEndianInt32(png, 20) > 0, "Relationship overview topology should still render PNG with deterministic fallback glyphs.");
+        Assert(png.Length > 64 && ReadBigEndianInt32(png, 16) > 0 && ReadBigEndianInt32(png, 20) > 0, "Relationship overview topology should render PNG with inline SVG artwork.");
+
+        var rasterizedArtwork = TopologyIconArtwork.InlineSvg("<rect x=\"2\" y=\"2\" width=\"18\" height=\"20\" fill=\"#FF0000\"/><circle cx=\"34\" cy=\"13\" r=\"10\" fill=\"#0000FF\"/><path d=\"M4 34 H40\" fill=\"none\" stroke=\"#00AA00\" stroke-width=\"4\"/>", "0 0 44 44");
+        var rasterizedPng = TopologyChart.Create()
+            .WithId("png-svg-raster-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", rasterizedArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var rasterPixels = ReadPngRgba(rasterizedPng, out _, out _);
+        Assert(CountPixelsNear(rasterPixels, 255, 0, 0) > 450, "PNG topology artwork should rasterize caller-supplied inline SVG fills instead of falling back to a generic card.");
+        Assert(CountPixelsNear(rasterPixels, 0, 0, 255) > 280, "PNG topology artwork should rasterize non-rectangular inline SVG nodes.");
+        Assert(CountPixelsNear(rasterPixels, 0, 170, 0) > 120, "PNG topology artwork should rasterize inline SVG strokes.");
 
         var artworkFallbackPng = TopologyChart.Create()
             .WithId("png-artwork-fallback")
@@ -175,5 +186,15 @@ internal static partial class SmokeTests {
         while (start > 0 && svg[start] != '<') start--;
         var end = svg.IndexOf('>', start);
         return end < 0 ? string.Empty : svg.Substring(start, end - start + 1);
+    }
+
+    private static int CountPixelsNear(byte[] rgba, int red, int green, int blue) {
+        var count = 0;
+        for (var i = 0; i + 3 < rgba.Length; i += 4) {
+            if (rgba[i + 3] < 180) continue;
+            if (Math.Abs(rgba[i] - red) <= 24 && Math.Abs(rgba[i + 1] - green) <= 24 && Math.Abs(rgba[i + 2] - blue) <= 24) count++;
+        }
+
+        return count;
     }
 }

@@ -83,11 +83,14 @@ internal static partial class TopologyVisualExamples {
             _ => "<path d='M48 99 V35 H82 L110 63 V99' fill='none' stroke='#111827' stroke-width='5' stroke-linejoin='round'/><path d='M82 35 V63 H110 M59 52 H73 M59 66 H73 M59 81 H73 M91 78 H100 M91 92 H100' fill='none' stroke='#111827' stroke-width='4' stroke-linecap='round'/>"
         };
         var text = label.Contains('\n', StringComparison.Ordinal)
-            ? "<text x='74' y='119' text-anchor='middle' fill='#111827' font-family='Inter,Segoe UI,Arial,sans-serif' font-size='17' font-weight='800'>" + label.Split('\n')[0] + "</text><text x='74' y='140' text-anchor='middle' fill='#111827' font-family='Inter,Segoe UI,Arial,sans-serif' font-size='17' font-weight='800'>" + label.Split('\n')[1] + "</text>"
-            : "<text x='74' y='126' text-anchor='middle' fill='#111827' font-family='Inter,Segoe UI,Arial,sans-serif' font-size='17' font-weight='800'>" + label + "</text>";
+            ? "<text x='74' y='119' text-anchor='middle' fill='#111827' font-family='Inter,Segoe UI,Arial,sans-serif' font-size='17' font-weight='800'>" + EscapeSvgText(label.Split('\n')[0]) + "</text><text x='74' y='140' text-anchor='middle' fill='#111827' font-family='Inter,Segoe UI,Arial,sans-serif' font-size='17' font-weight='800'>" + EscapeSvgText(label.Split('\n')[1]) + "</text>"
+            : "<text x='74' y='126' text-anchor='middle' fill='#111827' font-family='Inter,Segoe UI,Arial,sans-serif' font-size='17' font-weight='800'>" + EscapeSvgText(label) + "</text>";
         return TopologyIconArtwork.InlineSvg("<rect x='0' y='0' width='148' height='148' rx='4' fill='#F3F4F6'/>" + iconSvg + text, "0 0 148 148")
             .WithPreserveAspectRatio("none");
     }
+
+    private static string EscapeSvgText(string value) =>
+        value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 
     private static TopologyChart BuildSecureAccessArbitraryIconTopology() {
         return TopologyChart.Create()
