@@ -127,6 +127,26 @@ internal static partial class SmokeTests {
         Assert(CountPixelsNear(gradientPixels, 0, 0, 255) > 160, "PNG topology artwork should inherit stops from referenced linearGradient definitions.");
         Assert(CountPixelsNear(gradientPixels, 0, 255, 0) > 520, "PNG topology artwork should apply nested SVG viewBox scaling instead of treating nested SVG as an unscaled group.");
 
+        var transformedGradientArtwork = TopologyIconArtwork.InlineSvg("<defs><linearGradient id=\"turn\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" gradientTransform=\"rotate(90 .5 .5)\"><stop offset=\"0%\" stop-color=\"#FF0000\"/><stop offset=\"100%\" stop-color=\"#0000FF\"/></linearGradient></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"url(#turn)\"/>", "0 0 44 44");
+        var transformedGradientPng = TopologyChart.Create()
+            .WithId("png-svg-raster-transformed-gradient-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", transformedGradientArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var transformedGradientPixels = ReadPngRgba(transformedGradientPng, out var transformedGradientWidth, out _);
+        Assert(CountPixelsNear(transformedGradientPixels, transformedGradientWidth, 36, 18, 88, 36, 255, 0, 0) > 280, "PNG topology artwork should apply linearGradient gradientTransform before rasterizing.");
+        Assert(CountPixelsNear(transformedGradientPixels, transformedGradientWidth, 36, 70, 88, 36, 0, 0, 255) > 280, "PNG topology artwork should preserve transformed linearGradient direction.");
+
+        var repeatedGradientArtwork = TopologyIconArtwork.InlineSvg("<defs><linearGradient id=\"repeat\" x1=\"0%\" y1=\"0%\" x2=\"25%\" y2=\"0%\" spreadMethod=\"repeat\"><stop offset=\"0%\" stop-color=\"#FF0000\"/><stop offset=\"100%\" stop-color=\"#0000FF\"/></linearGradient></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"url(#repeat)\"/>", "0 0 44 44");
+        var repeatedGradientPng = TopologyChart.Create()
+            .WithId("png-svg-raster-repeated-gradient-artwork")
+            .WithViewport(160, 120, 10)
+            .AddArtworkNode("art", "Art", repeatedGradientArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var repeatedGradientPixels = ReadPngRgba(repeatedGradientPng, out _, out _);
+        Assert(CountPixelsNear(repeatedGradientPixels, 255, 0, 0) > 520, "PNG topology artwork should support repeated SVG gradient spread.");
+        Assert(CountPixelsNear(repeatedGradientPixels, 0, 0, 255) > 520, "PNG topology artwork should keep repeated gradient bands instead of padding only the final stop.");
+
         var radialArtwork = TopologyIconArtwork.InlineSvg("<defs><radialGradient id=\"spot-stops\"><stop offset=\"0%\" stop-color=\"#FFFFFF\"/><stop offset=\"100%\" stop-color=\"#FF00FF\"/></radialGradient><radialGradient id=\"spot\" href=\"#spot-stops\" cx=\"50%\" cy=\"50%\" r=\"50%\"/></defs><rect x=\"0\" y=\"0\" width=\"44\" height=\"44\" fill=\"url(#spot)\"/>", "0 0 44 44");
         var radialPng = TopologyChart.Create()
             .WithId("png-svg-raster-radial-gradient-artwork")
@@ -136,6 +156,16 @@ internal static partial class SmokeTests {
         var radialPixels = ReadPngRgba(radialPng, out _, out _);
         Assert(CountPixelsNear(radialPixels, 255, 255, 255) > 90, "PNG topology artwork should rasterize the center of radialGradient fills.");
         Assert(CountPixelsNear(radialPixels, 255, 0, 255) > 260, "PNG topology artwork should inherit stops from referenced radialGradient definitions.");
+
+        var radialAxisArtwork = TopologyIconArtwork.InlineSvg("<defs><radialGradient id=\"ellipse\" cx=\"50%\" cy=\"50%\" r=\"50%\"><stop offset=\"0%\" stop-color=\"#FFFFFF\"/><stop offset=\"100%\" stop-color=\"#FF00FF\"/></radialGradient></defs><rect x=\"0\" y=\"0\" width=\"80\" height=\"40\" fill=\"url(#ellipse)\"/>", "0 0 80 40");
+        var radialAxisPng = TopologyChart.Create()
+            .WithId("png-svg-raster-radial-axis-gradient-artwork")
+            .WithViewport(180, 120, 10)
+            .AddArtworkNode("art", "Art", radialAxisArtwork, 30, 30, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 120, height: 60, symbol: "ART")
+            .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
+        var radialAxisPixels = ReadPngRgba(radialAxisPng, out var radialAxisWidth, out _);
+        Assert(CountPixelsNear(radialAxisPixels, radialAxisWidth, 66, 48, 48, 24, 255, 255, 255) > 24, "PNG topology artwork should preserve the center of radial gradients on non-square artwork.");
+        Assert(CountPixelsNear(radialAxisPixels, radialAxisWidth, 45, 30, 90, 10, 255, 0, 255) > 120, "PNG topology artwork should rasterize objectBoundingBox radial gradients as ellipses on non-square artwork.");
 
         var artworkFallbackPng = TopologyChart.Create()
             .WithId("png-artwork-fallback")
@@ -214,6 +244,19 @@ internal static partial class SmokeTests {
         for (var i = 0; i + 3 < rgba.Length; i += 4) {
             if (rgba[i + 3] < 180) continue;
             if (Math.Abs(rgba[i] - red) <= 24 && Math.Abs(rgba[i + 1] - green) <= 24 && Math.Abs(rgba[i + 2] - blue) <= 24) count++;
+        }
+
+        return count;
+    }
+
+    private static int CountPixelsNear(byte[] rgba, int width, int x, int y, int regionWidth, int regionHeight, int red, int green, int blue) {
+        var count = 0;
+        for (var yy = Math.Max(0, y); yy < y + regionHeight; yy++) {
+            for (var xx = Math.Max(0, x); xx < x + regionWidth; xx++) {
+                var index = (yy * width + xx) * 4;
+                if (index < 0 || index + 3 >= rgba.Length || rgba[index + 3] < 180) continue;
+                if (Math.Abs(rgba[index] - red) <= 24 && Math.Abs(rgba[index + 1] - green) <= 24 && Math.Abs(rgba[index + 2] - blue) <= 24) count++;
+            }
         }
 
         return count;

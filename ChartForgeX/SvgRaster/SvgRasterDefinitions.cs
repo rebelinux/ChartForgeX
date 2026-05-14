@@ -78,12 +78,14 @@ internal sealed class SvgRasterDefinitions {
 }
 
 internal sealed class SvgRasterLinearGradient {
-    private SvgRasterLinearGradient(double x1, double y1, double x2, double y2, bool userSpaceOnUse, IReadOnlyList<RasterGradientStop> stops) {
+    private SvgRasterLinearGradient(double x1, double y1, double x2, double y2, bool userSpaceOnUse, SvgRasterMatrix transform, RasterGradientSpreadMethod spreadMethod, IReadOnlyList<RasterGradientStop> stops) {
         X1 = x1;
         Y1 = y1;
         X2 = x2;
         Y2 = y2;
         UserSpaceOnUse = userSpaceOnUse;
+        Transform = transform;
+        SpreadMethod = spreadMethod;
         Stops = stops;
     }
 
@@ -92,40 +94,48 @@ internal sealed class SvgRasterLinearGradient {
     public double X2 { get; }
     public double Y2 { get; }
     public bool UserSpaceOnUse { get; }
+    public SvgRasterMatrix Transform { get; }
+    public RasterGradientSpreadMethod SpreadMethod { get; }
     public IReadOnlyList<RasterGradientStop> Stops { get; }
 
     public static SvgRasterLinearGradient From(SvgRasterElement element, SvgRasterLinearGradient? inherited) {
         var userSpace = string.Equals(element.Get("gradientUnits"), "userSpaceOnUse", StringComparison.Ordinal) || (element.Get("gradientUnits") == null && inherited?.UserSpaceOnUse == true);
         var stops = SvgRasterGradientValues.ReadStops(element);
         if (stops.Count == 0) stops = inherited?.Stops ?? SvgRasterGradientValues.BlackStops;
+        var transform = element.Get("gradientTransform") == null ? inherited?.Transform ?? SvgRasterMatrix.Identity : SvgRasterMatrix.ParseTransform(element.Get("gradientTransform"));
         return new SvgRasterLinearGradient(
             SvgRasterGradientValues.ParseCoordinate(element.Get("x1"), inherited?.X1 ?? 0),
             SvgRasterGradientValues.ParseCoordinate(element.Get("y1"), inherited?.Y1 ?? 0),
             SvgRasterGradientValues.ParseCoordinate(element.Get("x2"), inherited?.X2 ?? (userSpace ? 0 : 1)),
             SvgRasterGradientValues.ParseCoordinate(element.Get("y2"), inherited?.Y2 ?? 0),
             userSpace,
+            transform,
+            SvgRasterGradientValues.ParseSpreadMethod(element.Get("spreadMethod"), inherited?.SpreadMethod ?? RasterGradientSpreadMethod.Pad),
             stops);
     }
 
     public void Endpoints(IReadOnlyList<List<ChartPoint>> contours, SvgRasterMatrix matrix, out ChartPoint start, out ChartPoint end) {
         if (UserSpaceOnUse) {
-            start = matrix.Transform(new ChartPoint(X1, Y1));
-            end = matrix.Transform(new ChartPoint(X2, Y2));
+            var transformed = matrix.Multiply(Transform);
+            start = transformed.Transform(new ChartPoint(X1, Y1));
+            end = transformed.Transform(new ChartPoint(X2, Y2));
             return;
         }
 
         var bounds = SvgRasterGradientValues.Bounds(contours);
-        start = new ChartPoint(bounds.Left + bounds.Width * X1, bounds.Top + bounds.Height * Y1);
-        end = new ChartPoint(bounds.Left + bounds.Width * X2, bounds.Top + bounds.Height * Y2);
+        start = SvgRasterGradientValues.MapObjectPoint(Transform.Transform(new ChartPoint(X1, Y1)), bounds);
+        end = SvgRasterGradientValues.MapObjectPoint(Transform.Transform(new ChartPoint(X2, Y2)), bounds);
     }
 }
 
 internal sealed class SvgRasterRadialGradient {
-    private SvgRasterRadialGradient(double cx, double cy, double r, bool userSpaceOnUse, IReadOnlyList<RasterGradientStop> stops) {
+    private SvgRasterRadialGradient(double cx, double cy, double r, bool userSpaceOnUse, SvgRasterMatrix transform, RasterGradientSpreadMethod spreadMethod, IReadOnlyList<RasterGradientStop> stops) {
         Cx = cx;
         Cy = cy;
         Radius = r;
         UserSpaceOnUse = userSpaceOnUse;
+        Transform = transform;
+        SpreadMethod = spreadMethod;
         Stops = stops;
     }
 
@@ -133,30 +143,39 @@ internal sealed class SvgRasterRadialGradient {
     public double Cy { get; }
     public double Radius { get; }
     public bool UserSpaceOnUse { get; }
+    public SvgRasterMatrix Transform { get; }
+    public RasterGradientSpreadMethod SpreadMethod { get; }
     public IReadOnlyList<RasterGradientStop> Stops { get; }
 
     public static SvgRasterRadialGradient From(SvgRasterElement element, SvgRasterRadialGradient? inherited) {
         var userSpace = string.Equals(element.Get("gradientUnits"), "userSpaceOnUse", StringComparison.Ordinal) || (element.Get("gradientUnits") == null && inherited?.UserSpaceOnUse == true);
         var stops = SvgRasterGradientValues.ReadStops(element);
         if (stops.Count == 0) stops = inherited?.Stops ?? SvgRasterGradientValues.BlackStops;
+        var transform = element.Get("gradientTransform") == null ? inherited?.Transform ?? SvgRasterMatrix.Identity : SvgRasterMatrix.ParseTransform(element.Get("gradientTransform"));
         return new SvgRasterRadialGradient(
             SvgRasterGradientValues.ParseCoordinate(element.Get("cx"), inherited?.Cx ?? 0.5),
             SvgRasterGradientValues.ParseCoordinate(element.Get("cy"), inherited?.Cy ?? 0.5),
             SvgRasterGradientValues.ParseCoordinate(element.Get("r"), inherited?.Radius ?? 0.5),
             userSpace,
+            transform,
+            SvgRasterGradientValues.ParseSpreadMethod(element.Get("spreadMethod"), inherited?.SpreadMethod ?? RasterGradientSpreadMethod.Pad),
             stops);
     }
 
-    public void Circle(IReadOnlyList<List<ChartPoint>> contours, SvgRasterMatrix matrix, out ChartPoint center, out double radius) {
+    public void Axes(IReadOnlyList<List<ChartPoint>> contours, SvgRasterMatrix matrix, out ChartPoint center, out ChartPoint radiusX, out ChartPoint radiusY) {
         if (UserSpaceOnUse) {
-            center = matrix.Transform(new ChartPoint(Cx, Cy));
-            radius = Math.Max(0.000001, Radius * matrix.ScaleFactor);
+            var transformed = matrix.Multiply(Transform);
+            center = transformed.Transform(new ChartPoint(Cx, Cy));
+            radiusX = transformed.Transform(new ChartPoint(Cx + Math.Max(0.000001, Radius), Cy));
+            radiusY = transformed.Transform(new ChartPoint(Cx, Cy + Math.Max(0.000001, Radius)));
             return;
         }
 
         var bounds = SvgRasterGradientValues.Bounds(contours);
-        center = new ChartPoint(bounds.Left + bounds.Width * Cx, bounds.Top + bounds.Height * Cy);
-        radius = Math.Max(0.000001, Radius * Math.Max(bounds.Width, bounds.Height));
+        var radius = Math.Max(0.000001, Radius);
+        center = SvgRasterGradientValues.MapObjectPoint(Transform.Transform(new ChartPoint(Cx, Cy)), bounds);
+        radiusX = SvgRasterGradientValues.MapObjectPoint(Transform.Transform(new ChartPoint(Cx + radius, Cy)), bounds);
+        radiusY = SvgRasterGradientValues.MapObjectPoint(Transform.Transform(new ChartPoint(Cx, Cy + radius)), bounds);
     }
 }
 
@@ -179,6 +198,17 @@ internal static class SvgRasterGradientValues {
         if (!double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return fallback;
         return percent ? parsed / 100.0 : parsed;
     }
+
+    public static RasterGradientSpreadMethod ParseSpreadMethod(string? value, RasterGradientSpreadMethod fallback) {
+        if (string.Equals(value, "reflect", StringComparison.Ordinal)) return RasterGradientSpreadMethod.Reflect;
+        if (string.Equals(value, "repeat", StringComparison.Ordinal)) return RasterGradientSpreadMethod.Repeat;
+        if (string.Equals(value, "pad", StringComparison.Ordinal)) return RasterGradientSpreadMethod.Pad;
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        return fallback;
+    }
+
+    public static ChartPoint MapObjectPoint(ChartPoint point, GradientBounds bounds) =>
+        new(bounds.Left + bounds.Width * point.X, bounds.Top + bounds.Height * point.Y);
 
     public static GradientBounds Bounds(IReadOnlyList<List<ChartPoint>> contours) {
         var left = double.PositiveInfinity;

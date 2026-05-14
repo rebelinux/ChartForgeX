@@ -137,12 +137,12 @@ internal static class SvgRasterRenderer {
         if (contours.Count == 0 || style.Fill.IsNone) return;
         if (style.Fill.IsReference && definitions.TryGetLinearGradient(style.Fill.ReferenceId, out var gradient)) {
             gradient.Endpoints(contours, matrix, out var start, out var end);
-            canvas.FillContoursLinearGradient(contours, start, end, gradient.Stops);
+            canvas.FillContoursLinearGradient(contours, start, end, gradient.Stops, gradient.SpreadMethod);
             return;
         }
         if (style.Fill.IsReference && definitions.TryGetRadialGradient(style.Fill.ReferenceId, out var radialGradient)) {
-            radialGradient.Circle(contours, matrix, out var center, out var radius);
-            canvas.FillContoursRadialGradient(contours, center, radius, radialGradient.Stops);
+            radialGradient.Axes(contours, matrix, out var center, out var radiusX, out var radiusY);
+            canvas.FillContoursRadialGradient(contours, center, radiusX, radiusY, radialGradient.Stops, radialGradient.SpreadMethod);
             return;
         }
 

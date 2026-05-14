@@ -14,8 +14,14 @@ internal readonly struct RasterGradientStop {
     }
 }
 
+internal enum RasterGradientSpreadMethod {
+    Pad,
+    Reflect,
+    Repeat
+}
+
 internal sealed partial class RgbaCanvas {
-    internal void FillContoursLinearGradient(IReadOnlyList<List<ChartPoint>> contours, ChartPoint start, ChartPoint end, IReadOnlyList<RasterGradientStop> stops) {
+    internal void FillContoursLinearGradient(IReadOnlyList<List<ChartPoint>> contours, ChartPoint start, ChartPoint end, IReadOnlyList<RasterGradientStop> stops, RasterGradientSpreadMethod spreadMethod) {
         if (contours.Count == 0 || stops.Count == 0) return;
         var scaledContours = new List<List<ChartPoint>>(contours.Count);
         foreach (var contour in contours) {
@@ -26,11 +32,11 @@ internal sealed partial class RgbaCanvas {
         }
 
         if (scaledContours.Count == 0) return;
-        FillContoursLinearGradientPixels(scaledContours, new ChartPoint(start.X * _scale, start.Y * _scale), new ChartPoint(end.X * _scale, end.Y * _scale), stops);
+        FillContoursLinearGradientPixels(scaledContours, new ChartPoint(start.X * _scale, start.Y * _scale), new ChartPoint(end.X * _scale, end.Y * _scale), stops, spreadMethod);
     }
 
-    internal void FillContoursRadialGradient(IReadOnlyList<List<ChartPoint>> contours, ChartPoint center, double radius, IReadOnlyList<RasterGradientStop> stops) {
-        if (contours.Count == 0 || radius <= 0 || stops.Count == 0) return;
+    internal void FillContoursRadialGradient(IReadOnlyList<List<ChartPoint>> contours, ChartPoint center, ChartPoint radiusX, ChartPoint radiusY, IReadOnlyList<RasterGradientStop> stops, RasterGradientSpreadMethod spreadMethod) {
+        if (contours.Count == 0 || stops.Count == 0) return;
         var scaledContours = new List<List<ChartPoint>>(contours.Count);
         foreach (var contour in contours) {
             if (contour.Count < 3) continue;
@@ -40,10 +46,16 @@ internal sealed partial class RgbaCanvas {
         }
 
         if (scaledContours.Count == 0) return;
-        FillContoursRadialGradientPixels(scaledContours, new ChartPoint(center.X * _scale, center.Y * _scale), radius * _scale, stops);
+        FillContoursRadialGradientPixels(
+            scaledContours,
+            new ChartPoint(center.X * _scale, center.Y * _scale),
+            new ChartPoint(radiusX.X * _scale, radiusX.Y * _scale),
+            new ChartPoint(radiusY.X * _scale, radiusY.Y * _scale),
+            stops,
+            spreadMethod);
     }
 
-    private void FillContoursLinearGradientPixels(IReadOnlyList<List<ChartPoint>> contours, ChartPoint start, ChartPoint end, IReadOnlyList<RasterGradientStop> stops) {
+    private void FillContoursLinearGradientPixels(IReadOnlyList<List<ChartPoint>> contours, ChartPoint start, ChartPoint end, IReadOnlyList<RasterGradientStop> stops, RasterGradientSpreadMethod spreadMethod) {
         var minY = double.PositiveInfinity;
         var maxY = double.NegativeInfinity;
         foreach (var contour in contours) foreach (var point in contour) {
@@ -81,14 +93,14 @@ internal sealed partial class RgbaCanvas {
                     var coverage = Math.Min(x + 1.0, right) - Math.Max(x, left);
                     if (coverage <= 0) continue;
                     var amount = gradientLengthSquared <= 0.000001 ? 0 : ((x + 0.5 - start.X) * gradientX + (scanY - start.Y) * gradientY) / gradientLengthSquared;
-                    var color = SampleGradient(stops, amount);
+                    var color = SampleGradient(stops, amount, spreadMethod);
                     BlendPixel(x, y, coverage >= 1 ? color : WithOpacity(color, coverage));
                 }
             }
         }
     }
 
-    private void FillContoursRadialGradientPixels(IReadOnlyList<List<ChartPoint>> contours, ChartPoint center, double radius, IReadOnlyList<RasterGradientStop> stops) {
+    private void FillContoursRadialGradientPixels(IReadOnlyList<List<ChartPoint>> contours, ChartPoint center, ChartPoint radiusX, ChartPoint radiusY, IReadOnlyList<RasterGradientStop> stops, RasterGradientSpreadMethod spreadMethod) {
         var minY = double.PositiveInfinity;
         var maxY = double.NegativeInfinity;
         foreach (var contour in contours) foreach (var point in contour) {
@@ -99,6 +111,13 @@ internal sealed partial class RgbaCanvas {
         var yStart = Math.Max(0, (int)Math.Floor(minY));
         var yEnd = Math.Min(_pixelHeight - 1, (int)Math.Ceiling(maxY));
         var intersections = new List<double>();
+        var axisXX = radiusX.X - center.X;
+        var axisXY = radiusX.Y - center.Y;
+        var axisYX = radiusY.X - center.X;
+        var axisYY = radiusY.Y - center.Y;
+        var determinant = axisXX * axisYY - axisYX * axisXY;
+        if (Math.Abs(determinant) <= 0.000001) return;
+
         for (var y = yStart; y <= yEnd; y++) {
             var scanY = y + 0.5;
             intersections.Clear();
@@ -123,15 +142,17 @@ internal sealed partial class RgbaCanvas {
                     if (coverage <= 0) continue;
                     var dx = x + 0.5 - center.X;
                     var dy = scanY - center.Y;
-                    var color = SampleGradient(stops, Math.Sqrt(dx * dx + dy * dy) / radius);
+                    var localX = (dx * axisYY - axisYX * dy) / determinant;
+                    var localY = (axisXX * dy - dx * axisXY) / determinant;
+                    var color = SampleGradient(stops, Math.Sqrt(localX * localX + localY * localY), spreadMethod);
                     BlendPixel(x, y, coverage >= 1 ? color : WithOpacity(color, coverage));
                 }
             }
         }
     }
 
-    private static ChartColor SampleGradient(IReadOnlyList<RasterGradientStop> stops, double amount) {
-        amount = Math.Max(0, Math.Min(1, amount));
+    private static ChartColor SampleGradient(IReadOnlyList<RasterGradientStop> stops, double amount, RasterGradientSpreadMethod spreadMethod) {
+        amount = ApplySpread(amount, spreadMethod);
         var previous = stops[0];
         for (var i = 1; i < stops.Count; i++) {
             var next = stops[i];
@@ -145,6 +166,19 @@ internal sealed partial class RgbaCanvas {
         }
 
         return previous.Color;
+    }
+
+    private static double ApplySpread(double amount, RasterGradientSpreadMethod spreadMethod) {
+        if (double.IsNaN(amount) || double.IsInfinity(amount)) return 0;
+        switch (spreadMethod) {
+            case RasterGradientSpreadMethod.Repeat:
+                return amount - Math.Floor(amount);
+            case RasterGradientSpreadMethod.Reflect:
+                var reflected = amount - Math.Floor(amount / 2.0) * 2.0;
+                return reflected <= 1 ? reflected : 2 - reflected;
+            default:
+                return Math.Max(0, Math.Min(1, amount));
+        }
     }
 
     private static ChartColor Mix(ChartColor left, ChartColor right, double amount) {
