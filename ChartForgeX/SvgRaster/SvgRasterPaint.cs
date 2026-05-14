@@ -26,7 +26,7 @@ internal readonly struct SvgRasterPaint {
         if (string.Equals(trimmed, "currentColor", StringComparison.OrdinalIgnoreCase)) return Solid(currentColor);
         var reference = TryParseReference(trimmed);
         if (reference != null) return Reference(reference);
-        return ChartColor.TryParse(trimmed, out var color) ? Solid(color) : fallback;
+        return SvgRasterColor.TryParse(trimmed, out var color) ? Solid(color) : fallback;
     }
 
     private static string? TryParseReference(string value) {

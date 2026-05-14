@@ -171,15 +171,15 @@ internal static partial class SmokeTests {
         Assert(CountPixelsNear(patternPixels, 255, 0, 0) > 1500, "PNG topology artwork should rasterize SVG pattern fills instead of replacing them with a solid fallback.");
         Assert(CountPixelsNear(patternPixels, 0, 0, 255) > 1500, "PNG topology artwork should repeat SVG pattern tiles across filled contours.");
 
-        var stylesheetArtwork = TopologyIconArtwork.InlineSvg("<style>.body.primary{fill:#FF0000}path.outline.active{fill:none;stroke:#0000FF;stroke-width:4}.gone{display:none}circle#accent.hot{fill:#00AA00}stop.warm{stop-color:#FF0000}stop.cool{stop-color:#0000FF}</style><defs><linearGradient id=\"sheet-gradient\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"><stop class=\"warm\" offset=\"0%\"/><stop class=\"cool\" offset=\"100%\"/></linearGradient></defs><rect class=\"body primary\" x=\"0\" y=\"0\" width=\"18\" height=\"18\"/><path class=\"outline active\" d=\"M24 8 H42\"/><circle id=\"accent\" class=\"hot\" cx=\"9\" cy=\"33\" r=\"7\"/><rect class=\"gone\" x=\"22\" y=\"22\" width=\"20\" height=\"20\" fill=\"#FF00FF\"/><rect x=\"24\" y=\"24\" width=\"18\" height=\"16\" fill=\"url(#sheet-gradient)\"/>", "0 0 44 44");
+        var stylesheetArtwork = TopologyIconArtwork.InlineSvg("<style>.body.primary{fill:rgb(100% 0% 0%)}path.outline.active{fill:none;stroke:rgba(0,0,255,1);stroke-width:4}.gone{display:none}circle#accent.hot{fill:rgb(0 170 0)}stop.warm{stop-color:rgb(255,0,0)}stop.cool{stop-color:rgba(0,0,255,100%)}</style><defs><linearGradient id=\"sheet-gradient\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"><stop class=\"warm\" offset=\"0%\"/><stop class=\"cool\" offset=\"100%\"/></linearGradient></defs><rect class=\"body primary\" x=\"0\" y=\"0\" width=\"18\" height=\"18\"/><path class=\"outline active\" d=\"M24 8 H42\"/><circle id=\"accent\" class=\"hot\" cx=\"9\" cy=\"33\" r=\"7\"/><rect class=\"gone\" x=\"22\" y=\"22\" width=\"20\" height=\"20\" fill=\"#FF00FF\"/><rect x=\"24\" y=\"24\" width=\"18\" height=\"16\" fill=\"url(#sheet-gradient)\"/>", "0 0 44 44");
         var stylesheetPng = TopologyChart.Create()
             .WithId("png-svg-raster-stylesheet-artwork")
             .WithViewport(160, 120, 10)
             .AddArtworkNode("art", "Art", stylesheetArtwork, 36, 18, TopologyNodeKind.Application, TopologyHealthStatus.Unknown, width: 88, height: 88, symbol: "ART")
             .ToPng(new TopologyRenderOptions { IncludeLegend = false, PngSupersamplingScale = 1 });
         var stylesheetPixels = ReadPngRgba(stylesheetPng, out _, out _);
-        Assert(CountPixelsNear(stylesheetPixels, 255, 0, 0) > 900, "PNG topology artwork should apply multi-class SVG stylesheet fill declarations.");
-        Assert(CountPixelsNear(stylesheetPixels, 0, 0, 255) > 120, "PNG topology artwork should apply compound class SVG stylesheet stroke and gradient-stop declarations.");
+        Assert(CountPixelsNear(stylesheetPixels, 255, 0, 0) > 900, "PNG topology artwork should apply CSS rgb color fills from multi-class SVG stylesheet declarations.");
+        Assert(CountPixelsNear(stylesheetPixels, 0, 0, 255) > 120, "PNG topology artwork should apply CSS rgba colors from compound class SVG stylesheet stroke and gradient-stop declarations.");
         Assert(CountPixelsNear(stylesheetPixels, 0, 170, 0) > 120, "PNG topology artwork should apply id-and-class SVG stylesheet declarations.");
         Assert(CountPixelsNear(stylesheetPixels, 255, 0, 255) < 40, "PNG topology artwork should apply display:none from SVG stylesheet rules.");
 

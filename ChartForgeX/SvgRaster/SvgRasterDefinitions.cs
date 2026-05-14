@@ -385,7 +385,7 @@ internal static class SvgRasterGradientValues {
             }
         }
 
-        if (!ChartColor.TryParse(stopColor, out var color)) color = ChartColor.Black;
+        if (!SvgRasterColor.TryParse(stopColor, out var color)) color = ChartColor.Black;
         return new RasterGradientStop(Math.Max(0, Math.Min(1, ParseCoordinate(element.Get("offset"), 0))), WithOpacity(color, ParseOpacity(stopOpacity, 1)));
     }
 
