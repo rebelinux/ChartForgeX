@@ -26,6 +26,8 @@ internal static class TopologyEdgeRouter {
         var candidates = new List<RouteCandidate> {
             new("orthogonal-default", EdgePoints(source, target, TopologyEdgeRouting.Orthogonal, edge.SourcePort, edge.TargetPort, routeLane))
         };
+        var aligned = AlignedEndpointRoute(source, target, edge);
+        if (aligned != null) candidates.Add(new RouteCandidate("aligned-direct", aligned));
 
         foreach (var corridor in RouteXCandidates(chart, source, target, obstacles, routeLane)) {
             candidates.Add(new RouteCandidate(corridor.Name, new List<ChartPoint> {
@@ -34,6 +36,8 @@ internal static class TopologyEdgeRouter {
                 new(corridor.Value, targetPoint.Y),
                 targetPoint
             }));
+            var ported = VerticalPortAwareRoute(sourcePoint, targetPoint, corridor.Value, edge);
+            if (ported != null) candidates.Add(new RouteCandidate(corridor.Name + "-ported", ported));
         }
 
         foreach (var corridor in RouteYCandidates(chart, source, target, obstacles, routeLane)) {
@@ -43,13 +47,15 @@ internal static class TopologyEdgeRouter {
                 new(targetPoint.X, corridor.Value),
                 targetPoint
             }));
+            var ported = HorizontalPortAwareRoute(sourcePoint, targetPoint, corridor.Value, edge);
+            if (ported != null) candidates.Add(new RouteCandidate(corridor.Name + "-ported", ported));
         }
 
         var best = candidates
             .GroupBy(candidate => RouteKey(candidate.Points), StringComparer.Ordinal)
             .Select(group => group.OrderBy(candidate => candidate.Corridor, StringComparer.Ordinal).First())
             .Select(candidate => BuildPlan("ObstacleAvoidingOrthogonal", candidate.Corridor, candidate.Points, obstacles, existingSegments, edge, candidates.Count))
-            .OrderBy(plan => RouteScore(plan))
+            .OrderBy(plan => RouteScore(plan, edge))
             .ThenBy(plan => RouteLength(plan.Points))
             .ThenBy(plan => RouteKey(plan.Points), StringComparer.Ordinal)
             .First();
@@ -70,12 +76,43 @@ internal static class TopologyEdgeRouter {
         return new TopologyRoutePlan(points, new TopologyRouteDiagnostics(strategy, corridor, Math.Max(0, points.Count - 1), obstacleHits, labelHits, routeOverlap, candidateCount, FallbackReason(strategy, obstacleHits, labelHits, routeOverlap)));
     }
 
-    private static double RouteScore(TopologyRoutePlan plan) {
+    private static double RouteScore(TopologyRoutePlan plan, TopologyEdge edge) {
         return plan.Diagnostics.ObstacleHits * 100000 +
             plan.Diagnostics.LabelObstacleHits * 30000 +
+            PortExitPenalty(plan.Points, edge) +
             plan.Diagnostics.RouteOverlapScore * 220 +
             Math.Max(0, plan.Points.Count - 2) * 80 +
             RouteLength(plan.Points);
+    }
+
+    private static double PortExitPenalty(IReadOnlyList<ChartPoint> points, TopologyEdge edge) {
+        var penalty = PortSegmentPenalty(edge.SourcePort, points, 0, 1, true);
+        penalty += PortSegmentPenalty(edge.TargetPort, points, points.Count - 1, points.Count - 2, false);
+        return penalty;
+    }
+
+    private static double PortSegmentPenalty(TopologyEdgePort port, IReadOnlyList<ChartPoint> points, int edgeIndex, int adjacentIndex, bool leaving) {
+        if (port == TopologyEdgePort.Auto || points.Count < 2) return 0;
+        var edge = points[edgeIndex];
+        var adjacent = points[adjacentIndex];
+        var dx = leaving ? adjacent.X - edge.X : edge.X - adjacent.X;
+        var dy = leaving ? adjacent.Y - edge.Y : edge.Y - adjacent.Y;
+        var compatible = leaving
+            ? port switch {
+                TopologyEdgePort.Left => dx < -0.0001 && Math.Abs(dy) < 0.0001,
+                TopologyEdgePort.Right => dx > 0.0001 && Math.Abs(dy) < 0.0001,
+                TopologyEdgePort.Top => dy < -0.0001 && Math.Abs(dx) < 0.0001,
+                TopologyEdgePort.Bottom => dy > 0.0001 && Math.Abs(dx) < 0.0001,
+                _ => true
+            }
+            : port switch {
+                TopologyEdgePort.Left => dx > 0.0001 && Math.Abs(dy) < 0.0001,
+                TopologyEdgePort.Right => dx < -0.0001 && Math.Abs(dy) < 0.0001,
+                TopologyEdgePort.Top => dy > 0.0001 && Math.Abs(dx) < 0.0001,
+                TopologyEdgePort.Bottom => dy < -0.0001 && Math.Abs(dx) < 0.0001,
+                _ => true
+            };
+        return compatible ? 0 : 100000;
     }
 
     private static string FallbackReason(string strategy, int obstacleHits, int labelHits, double routeOverlap) {
@@ -85,6 +122,77 @@ internal static class TopologyEdgeRouter {
         if (obstacleHits > 0) return "best-effort-obstacle";
         if (labelHits > 0) return "best-effort-label";
         return "best-effort-overlap";
+    }
+
+    private static List<ChartPoint>? AlignedEndpointRoute(TopologyNode source, TopologyNode target, TopologyEdge edge) {
+        if (edge.SourcePort != TopologyEdgePort.Auto || edge.TargetPort != TopologyEdgePort.Auto) return null;
+        const double tolerance = 12;
+        var sourceCenterX = CenterX(source);
+        var sourceCenterY = CenterY(source);
+        var targetCenterX = CenterX(target);
+        var targetCenterY = CenterY(target);
+        if (Math.Abs(sourceCenterX - targetCenterX) <= tolerance && Math.Abs(sourceCenterY - targetCenterY) > Math.Max(source.Height, target.Height)) {
+            var minX = Math.Max(source.X + 10, target.X + 10);
+            var maxX = Math.Min(source.X + source.Width - 10, target.X + target.Width - 10);
+            if (minX > maxX) return null;
+            var sharedX = Clamp((sourceCenterX + targetCenterX) / 2, minX, maxX);
+            if (targetCenterY >= sourceCenterY) return new List<ChartPoint> { new(sharedX, source.Y + source.Height + 7), new(sharedX, target.Y - 7) };
+            return new List<ChartPoint> { new(sharedX, source.Y - 7), new(sharedX, target.Y + target.Height + 7) };
+        }
+
+        if (Math.Abs(sourceCenterY - targetCenterY) <= tolerance && Math.Abs(sourceCenterX - targetCenterX) > Math.Max(source.Width, target.Width)) {
+            var minY = Math.Max(source.Y + 10, target.Y + 10);
+            var maxY = Math.Min(source.Y + source.Height - 10, target.Y + target.Height - 10);
+            if (minY > maxY) return null;
+            var sharedY = Clamp((sourceCenterY + targetCenterY) / 2, minY, maxY);
+            if (targetCenterX >= sourceCenterX) return new List<ChartPoint> { new(source.X + source.Width + 7, sharedY), new(target.X - 7, sharedY) };
+            return new List<ChartPoint> { new(source.X - 7, sharedY), new(target.X + target.Width + 7, sharedY) };
+        }
+
+        return null;
+    }
+
+    private static List<ChartPoint>? HorizontalPortAwareRoute(ChartPoint sourcePoint, ChartPoint targetPoint, double corridorY, TopologyEdge edge) {
+        if (!IsHorizontalPort(edge.SourcePort) && !IsHorizontalPort(edge.TargetPort)) return null;
+        var sourceStub = IsHorizontalPort(edge.SourcePort) ? new ChartPoint(sourcePoint.X + PortDirection(edge.SourcePort) * 14, sourcePoint.Y) : sourcePoint;
+        var targetStub = IsHorizontalPort(edge.TargetPort) ? new ChartPoint(targetPoint.X + PortDirection(edge.TargetPort) * 14, targetPoint.Y) : targetPoint;
+        return NormalizePoints(new[] {
+            sourcePoint,
+            sourceStub,
+            new ChartPoint(sourceStub.X, corridorY),
+            new ChartPoint(targetStub.X, corridorY),
+            targetStub,
+            targetPoint
+        });
+    }
+
+    private static List<ChartPoint>? VerticalPortAwareRoute(ChartPoint sourcePoint, ChartPoint targetPoint, double corridorX, TopologyEdge edge) {
+        if (!IsVerticalPort(edge.SourcePort) && !IsVerticalPort(edge.TargetPort)) return null;
+        var sourceStub = IsVerticalPort(edge.SourcePort) ? new ChartPoint(sourcePoint.X, sourcePoint.Y + PortDirection(edge.SourcePort) * 14) : sourcePoint;
+        var targetStub = IsVerticalPort(edge.TargetPort) ? new ChartPoint(targetPoint.X, targetPoint.Y + PortDirection(edge.TargetPort) * 14) : targetPoint;
+        return NormalizePoints(new[] {
+            sourcePoint,
+            sourceStub,
+            new ChartPoint(corridorX, sourceStub.Y),
+            new ChartPoint(corridorX, targetStub.Y),
+            targetStub,
+            targetPoint
+        });
+    }
+
+    private static bool IsHorizontalPort(TopologyEdgePort port) => port == TopologyEdgePort.Left || port == TopologyEdgePort.Right;
+
+    private static bool IsVerticalPort(TopologyEdgePort port) => port == TopologyEdgePort.Top || port == TopologyEdgePort.Bottom;
+
+    private static double PortDirection(TopologyEdgePort port) => port == TopologyEdgePort.Left || port == TopologyEdgePort.Top ? -1 : 1;
+
+    private static List<ChartPoint> NormalizePoints(IEnumerable<ChartPoint> points) {
+        var normalized = new List<ChartPoint>();
+        foreach (var point in points) {
+            if (normalized.Count == 0 || Distance(normalized[normalized.Count - 1], point) > 0.001) normalized.Add(point);
+        }
+
+        return normalized;
     }
 
     private static IEnumerable<RouteCorridor> RouteXCandidates(TopologyChart chart, TopologyNode source, TopologyNode target, IReadOnlyList<RouteBox> obstacles, double routeLane) {
@@ -107,7 +215,7 @@ internal static class TopologyEdgeRouter {
     private static IEnumerable<RouteCorridor> RouteYCandidates(TopologyChart chart, TopologyNode source, TopologyNode target, IReadOnlyList<RouteBox> obstacles, double routeLane) {
         const double margin = 18;
         var min = chart.Viewport.Padding + (string.IsNullOrWhiteSpace(chart.Title) && string.IsNullOrWhiteSpace(chart.Subtitle) ? 0 : 72);
-        var max = chart.Viewport.Height - chart.Viewport.Padding - LegendReservedHeight(chart.Legend);
+        var max = chart.Viewport.Height - chart.Viewport.Padding - LegendReservedHeight(chart.Legend, chart.Viewport);
         yield return new RouteCorridor("horizontal-mid", Clamp((CenterY(source) + CenterY(target)) / 2 + routeLane, min, max));
         yield return new RouteCorridor("horizontal-viewport-top", Clamp(min + margin, min, max));
         yield return new RouteCorridor("horizontal-viewport-bottom", Clamp(max - margin, min, max));

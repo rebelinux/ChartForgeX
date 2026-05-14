@@ -58,7 +58,7 @@ internal static partial class SmokeTests {
         var svg = chart.ToSvg();
         Assert(svg.Contains("data-legend-kind=\"node\"", StringComparison.Ordinal), "Topology legend should render explicit node-kind items.");
         Assert(svg.Contains("data-legend-kind=\"edge\"", StringComparison.Ordinal), "Topology legend should render explicit edge-kind items.");
-        Assert(svg.Contains("height=\"110\"", StringComparison.Ordinal), "Topology legend should grow when caller-added legend items need another row.");
+        Assert(svg.Contains("height=\"136\"", StringComparison.Ordinal), "Topology legend should grow when caller-added legend items need another row.");
         Assert(chart.ToPng().Length > 64, "Topology PNG legend should render caller-added legend items.");
     }
 
@@ -517,6 +517,7 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("data-waypoint-count=\"2\"", StringComparison.Ordinal), "Topology SVG should expose waypoint counts as host interactivity hooks.");
         Assert(svg.Contains("data-edge-id=\"left-right\" data-label-x=\"", StringComparison.Ordinal) && svg.Contains("data-label-y=\"180\"", StringComparison.Ordinal), "Topology edge labels should use the waypoint route midpoint when it is clear of other topology elements.");
         Assert(chart.ToPng(new TopologyRenderOptions { IncludeLegend = false }).Length > 64, "Topology PNG should render explicit edge waypoints.");
+
     }
 
     private static void TopologyEdgesSupportPortsAndRouteLanes() {
@@ -545,13 +546,25 @@ internal static partial class SmokeTests {
             .AddEdge("source-target", "source", "target", "lane", TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, TopologyDirection.Forward, TopologyEdgeRouting.Orthogonal)
             .WithEdgePorts("source-target", TopologyEdgePort.Bottom, TopologyEdgePort.Top)
             .WithEdgeRouteLane("source-target", 24);
-
         var laneSvg = lane.ToSvg(new TopologyRenderOptions { IncludeLegend = false });
         Assert(laneSvg.Contains("data-source-port=\"Bottom\" data-target-port=\"Top\" data-route-lane=\"24\"", StringComparison.Ordinal), "Topology SVG should expose non-zero route lanes.");
         Assert(laneSvg.Contains("d=\"M 140 151 L 140 216 L 380 216 L 380 233\"", StringComparison.Ordinal), "Orthogonal topology edges should use requested ports and deterministic route lanes.");
         Assert(lane.ToPng(new TopologyRenderOptions { IncludeLegend = false }).Length > 64, "Topology PNG should render ported orthogonal route lanes.");
+        var obstacleAware = TopologyChart.Create()
+            .WithId("ported-obstacle-aware")
+            .WithViewport(720, 360, 20)
+            .WithLegend(null)
+            .AddNode("source", "Source", 270, 210, TopologyNodeKind.Service, TopologyHealthStatus.Healthy, width: 150, height: 70)
+            .AddNode("target", "Target", 480, 70, TopologyNodeKind.Database, TopologyHealthStatus.Warning, width: 150, height: 70)
+            .AddEdge("source-target", "source", "target", "ported", TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, TopologyDirection.Forward, TopologyEdgeRouting.ObstacleAvoidingOrthogonal).WithEdgePorts("source-target", TopologyEdgePort.Right, TopologyEdgePort.Left);
+        var obstacleAwareSvg = obstacleAware.ToSvg(new TopologyRenderOptions { IncludeLegend = false });
+        Assert(obstacleAwareSvg.Contains("data-route-corridor=\"", StringComparison.Ordinal), "Obstacle-aware topology routing should expose the selected route corridor.");
+        var obstacleAwarePoints = ParseSvgPathPoints(ExtractEdgePathData(obstacleAwareSvg, "source-target"));
+        Assert(obstacleAwarePoints.Count >= 4, "Obstacle-aware ported routes should keep orthogonal terminal approach points.");
+        Assert(Math.Abs(obstacleAwarePoints[0].Y - obstacleAwarePoints[1].Y) < 0.001 && obstacleAwarePoints[1].X > obstacleAwarePoints[0].X &&
+            Math.Abs(obstacleAwarePoints[obstacleAwarePoints.Count - 2].Y - obstacleAwarePoints[obstacleAwarePoints.Count - 1].Y) < 0.001 && obstacleAwarePoints[obstacleAwarePoints.Count - 1].X > obstacleAwarePoints[obstacleAwarePoints.Count - 2].X,
+            "Obstacle-aware routes should exit and enter requested side ports horizontally.");
     }
-
     private static void TopologyEdgesCanAvoidNodeObstacles() {
         var chart = TopologyChart.Create()
             .WithId("obstacle-route")
@@ -575,7 +588,7 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("data-cfx-meta-owner=\"routing\"", StringComparison.Ordinal) && svg.Contains("data-cfx-metric-lag=\"64\"", StringComparison.Ordinal), "Topology SVG edge rendering should preserve host metadata and metrics when using the SVG element engine.");
         var path = ExtractEdgePathData(svg, "left-right");
         var points = ParseSvgPathPoints(path);
-        Assert(points.Count == 4, "Obstacle-aware topology routes should keep the route deterministic and orthogonal for a single blocker.");
+        Assert(points.Count >= 4, "Obstacle-aware topology routes should keep the route deterministic and orthogonal for a single blocker.");
         Assert(path.StartsWith("M 147 150 ", StringComparison.Ordinal) && path.EndsWith(" L 353 150", StringComparison.Ordinal), "Obstacle-aware topology routes should attach to the requested source and target ports.");
         Assert(points.Any(point => point.Y < 110 || point.Y > 190), "Obstacle-aware topology routes should choose a lane outside the expanded blocking node bounds.");
         Assert(!PathIntersectsBox(points, left: 200, top: 110, right: 320, bottom: 190), "Obstacle-aware topology routes should avoid the expanded blocking node bounds.");

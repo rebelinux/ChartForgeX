@@ -90,7 +90,9 @@ public enum TopologyViewPreset {
     /// <summary>Render a compact topology suitable for dense dashboard cards.</summary>
     Compact,
     /// <summary>Render a metric-driven topology where edge metric labels are emphasized.</summary>
-    MetricLabels
+    MetricLabels,
+    /// <summary>Render an entity relationship overview with premium monitoring-style cards, wrapped labels, icons, and annotated links.</summary>
+    RelationshipOverview
 }
 
 /// <summary>
@@ -116,6 +118,18 @@ public enum TopologyMapBackgroundStyle {
 }
 
 /// <summary>
+/// Defines the static drawing surface used behind non-geographic topology content.
+/// </summary>
+public enum TopologyCanvasSurfaceStyle {
+    /// <summary>Render only the chart background.</summary>
+    Plain,
+    /// <summary>Render a framed dashboard panel behind the topology content.</summary>
+    Panel,
+    /// <summary>Render a framed dashboard panel with subtle guide lines.</summary>
+    PanelGrid
+}
+
+/// <summary>
 /// Defines how group containers should be filled.
 /// </summary>
 public enum TopologyGroupSurfaceStyle {
@@ -125,6 +139,20 @@ public enum TopologyGroupSurfaceStyle {
     Tinted,
     /// <summary>Render groups as neutral cards with status or identity only on the border and title.</summary>
     Neutral
+}
+
+/// <summary>
+/// Defines how card-like topology node surfaces should be filled.
+/// </summary>
+public enum TopologyNodeSurfaceStyle {
+    /// <summary>Choose the node surface from the active visual style.</summary>
+    Auto,
+    /// <summary>Render nodes as neutral cards with colored borders and icons.</summary>
+    Card,
+    /// <summary>Render nodes with a subtle identity or status tint.</summary>
+    Tinted,
+    /// <summary>Render nodes with a subtle tint plus a compact accent strip.</summary>
+    AccentBand
 }
 
 /// <summary>
@@ -221,6 +249,8 @@ public enum TopologyLegendMode {
     AutoWhenMissing,
     /// <summary>Infer a legend from the chart data.</summary>
     Auto,
+    /// <summary>Preserve explicit legend items while filling missing marker details from inferred chart data.</summary>
+    Enrich,
     /// <summary>Merge inferred legend items with explicitly provided legend items.</summary>
     Merge
 }
@@ -371,6 +401,30 @@ public enum TopologyEdgeEmphasis {
     Subtle,
     /// <summary>Render the edge with stronger prominence.</summary>
     Strong
+}
+
+/// <summary>
+/// Defines the marker shape used for directed topology edges.
+/// </summary>
+public enum TopologyArrowMarkerStyle {
+    /// <summary>Render classic triangular arrow markers.</summary>
+    Triangle,
+    /// <summary>Render open chevron arrow markers.</summary>
+    Chevron,
+    /// <summary>Render diamond arrow markers.</summary>
+    Diamond,
+    /// <summary>Render compact circular endpoint markers.</summary>
+    Circle
+}
+
+/// <summary>
+/// Defines how orthogonal edge bends should be drawn.
+/// </summary>
+public enum TopologyEdgeCornerStyle {
+    /// <summary>Render orthogonal paths with square technical bends.</summary>
+    Sharp,
+    /// <summary>Render orthogonal paths with rounded relationship-map bends.</summary>
+    Rounded
 }
 
 /// <summary>

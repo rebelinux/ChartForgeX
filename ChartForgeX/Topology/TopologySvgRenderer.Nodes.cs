@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ChartForgeX.Svg;
 using static ChartForgeX.Topology.TopologyRenderPrimitives;
 
@@ -33,6 +34,7 @@ public sealed partial class TopologySvgRenderer {
                 if (!string.IsNullOrWhiteSpace(node.GroupId)) element.Attribute("data-group-id", node.GroupId!);
                 if (!string.IsNullOrWhiteSpace(node.Badge)) element.Attribute("data-node-badge", NodeBadge(node));
                 if (!string.IsNullOrWhiteSpace(node.Color)) element.Attribute("data-node-color", color);
+                if (!string.IsNullOrWhiteSpace(node.BackgroundColor)) element.Attribute("data-node-background-color", node.BackgroundColor!.Trim());
                 if (!string.IsNullOrWhiteSpace(node.IconId)) element.Attribute("data-node-icon-id", node.IconId);
                 if (iconDefinition != null) {
                     element
@@ -118,10 +120,23 @@ public sealed partial class TopologySvgRenderer {
             .Attribute("width", node.Width)
             .Attribute("height", node.Height)
             .Attribute("rx", radius)
-            .Attribute("fill", theme.Card)
+            .Attribute("fill", NodeFill(node, theme, color, options))
             .Attribute("stroke", color)
             .Attribute("stroke-width", selected ? 2.8 : 1.5)
+            .Attribute("data-node-surface-style", EffectiveNodeSurfaceStyle(options).ToString())
             .Attribute("filter", "url(#" + SanitizeId(chartId ?? "topology") + "-shadow)"));
+        if (UseNodeAccentBand(displayMode, options)) {
+            body.Element("rect", rect => rect
+                .Class(prefix + "__node-accent-band")
+                .Attribute("data-cfx-role", "topology-node-accent-band")
+                .Attribute("x", node.X)
+                .Attribute("y", node.Y + 8)
+                .Attribute("width", 4.5)
+                .Attribute("height", Math.Max(6, node.Height - 16))
+                .Attribute("rx", 2.25)
+                .Attribute("fill", color)
+                .Attribute("opacity", selected ? 0.95 : 0.82));
+        }
         DrawNodeIcon(body, node, prefix, theme, color, displayMode, options);
         if (!options.IncludeNodeLabels) return body;
         if (displayMode == TopologyNodeDisplayMode.Icon) {
@@ -140,7 +155,7 @@ public sealed partial class TopologySvgRenderer {
                     .Attribute("rx", 7.5)
                     .Attribute("fill", theme.Background)
                     .Attribute("stroke", theme.Border)
-                    .Attribute("stroke-width", 0.7));
+                    .Attribute("stroke-width", 0.75));
                 body.Element("text", text => text
                     .Attribute("x", CenterX(node))
                     .Attribute("y", labelY + 11)
@@ -155,15 +170,8 @@ public sealed partial class TopologySvgRenderer {
         }
 
         if (displayMode == TopologyNodeDisplayMode.Tile) {
-            body.Element("text", text => text
-                .Attribute("x", CenterX(node))
-                .Attribute("y", node.Y + node.Height + 15)
-                .Attribute("text-anchor", "middle")
-                .Attribute("fill", theme.Foreground)
-                .Attribute("font-size", 11)
-                .Attribute("font-weight", "700")
-                .Text(TrimTo(node.Label, NodeTitleMaxLength(displayMode))));
-            if (options.IncludeTileSubtitles && !string.IsNullOrWhiteSpace(node.Subtitle)) body.AddElement(BuildTileSubtitle(node, prefix, theme, color));
+            AddNodeTextLines(body, NodeTextLines(node.Label, Math.Max(node.Width + 34, 54), 11, true, options.MaxNodeLabelLines, options), CenterX(node), node.Y + node.Height + 15, theme.Foreground, 11, "700", "middle", 14);
+            if (options.IncludeTileSubtitles && !string.IsNullOrWhiteSpace(node.Subtitle)) body.AddElement(BuildTileSubtitle(node, prefix, theme, color, options));
             return body;
         }
 
@@ -173,30 +181,35 @@ public sealed partial class TopologySvgRenderer {
         var titleSize = displayMode == TopologyNodeDisplayMode.Pill ? 11.5 : displayMode == TopologyNodeDisplayMode.CompactCard ? 11.5 : 12.5;
         var textRightPadding = 10;
         var textWidth = Math.Max(24, node.Width - (textX - node.X) - textRightPadding);
-        var titleValue = TrimTo(node.Label, NodeTitleMaxLength(displayMode));
-        titleSize = FitFontSize(titleValue, textWidth, titleSize, 10, true);
-        var title = TrimToEstimatedWidth(titleValue, textWidth, titleSize, true);
-        body.Element("text", text => text
-            .Attribute("x", textX)
-            .Attribute("y", titleY)
-            .Attribute("fill", theme.Foreground)
-            .Attribute("font-size", titleSize)
-            .Attribute("font-weight", "700")
-            .Text(title));
+        var titleValue = TrimTo(node.Label, options.AllowMultilineNodeLabels || options.WrapNodeLabels ? NodeLabelMaxLength * Math.Max(1, options.MaxNodeLabelLines) : NodeTitleMaxLength(displayMode));
+        titleSize = FitFontSize(NodeTextFitProbe(titleValue, textWidth, titleSize, true, options.MaxNodeLabelLines, options), textWidth, titleSize, 10, true);
+        var titleLines = NodeTextLines(titleValue, textWidth, titleSize, true, options.MaxNodeLabelLines, options);
+        AddNodeTextLines(body, titleLines, textX, titleY, theme.Foreground, titleSize, "700", null, displayMode == TopologyNodeDisplayMode.CompactCard ? 13 : 14);
         if (displayMode != TopologyNodeDisplayMode.Pill && !string.IsNullOrWhiteSpace(node.Subtitle)) {
             if (options.CardSubtitleMode == TopologyCardSubtitleMode.Chip) body.AddElement(BuildCardSubtitleChip(node, prefix, theme, color, displayMode));
             else {
-                var subtitle = TrimToEstimatedWidth(TrimTo(node.Subtitle!, NodeLabelMaxLength), textWidth, 10.5, false);
-                body.Element("text", text => text
-                    .Attribute("x", textX)
-                    .Attribute("y", subtitleY)
-                    .Attribute("fill", theme.MutedForeground)
-                    .Attribute("font-size", 10.5)
-                    .Text(subtitle));
+                var subtitleStartY = Math.Max(subtitleY, titleY + titleLines.Count * (displayMode == TopologyNodeDisplayMode.CompactCard ? 12 : 13) + 3);
+                var subtitleLines = NodeTextLines(node.Subtitle!, textWidth, 10.5, false, options.MaxNodeSubtitleLines, options);
+                AddNodeTextLines(body, subtitleLines, textX, subtitleStartY, theme.MutedForeground, 10.5, null, null, 12);
             }
         }
 
         return body;
+    }
+
+    private static void AddNodeTextLines(SvgElement body, IReadOnlyList<string> lines, double x, double y, string color, double fontSize, string? fontWeight, string? textAnchor, double lineHeight) {
+        for (var i = 0; i < lines.Count; i++) {
+            body.Element("text", text => {
+                text
+                    .Attribute("x", x)
+                    .Attribute("y", y + i * lineHeight)
+                    .Attribute("fill", color)
+                    .Attribute("font-size", fontSize);
+                if (!string.IsNullOrWhiteSpace(fontWeight)) text.Attribute("font-weight", fontWeight);
+                if (!string.IsNullOrWhiteSpace(textAnchor)) text.Attribute("text-anchor", textAnchor);
+                text.Text(lines[i]);
+            });
+        }
     }
 
     private static void AddDotNodeSymbol(SvgElement body, TopologyNode node, double cx, double cy, TopologyRenderOptions options) {
@@ -224,8 +237,9 @@ public sealed partial class TopologySvgRenderer {
             .Attribute("data-cfx-role", "topology-node-dot-symbol")
             .Attribute("data-node-id", node.Id)
             .Attribute("x", cx)
-            .Attribute("y", cy + 2.4)
+            .Attribute("y", cy)
             .Attribute("text-anchor", "middle")
+            .Attribute("dominant-baseline", "central")
             .Attribute("fill", "#FFFFFF")
             .Attribute("font-size", 5.8)
             .Attribute("font-weight", "800")
@@ -262,11 +276,12 @@ public sealed partial class TopologySvgRenderer {
         return group;
     }
 
-    private static SvgElement BuildTileSubtitle(TopologyNode node, string prefix, TopologyTheme theme, string color) {
+    private static SvgElement BuildTileSubtitle(TopologyNode node, string prefix, TopologyTheme theme, string color, TopologyRenderOptions options) {
         var subtitle = TrimTo(node.Subtitle!, 16);
         var width = Math.Min(Math.Max(46, subtitle.Length * 5.8 + 18), Math.Max(46, node.Width + 28));
+        var labelLineCount = NodeTextLines(node.Label, Math.Max(node.Width + 34, 54), 11, true, options.MaxNodeLabelLines, options).Count;
         var x = CenterX(node) - width / 2;
-        var y = node.Y + node.Height + 21;
+        var y = node.Y + node.Height + 7 + labelLineCount * 14;
         var group = new SvgElement("g")
             .Class(prefix + "__node-tile-subtitle")
             .Attribute("data-cfx-role", "topology-node-subtitle")
@@ -372,8 +387,9 @@ public sealed partial class TopologySvgRenderer {
             if (!AddInfrastructureGlyph(icon, node, cx, cy, color, options)) {
                 icon.Element("text", text => text
                     .Attribute("x", cx)
-                    .Attribute("y", cy + 4)
+                    .Attribute("y", cy)
                     .Attribute("text-anchor", "middle")
+                    .Attribute("dominant-baseline", "central")
                     .Attribute("fill", color)
                     .Attribute("font-size", 9)
                     .Attribute("font-weight", "800")

@@ -61,7 +61,7 @@ public sealed partial class TopologySvgRenderer {
         document.Root.Element("desc", desc => desc
             .Attribute("id", id + "-desc")
             .Text(BuildDescription(prepared)));
-        document.Root.AddElement(BuildDefs(id, prefix, theme, options));
+        document.Root.AddElement(BuildDefs(id, prefix, prepared, theme, options));
         document.Root.Element("g", root => {
             root
                 .Attribute("id", id)
@@ -92,6 +92,7 @@ public sealed partial class TopologySvgRenderer {
             .Attribute("width", "100%")
             .Attribute("height", "100%")
             .Attribute("fill", theme.Background));
+        if (chart.LayoutMode != TopologyLayoutMode.Geographic) AddCanvasSurface(root, chart, prefix, theme, options);
         if (options.IncludeTitle) AddHeader(root, chart, prefix, theme);
         if (chart.LayoutMode == TopologyLayoutMode.Geographic) AddGeographicFrame(root, chart, prefix, theme, options);
         if (chart.LayoutMode == TopologyLayoutMode.Geographic && options.IncludeGeographicRegionHulls) AddGeographicRegionHulls(root, chart, prefix, theme, options);
@@ -101,7 +102,7 @@ public sealed partial class TopologySvgRenderer {
         AddNodes(root, chart, prefix, theme, options, highlight);
         if (options.IncludeStatusBadges) AddNodeStatuses(root, chart, prefix, theme, options, highlight);
         if (chart.LayoutMode == TopologyLayoutMode.Geographic) AddGeographicCallouts(root, chart, prefix, theme, options, highlight);
-        if (options.IncludeLegend && chart.Legend != null) AddLegend(root, chart, prefix, theme);
+        if (options.IncludeLegend && chart.Legend != null) AddLegend(root, chart, prefix, theme, options);
     }
 
     private static void AddGeographicFrame(SvgElement root, TopologyChart chart, string prefix, TopologyTheme theme, TopologyRenderOptions options) {
@@ -264,7 +265,7 @@ public sealed partial class TopologySvgRenderer {
         return Math.Min(options.GeographicRegionHullMaxRadius, Math.Max(options.GeographicRegionHullMinRadius, radius));
     }
 
-    private static SvgElement BuildDefs(string id, string prefix, TopologyTheme theme, TopologyRenderOptions options) {
+    private static SvgElement BuildDefs(string id, string prefix, TopologyChart chart, TopologyTheme theme, TopologyRenderOptions options) {
         var defs = new SvgElement("defs");
         if (options.IncludeCss) {
             defs.Element("style", style => style.Text(BuildCss(id, prefix, theme)));
@@ -272,21 +273,15 @@ public sealed partial class TopologySvgRenderer {
 
         AddDropShadowFilter(defs, id + "-shadow", "#0F172A", IsMonitoringDashboardStyle(options) ? 0.065 : 0.10);
         AddDropShadowFilter(defs, id + "-selected-shadow", "#2563EB", IsMonitoringDashboardStyle(options) ? 0.13 : 0.18);
+        var markerTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var status in GetTopologyHealthStatuses()) {
             var color = theme.StatusColor(status);
-            defs.Element("marker", marker => {
-                marker
-                    .Attribute("id", id + "-arrow-" + StatusMarkerToken(status))
-                    .Attribute("viewBox", "0 0 10 10")
-                    .Attribute("refX", 8)
-                    .Attribute("refY", 5)
-                    .Attribute("markerWidth", IsMonitoringDashboardStyle(options) ? 5.5 : 7)
-                    .Attribute("markerHeight", IsMonitoringDashboardStyle(options) ? 5.5 : 7)
-                    .Attribute("orient", "auto-start-reverse");
-                marker.Element("path", path => path
-                    .Attribute("d", "M 0 0 L 10 5 L 0 10 z")
-                    .Attribute("fill", color));
-            });
+            if (markerTokens.Add(ArrowMarkerToken(color))) AddArrowMarker(defs, ArrowMarkerId(id, color), color, options);
+        }
+
+        foreach (var edge in chart.Edges) {
+            var color = EdgeColor(edge, theme, options);
+            if (markerTokens.Add(ArrowMarkerToken(color))) AddArrowMarker(defs, ArrowMarkerId(id, color), color, options);
         }
 
         return defs;
@@ -539,6 +534,7 @@ public sealed partial class TopologySvgRenderer {
                     .Attribute("data-cfx-status", edge.Status.ToString())
                     .Attribute("data-cfx-selected", selected)
                     .Attribute("data-edge-muted", edge.IsMuted)
+                    .Attribute("data-edge-color", string.IsNullOrWhiteSpace(edge.Color) ? null : color)
                     .Attribute("data-edge-line-style", edge.LineStyle.ToString())
                     .Attribute("data-edge-emphasis", edge.Emphasis.ToString())
                     .Attribute("data-edge-render-order", renderOrder)
@@ -580,7 +576,7 @@ public sealed partial class TopologySvgRenderer {
                 edgeGroup.Element("path", path => path
                     .Class(prefix + "__edge-halo")
                     .Attribute("data-cfx-role", geographicHalo ? "topology-geographic-route-halo" : "topology-edge-route-halo")
-                    .Attribute("d", EdgePath(chart, edge, nodes, points))
+                    .Attribute("d", EdgePath(chart, edge, nodes, points, options))
                     .Attribute("fill", "none")
                     .Attribute("stroke", theme.Background)
                     .Attribute("stroke-width", EdgeStrokeWidth(edge, selected, options) + (geographicHalo ? 4.2 : 3.4))
@@ -592,14 +588,14 @@ public sealed partial class TopologySvgRenderer {
             edgeGroup.Element("path", path => {
                 path
                     .Class(prefix + "__edge")
-                    .Attribute("d", EdgePath(chart, edge, nodes, points))
+                    .Attribute("d", EdgePath(chart, edge, nodes, points, options))
                     .Attribute("fill", "none")
                     .Attribute("stroke", color)
                     .Attribute("stroke-width", EdgeStrokeWidth(edge, selected, options))
                     .Attribute("stroke-dasharray", dash)
                     .Attribute("opacity", EdgeOpacity(edge, options));
-                if (options.IncludeDirectionMarkers && edge.Direction is TopologyDirection.Backward or TopologyDirection.Bidirectional) path.Attribute("marker-start", "url(#" + svgId + "-arrow-" + StatusMarkerToken(edge.Status) + ")");
-                if (options.IncludeDirectionMarkers && edge.Direction is TopologyDirection.Forward or TopologyDirection.Bidirectional) path.Attribute("marker-end", "url(#" + svgId + "-arrow-" + StatusMarkerToken(edge.Status) + ")");
+                if (options.IncludeDirectionMarkers && edge.Direction is TopologyDirection.Backward or TopologyDirection.Bidirectional) path.Attribute("marker-start", "url(#" + ArrowMarkerId(svgId, color) + ")");
+                if (options.IncludeDirectionMarkers && edge.Direction is TopologyDirection.Forward or TopologyDirection.Bidirectional) path.Attribute("marker-end", "url(#" + ArrowMarkerId(svgId, color) + ")");
             });
         }
 
@@ -646,7 +642,7 @@ public sealed partial class TopologySvgRenderer {
                 }
 
                 AddEdgeLabelClearance(group, chart, layout, cx, cy, theme, options);
-                AddEdgeLabelLines(group, layout, cx, cy, edge.IsMuted ? theme.MutedForeground : theme.StatusColor(edge.Status), theme.MutedForeground, theme, options);
+                AddEdgeLabelLines(group, layout, cx, cy, edge.IsMuted ? theme.MutedForeground : EdgeColor(edge, theme, options), theme.MutedForeground, theme, options);
             });
         }
 
@@ -703,7 +699,7 @@ public sealed partial class TopologySvgRenderer {
         return false;
     }
 
-    private static string EdgePath(TopologyChart chart, TopologyEdge edge, IReadOnlyDictionary<string, TopologyNode> nodes, IReadOnlyList<ChartPoint> points) {
+    private static string EdgePath(TopologyChart chart, TopologyEdge edge, IReadOnlyDictionary<string, TopologyNode> nodes, IReadOnlyList<ChartPoint> points, TopologyRenderOptions options) {
         if (IsGeographicCurve(chart, edge, nodes) && points.Count >= 2) {
             var control = GeographicCurveControlPoint(chart, edge, nodes, points);
             return new SvgPathDataBuilder(64)
@@ -712,6 +708,7 @@ public sealed partial class TopologySvgRenderer {
                 .Build();
         }
 
+        if (ShouldRoundEdgeCorners(edge, points, options)) return RoundedEdgePath(points, options.EdgeCornerRadius);
         return EdgePath(points, edge.Routing);
     }
 

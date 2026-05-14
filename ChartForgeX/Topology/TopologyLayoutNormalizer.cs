@@ -145,8 +145,9 @@ internal static class TopologyLayoutNormalizer {
         var bounds = MeasureContent(chart, options);
         if (!bounds.HasContent) return;
 
-        var targetLeft = chart.Viewport.Padding;
-        var targetTop = chart.Viewport.Padding + (string.IsNullOrWhiteSpace(chart.Title) && string.IsNullOrWhiteSpace(chart.Subtitle) ? 0 : 72);
+        var surfaceInset = CanvasSurfaceInset(chart, options);
+        var targetLeft = chart.Viewport.Padding + surfaceInset;
+        var targetTop = chart.Viewport.Padding + surfaceInset + (string.IsNullOrWhiteSpace(chart.Title) && string.IsNullOrWhiteSpace(chart.Subtitle) ? 0 : 72);
         var dx = bounds.Left < targetLeft ? targetLeft - bounds.Left : 0;
         var dy = bounds.Top < targetTop ? targetTop - bounds.Top : 0;
         if (Math.Abs(dx) > 0.0001 || Math.Abs(dy) > 0.0001) {
@@ -154,8 +155,8 @@ internal static class TopologyLayoutNormalizer {
             bounds = bounds.Shift(dx, dy);
         }
 
-        var neededWidth = bounds.Right + chart.Viewport.Padding;
-        var neededHeight = bounds.Bottom + chart.Viewport.Padding + LegendReservedHeight(chart.Legend);
+        var neededWidth = bounds.Right + chart.Viewport.Padding + surfaceInset;
+        var neededHeight = bounds.Bottom + chart.Viewport.Padding + surfaceInset + LegendReservedHeight(chart.Legend, chart.Viewport);
         if (neededWidth > chart.Viewport.Width) chart.Viewport.Width = Math.Ceiling(neededWidth);
         if (neededHeight > chart.Viewport.Height) chart.Viewport.Height = Math.Ceiling(neededHeight);
     }
@@ -215,14 +216,21 @@ internal static class TopologyLayoutNormalizer {
         }
 
         if (displayMode == TopologyNodeDisplayMode.Tile) {
-            var label = TrimTo(node.Label, NodeTitleMaxLength(displayMode));
-            var labelWidth = EstimateTextWidth(label, 11, true);
+            var labelLines = NodeTextLines(node.Label, Math.Max(node.Width + 34, 54), 11, true, options.MaxNodeLabelLines, options);
             var labelCenter = CenterX(node);
-            bounds = bounds.Include(labelCenter - labelWidth / 2, node.Y + node.Height + 4, labelCenter + labelWidth / 2, node.Y + node.Height + 18);
+            var labelTop = node.Y + node.Height + 4;
+            var lineCount = Math.Max(1, labelLines.Count);
+            if (labelLines.Count == 0) bounds = bounds.Include(labelCenter, labelTop, labelCenter, labelTop + lineCount * 14 + 4);
+            foreach (var line in labelLines) {
+                var labelWidth = EstimateTextWidth(line, 11, true);
+                bounds = bounds.Include(labelCenter - labelWidth / 2, labelTop, labelCenter + labelWidth / 2, labelTop + lineCount * 14 + 4);
+            }
+
             if (options.IncludeTileSubtitles && !string.IsNullOrWhiteSpace(node.Subtitle)) {
                 var subtitle = TrimTo(node.Subtitle!, 16);
                 var subtitleWidth = Math.Min(Math.Max(46, subtitle.Length * 5.8 + 18), Math.Max(46, node.Width + 28));
-                bounds = bounds.Include(labelCenter - subtitleWidth / 2, node.Y + node.Height + 21, labelCenter + subtitleWidth / 2, node.Y + node.Height + 38);
+                var subtitleY = node.Y + node.Height + 7 + lineCount * 14;
+                bounds = bounds.Include(labelCenter - subtitleWidth / 2, subtitleY, labelCenter + subtitleWidth / 2, subtitleY + 17);
             }
         }
 

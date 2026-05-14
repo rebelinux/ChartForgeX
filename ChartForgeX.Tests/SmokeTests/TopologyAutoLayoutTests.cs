@@ -293,15 +293,21 @@ internal static partial class SmokeTests {
             .AddNode("hub", "Hub", 60, 64, TopologyNodeKind.Hub, TopologyHealthStatus.Healthy, width: 58, height: 46, symbol: "H")
             .AddNode("site", "Site", 230, 64, TopologyNodeKind.Branch, TopologyHealthStatus.Warning, width: 58, height: 46, symbol: "S")
             .AddEdge("dependency", "hub", "site", null, TopologyEdgeKind.Dependency, TopologyHealthStatus.Warning, TopologyDirection.None, TopologyEdgeRouting.Curved)
-            .WithEdgesOfKind(TopologyEdgeKind.Dependency, lineStyle: TopologyEdgeLineStyle.Dashed, emphasis: TopologyEdgeEmphasis.Subtle);
+            .WithEdgesOfKind(TopologyEdgeKind.Dependency, lineStyle: TopologyEdgeLineStyle.Dashed, emphasis: TopologyEdgeEmphasis.Subtle, color: "#64748B");
 
         var options = new TopologyRenderOptions { IncludeLegend = false, NodeDisplayMode = TopologyNodeDisplayMode.Tile }
             .WithMonitoringDashboardStyle();
         var svg = chart.ToSvg(options);
         Assert(svg.Contains("data-edge-line-style=\"Dashed\"", StringComparison.Ordinal), "Bulk edge-kind styling should apply reusable line style metadata.");
         Assert(svg.Contains("data-edge-emphasis=\"Subtle\"", StringComparison.Ordinal), "Bulk edge-kind styling should apply reusable edge emphasis metadata.");
-        Assert(svg.Contains("stroke=\"#F97316\"", StringComparison.Ordinal), "Bulk subtle edges should preserve status color.");
+        Assert(svg.Contains("data-edge-color=\"#64748B\"", StringComparison.Ordinal), "Bulk edge-kind styling should apply reusable relationship colors.");
+        Assert(svg.Contains("stroke=\"#64748B\"", StringComparison.Ordinal), "Bulk edge-kind colors should drive SVG route color.");
         Assert(chart.ToPng(options).Length > 64, "Bulk edge-kind styling should render as PNG.");
+
+        chart.Edges[0].IsMuted = true;
+        var mutedSvg = chart.ToSvg(options);
+        Assert(mutedSvg.Contains("data-edge-color=\"#CBD5E1\"", StringComparison.Ordinal), "Muted monitoring edges should render neutral even when the caller supplied an explicit edge color.");
+        Assert(!mutedSvg.Contains("stroke=\"#64748B\"", StringComparison.Ordinal), "Muted monitoring edges should not keep explicit relationship colors on the visible route.");
     }
 
     private static void TopologyEdgesRenderByVisualPriority() {
@@ -548,6 +554,14 @@ internal static partial class SmokeTests {
         Assert(!svg.Contains(">Payments Team With Extra Label<", StringComparison.Ordinal), "Node card titles should trim to the available card width.");
         Assert(svg.Contains("Pay", StringComparison.Ordinal), "Trimmed node labels should keep their useful prefix.");
         Assert(chart.ToPng(options).Length > 64, "Icon row and fitted-card text should render as PNG.");
+
+        var wrapped = TopologyChart.Create()
+            .WithId("wrapped-text-fit")
+            .WithViewport(320, 200, 20)
+            .WithLegend(null)
+            .AddNode("wrapped", "Authentication Relationship Service", 84, 96, TopologyNodeKind.Service, TopologyHealthStatus.Healthy, width: 180, height: 64, symbol: "S");
+        var wrappedSvg = wrapped.ToSvg(new TopologyRenderOptions { IncludeLegend = false, WrapNodeLabels = true, MaxNodeLabelLines = 2 });
+        Assert(wrappedSvg.Contains("font-size=\"12.5\"", StringComparison.Ordinal), "Wrapped node labels should fit against rendered line content instead of shrinking from the unwrapped label width.");
     }
 
     private static void TopologyIconLabelsRemainReusableAndFitted() {

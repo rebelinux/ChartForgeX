@@ -1714,6 +1714,86 @@
       }
     },
     {
+      "name": "visual-entity-relationship-overview",
+      "width": 1180,
+      "height": 811,
+      "svg": {
+        "minVisualNodes": 106,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 478490,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "visual-evidence-timeline-relationship",
+      "width": 980,
+      "height": 598,
+      "svg": {
+        "minVisualNodes": 56,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 293020,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "visual-impact-dependency-overview",
+      "width": 1120,
+      "height": 811,
+      "svg": {
+        "minVisualNodes": 82,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 454160,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "visual-mini-correlation-map",
+      "width": 920,
+      "height": 474,
+      "svg": {
+        "minVisualNodes": 53,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 218040,
+        "minDistinctColors": 1671,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "visual-ownership-evidence-bundle",
+      "width": 1120,
+      "height": 711,
+      "svg": {
+        "minVisualNodes": 84,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 398160,
+        "minDistinctColors": 2048,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
       "name": "warnings-sparkline",
       "width": 360,
       "height": 90,
