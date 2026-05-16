@@ -483,6 +483,7 @@ Only refresh visual baselines after reviewing the generated gallery:
 ## Documentation
 
 - [Architecture notes](docs/architecture.md)
+- [Interactivity reference](docs/interactivity.md)
 - [Topology reference](docs/topology.md)
 - [Visual blocks reference](docs/visual-blocks.md)
 - [Contributing and release workflow](CONTRIBUTING.md)
