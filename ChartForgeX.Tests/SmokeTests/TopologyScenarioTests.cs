@@ -138,6 +138,12 @@ internal static partial class SmokeTests {
         Assert(Math.Abs(options.Motion!.Progress - 0.375) < 0.0001, "Topology GIF export should not leak sampled frame progress back into caller-owned motion options.");
         Assert(gif[0] == (byte)'G' && gif[1] == (byte)'I' && gif[2] == (byte)'F', "Topology motion GIF should use the GIF header.");
         Assert(System.Text.Encoding.ASCII.GetString(gif).Contains("NETSCAPE2.0", StringComparison.Ordinal), "Looping topology GIFs should include the Netscape loop extension.");
+        var staleActiveScenarioOptions = new TopologyRenderOptions {
+            IncludeLegend = false,
+            ActiveScenarioId = "missing"
+        };
+        Assert(chart.ToGif(staleActiveScenarioOptions).Length > 128, "Default GIF motion should fall back to the first routable scenario when the active scenario id is stale.");
+        Assert(chart.ToApng(staleActiveScenarioOptions).Length > 128, "Default APNG motion should fall back to the first routable scenario when the active scenario id is stale.");
         using var gifStream = new System.IO.MemoryStream();
         chart.WriteGif(gifStream, options);
         Assert(gifStream.ToArray().SequenceEqual(gif), "Topology motion GIF stream export should match byte-array export.");

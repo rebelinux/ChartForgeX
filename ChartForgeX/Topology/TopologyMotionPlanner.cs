@@ -74,9 +74,14 @@ internal static class TopologyMotionPlanner {
 
     private static TopologyScenario? ResolveScenario(TopologyChart chart, TopologyRenderOptions options) {
         var id = options.Motion?.ScenarioId;
-        if (string.IsNullOrWhiteSpace(id)) id = options.ActiveScenarioId;
         if (!string.IsNullOrWhiteSpace(id)) {
             return chart.Scenarios.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.Ordinal));
+        }
+
+        id = options.ActiveScenarioId;
+        if (!string.IsNullOrWhiteSpace(id)) {
+            var activeScenario = chart.Scenarios.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.Ordinal));
+            if (activeScenario != null) return activeScenario;
         }
 
         return chart.Scenarios.Count == 0 ? null : chart.Scenarios[0];
