@@ -39,7 +39,7 @@ internal static class GifWriter {
         stream.WriteByte(0x21);
         stream.WriteByte(0xF9);
         stream.WriteByte(4);
-        stream.WriteByte(0);
+        stream.WriteByte(4);
         WriteUInt16(stream, delayCentiseconds);
         stream.WriteByte(0);
         stream.WriteByte(0);

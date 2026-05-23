@@ -32,7 +32,9 @@ internal static partial class SmokeTests {
 
         var gif = GifWriter.WriteRgba(new[] { first, second }, 10, loop: true);
         var frames = ReadImageDescriptors(gif);
+        var controls = ReadGraphicsControlPackedFields(gif);
         Assert(frames.Length == 2, "Animated GIF encoding should preserve the requested frame count.");
+        Assert(controls.Length == 2 && (controls[0] & 0x1C) == 0x04 && (controls[1] & 0x1C) == 0x04, "Animated GIF delta frames should explicitly use do-not-dispose semantics.");
         Assert(frames[0].Left == 0 && frames[0].Top == 0 && frames[0].Width == 16 && frames[0].Height == 16, "The first GIF frame should establish the full canvas.");
         Assert(frames[1].Left == 4 && frames[1].Top == 5 && frames[1].Width == 1 && frames[1].Height == 1, "Small motion should encode as a cropped delta frame instead of a full frame.");
         var decodedCounts = ReadDecodedFramePixelCounts(gif);
@@ -108,6 +110,34 @@ internal static partial class SmokeTests {
         }
 
         return frames.ToArray();
+    }
+
+    private static byte[] ReadGraphicsControlPackedFields(byte[] gif) {
+        var controls = new System.Collections.Generic.List<byte>();
+        var offset = 13 + 768;
+        while (offset < gif.Length && gif[offset] != 0x3B) {
+            if (gif[offset] == 0x21 && gif[offset + 1] == 0xF9) {
+                if (gif[offset + 2] != 4) throw new InvalidOperationException("Unexpected GIF graphics control block length.");
+                controls.Add(gif[offset + 3]);
+                offset += 8;
+                continue;
+            }
+
+            if (gif[offset] == 0x21) {
+                offset += 2;
+                SkipSubBlocks(gif, ref offset);
+                continue;
+            }
+
+            if (gif[offset] != 0x2C) throw new InvalidOperationException("Unexpected GIF block while reading graphics controls.");
+            var packed = gif[offset + 9];
+            offset += 10;
+            if ((packed & 0x80) != 0) offset += 3 * (1 << ((packed & 0x07) + 1));
+            offset++;
+            SkipSubBlocks(gif, ref offset);
+        }
+
+        return controls.ToArray();
     }
 
     private static int[] ReadDecodedFramePixelCounts(byte[] gif) {

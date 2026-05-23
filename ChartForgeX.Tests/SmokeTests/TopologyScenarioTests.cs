@@ -125,6 +125,14 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("<animateMotion", StringComparison.Ordinal) && svg.Contains("href=\"#motion-scenario-motion-tour-route\"", StringComparison.Ordinal) && svg.Contains("xlink:href=\"#motion-scenario-motion-tour-route\"", StringComparison.Ordinal), "Topology SVG motion should render one marker that follows the generated tour path.");
         Assert(svg.IndexOf("data-cfx-role=\"topology-motion-route\"", StringComparison.Ordinal) < svg.IndexOf("data-cfx-role=\"topology-node\"", StringComparison.Ordinal), "Topology SVG route pulses should render under node surfaces.");
         Assert(svg.IndexOf("data-cfx-role=\"topology-motion-marker\"", StringComparison.Ordinal) > svg.IndexOf("data-cfx-role=\"topology-node\"", StringComparison.Ordinal), "Topology SVG moving markers should render above node surfaces to match PNG frame visibility.");
+        var nonLoopSvg = chart.ToSvg(new TopologyRenderOptions { IncludeLegend = false }
+            .WithMotion(new TopologyMotionOptions {
+                ScenarioId = "route",
+                DurationSeconds = 1,
+                FramesPerSecond = 4,
+                Loop = false
+            }));
+        Assert(nonLoopSvg.Contains("repeatCount=\"1\"", StringComparison.Ordinal) && CountOccurrences(nonLoopSvg, "fill=\"freeze\"") >= 3, "Non-looping SVG motion should freeze animated route, marker, and node effects at their final frame.");
         var gif = chart.ToGif(options);
         Assert(gif.Length > 128, "Topology motion GIF should render encoded frames.");
         Assert(Math.Abs(options.Motion!.Progress - 0.375) < 0.0001, "Topology GIF export should not leak sampled frame progress back into caller-owned motion options.");
@@ -165,6 +173,8 @@ internal static partial class SmokeTests {
         var explicitEdgeSvg = chart.ToSvg(explicitEdgeOptions);
         Assert(explicitEdgeSvg.Contains("data-cfx-motion-source=\"explicit-edges\"", StringComparison.Ordinal), "Topology motion should animate explicit edge ids without requiring a scenario.");
         Assert(explicitEdgeSvg.Contains("data-cfx-role=\"topology-motion-node\"", StringComparison.Ordinal), "Explicit edge motion should expose endpoint node pulses through the same reusable motion layer.");
+        Assert(ExtractElement(explicitEdgeSvg, "data-cfx-role=\"topology-motion-route\"").Contains("stroke=\"#16A34A\"", StringComparison.Ordinal), "Explicit edge motion routes should use edge/status colors instead of unrelated scenario colors.");
+        Assert(ExtractElement(explicitEdgeSvg, "data-cfx-role=\"topology-motion-marker\"").Contains("fill=\"#16A34A\"", StringComparison.Ordinal), "Explicit edge motion markers should use edge/status colors instead of unrelated scenario colors.");
 
         var noScenarioChart = TopologyChart.Create()
             .WithId("motion-explicit-edge")
@@ -177,8 +187,25 @@ internal static partial class SmokeTests {
         Assert(noScenarioSvg.Contains("data-cfx-motion-source=\"explicit-edges\"", StringComparison.Ordinal), "Explicit edge motion should render even when the topology has no scenarios.");
         Assert(noScenarioChart.ToGif(explicitEdgeOptions).Length > 128, "Explicit edge motion should export GIF frames even when the topology has no scenarios.");
         Assert(noScenarioChart.ToApng(explicitEdgeOptions).Length > 128, "Explicit edge motion should export APNG frames even when the topology has no scenarios.");
+        Assert(noScenarioChart.ToGif(new TopologyRenderOptions { IncludeLegend = false }.WithMotion(new TopologyMotionOptions {
+            EdgeIds = { "a-b" },
+            DurationSeconds = 1,
+            FramesPerSecond = 120,
+            MaximumRasterFrames = 100
+        })).Length > 128, "Animated raster export should cap frame sampling to the encoded centisecond delay so high frame rates do not stretch duration or exceed the matching frame limit.");
         AssertThrows<InvalidOperationException>(() => noScenarioChart.ToGif(new TopologyRenderOptions { IncludeLegend = false }), "Topology GIF export should fail clearly when no scenario or explicit edge route can be animated.");
         AssertThrows<InvalidOperationException>(() => noScenarioChart.ToApng(new TopologyRenderOptions { IncludeLegend = false }), "Topology APNG export should fail clearly when no scenario or explicit edge route can be animated.");
+
+        var curvedChart = TopologyChart.Create()
+            .WithId("motion-curved")
+            .WithViewport(420, 220, 20)
+            .WithLegend(null)
+            .AddNode("a", "A", 40, 130)
+            .AddNode("b", "B", 270, 130)
+            .AddEdge("curve", "a", "b", routing: TopologyEdgeRouting.Curved);
+        var curvedSvg = curvedChart.ToSvg(new TopologyRenderOptions { IncludeLegend = false }
+            .WithMotion(TopologyMotionOptions.RoutePulseForEdges("curve")));
+        Assert(ExtractElement(curvedSvg, "id=\"motion-curved-motion-tour-explicit-edges\"").Contains(" C ", StringComparison.Ordinal), "SVG motion marker tour paths should match curved edge rendering instead of flattening routes to straight segments.");
 
         var scenarioOptions = TopologyMotionOptions.RoutePulseForScenario(" route ");
         Assert(scenarioOptions.ScenarioId == "route", "Topology motion scenario factories should trim stable ids.");
@@ -238,6 +265,15 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentOutOfRangeException>(() => TopologyMotionOptions.RoutePulseForEdges("edge").WithMarker(double.NaN), "Topology motion fluent marker helper should reject invalid values close to the caller.");
         AssertThrows<ArgumentOutOfRangeException>(() => TopologyMotionOptions.RoutePulseForEdges("edge").AtProgress(1.1), "Topology motion fluent progress helper should reject values outside the sampled progress range.");
         AssertThrows<ArgumentOutOfRangeException>(() => new TopologyRenderOptions().WithMotion(new TopologyMotionOptions { MaximumRasterFrames = 0 }), "Topology motion options should reject non-positive raster frame limits.");
+    }
+
+    private static string ExtractElement(string svg, string marker) {
+        var markerIndex = svg.IndexOf(marker, StringComparison.Ordinal);
+        if (markerIndex < 0) return string.Empty;
+        var start = svg.LastIndexOf('<', markerIndex);
+        var end = svg.IndexOf('>', markerIndex);
+        if (start < 0 || end < 0 || end <= start) return string.Empty;
+        return svg.Substring(start, end - start + 1);
     }
 
 }

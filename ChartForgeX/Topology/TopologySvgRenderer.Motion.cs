@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using ChartForgeX.Primitives;
 using ChartForgeX.Svg;
 using static ChartForgeX.Topology.TopologyRenderPrimitives;
@@ -22,7 +23,7 @@ public sealed partial class TopologySvgRenderer {
             .Attribute("id", tourPathId)
             .Class(prefix + "__motion-tour-path")
             .Attribute("data-cfx-role", "topology-motion-tour-path")
-            .Attribute("d", MotionTourPath(plan))
+            .Attribute("d", MotionTourPath(chart, nodes, options, plan))
             .Attribute("fill", "none")
             .Attribute("stroke", "none")
             .Attribute("opacity", "0"));
@@ -51,7 +52,8 @@ public sealed partial class TopologySvgRenderer {
                     .Attribute("from", "26")
                     .Attribute("to", "0")
                     .Attribute("dur", duration)
-                    .Attribute("repeatCount", options.Motion!.Loop ? "indefinite" : "1"));
+                    .Attribute("repeatCount", options.Motion!.Loop ? "indefinite" : "1")
+                    .Attribute("fill", MotionAnimationFill(options.Motion)));
             });
         }
 
@@ -81,6 +83,7 @@ public sealed partial class TopologySvgRenderer {
                 animate
                     .Attribute("dur", duration)
                     .Attribute("repeatCount", options.Motion!.Loop ? "indefinite" : "1")
+                    .Attribute("fill", MotionAnimationFill(options.Motion))
                     .Attribute("rotate", "auto");
                 animate.Element("mpath", mpath => mpath
                     .Attribute("xmlns:xlink", "http://www.w3.org/1999/xlink")
@@ -109,12 +112,14 @@ public sealed partial class TopologySvgRenderer {
                     .Attribute("attributeName", "r")
                     .Attribute("values", F(options.Motion!.MarkerRadius + 1) + ";" + F(options.Motion.MarkerRadius + 8) + ";" + F(options.Motion.MarkerRadius + 1))
                     .Attribute("dur", duration)
-                    .Attribute("repeatCount", options.Motion.Loop ? "indefinite" : "1"));
+                    .Attribute("repeatCount", options.Motion.Loop ? "indefinite" : "1")
+                    .Attribute("fill", MotionAnimationFill(options.Motion)));
                 circle.Element("animate", animate => animate
                     .Attribute("attributeName", "opacity")
                     .Attribute("values", "0.18;0.62;0.18")
                     .Attribute("dur", duration)
-                    .Attribute("repeatCount", options.Motion.Loop ? "indefinite" : "1"));
+                    .Attribute("repeatCount", options.Motion.Loop ? "indefinite" : "1")
+                    .Attribute("fill", MotionAnimationFill(options.Motion)));
             });
         }
 
@@ -136,17 +141,18 @@ public sealed partial class TopologySvgRenderer {
         return first == null ? theme.Accent : theme.StatusColor(first.Status);
     }
 
-    private static string MotionTourPath(TopologyMotionPlan plan) {
-        var builder = new SvgPathDataBuilder(plan.Entries.Count * 24);
+    private static string MotionTourPath(TopologyChart chart, IReadOnlyDictionary<string, TopologyNode> nodes, TopologyRenderOptions options, TopologyMotionPlan plan) {
+        var builder = new StringBuilder(plan.Entries.Count * 64);
         var hasPoint = false;
         foreach (var entry in plan.Entries) {
-            if (entry.Points.Count == 0) continue;
-            builder.MoveTo(entry.Points[0]);
+            var points = EdgePoints(chart, entry.Edge, nodes);
+            if (points.Count == 0) continue;
+            if (builder.Length > 0) builder.Append(' ');
+            builder.Append(EdgePath(chart, entry.Edge, nodes, points, options));
             hasPoint = true;
-            for (var i = 1; i < entry.Points.Count; i++) builder.LineTo(entry.Points[i]);
         }
 
-        return hasPoint ? builder.Build() : "M 0 0";
+        return hasPoint ? builder.ToString() : "M 0 0";
     }
 
     private static string MotionNodeColor(TopologyNode node, TopologyMotionPlan plan, TopologyRenderOptions options, TopologyTheme theme) {
@@ -158,4 +164,7 @@ public sealed partial class TopologySvgRenderer {
 
     private static string MotionDuration(TopologyMotionOptions motion) =>
         motion.DurationSeconds.ToString("0.###", CultureInfo.InvariantCulture) + "s";
+
+    private static string MotionAnimationFill(TopologyMotionOptions motion) =>
+        motion.Loop ? "remove" : "freeze";
 }

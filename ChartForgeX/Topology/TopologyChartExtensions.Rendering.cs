@@ -96,8 +96,8 @@ public static partial class TopologyChartExtensions {
 
             var plan = TopologyMotionPlanner.Build(prepared, options);
             if (plan == null) throw new InvalidOperationException("Topology animated " + formatName + " export requires a motion route. Add scenario edge steps or use TopologyMotionOptions.RoutePulseForEdges(...).");
-            var frameCount = RasterFrameCount(motion);
             var delay = Math.Max(1, (int)Math.Round(100.0 / motion.FramesPerSecond));
+            var frameCount = RasterFrameCount(motion, delay);
             var frames = new List<RgbaImage>(frameCount);
             var renderer = new TopologyPngRenderer();
             var requestedWidth = (int)Math.Ceiling(chart.Viewport.Width);
@@ -113,8 +113,8 @@ public static partial class TopologyChartExtensions {
         }
     }
 
-    private static int RasterFrameCount(TopologyMotionOptions motion) {
-        var rawFrameCount = Math.Ceiling(motion.DurationSeconds * motion.FramesPerSecond);
+    private static int RasterFrameCount(TopologyMotionOptions motion, int delayCentiseconds) {
+        var rawFrameCount = Math.Ceiling(motion.DurationSeconds * 100.0 / delayCentiseconds);
         if (rawFrameCount > motion.MaximumRasterFrames) throw new ArgumentOutOfRangeException(nameof(TopologyMotionOptions.MaximumRasterFrames), rawFrameCount, "Topology animated raster export would exceed the configured motion frame limit.");
         return Math.Max(1, (int)rawFrameCount);
     }

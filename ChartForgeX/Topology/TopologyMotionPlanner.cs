@@ -18,7 +18,7 @@ internal static class TopologyMotionPlanner {
         if (explicitEdgeIds.Count > 0) {
             foreach (var edgeId in explicitEdgeIds) AddEdges(chart, nodes, entries, edgeId);
             if (options.Motion.PulseRouteEndpoints) AddEndpointNodeIds(entries, nodeIds);
-            return entries.Count == 0 ? null : new TopologyMotionPlan(MotionSourceId(options), MotionSourceColor(scenario), entries, nodeIds.ToArray());
+            return entries.Count == 0 ? null : new TopologyMotionPlan(MotionSourceId(options), null, entries, nodeIds.ToArray());
         }
 
         if (scenario == null) return null;
