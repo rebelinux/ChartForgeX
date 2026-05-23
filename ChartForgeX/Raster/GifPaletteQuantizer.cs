@@ -4,13 +4,17 @@ using System.Collections.Generic;
 namespace ChartForgeX.Raster;
 
 internal sealed class GifPalette {
-    public GifPalette(byte[] colors) {
+    public GifPalette(byte[] colors, int transparentIndex = -1) {
         if (colors == null) throw new ArgumentNullException(nameof(colors));
         if (colors.Length != 768) throw new ArgumentException("GIF palettes must contain 256 RGB colors.", nameof(colors));
+        if (transparentIndex < -1 || transparentIndex >= 256) throw new ArgumentOutOfRangeException(nameof(transparentIndex), transparentIndex, "GIF transparent palette index must fit the palette.");
         Colors = colors;
+        TransparentIndex = transparentIndex;
     }
 
     public byte[] Colors { get; }
+    public int TransparentIndex { get; }
+    public bool HasTransparency => TransparentIndex >= 0;
 }
 
 internal static class GifPaletteQuantizer {
@@ -18,6 +22,8 @@ internal static class GifPaletteQuantizer {
     private const int HistogramSize = 65536;
 
     public static GifPalette BuildPalette(IReadOnlyList<RgbaImage> frames) {
+        var transparentIndex = HasTransparentPixels(frames) ? PaletteSize - 1 : -1;
+        var colorSlots = transparentIndex >= 0 ? PaletteSize - 1 : PaletteSize;
         var histogram = BuildHistogram(frames);
         var samples = new List<ColorSample>();
         for (var key = 0; key < histogram.Counts.Length; key++) {
@@ -28,7 +34,7 @@ internal static class GifPaletteQuantizer {
 
         if (samples.Count == 0) samples.Add(new ColorSample(0, 0, 0, 1));
         var boxes = new List<ColorBox> { ColorBox.Create(samples, 0, samples.Count) };
-        while (boxes.Count < PaletteSize) {
+        while (boxes.Count < colorSlots) {
             var index = LargestSplittableBox(boxes);
             if (index < 0) break;
             var split = boxes[index].Split(samples);
@@ -37,15 +43,21 @@ internal static class GifPaletteQuantizer {
         }
 
         var colors = new byte[PaletteSize * 3];
-        for (var i = 0; i < boxes.Count && i < PaletteSize; i++) WriteAverageColor(colors, i, samples, boxes[i]);
+        for (var i = 0; i < boxes.Count && i < colorSlots; i++) WriteAverageColor(colors, i, samples, boxes[i]);
         var fallback = Math.Max(0, boxes.Count - 1);
-        for (var i = boxes.Count; i < PaletteSize; i++) {
+        for (var i = boxes.Count; i < colorSlots; i++) {
             colors[i * 3] = colors[fallback * 3];
             colors[i * 3 + 1] = colors[fallback * 3 + 1];
             colors[i * 3 + 2] = colors[fallback * 3 + 2];
         }
 
-        return new GifPalette(colors);
+        if (transparentIndex >= 0) {
+            colors[transparentIndex * 3] = 0;
+            colors[transparentIndex * 3 + 1] = 0;
+            colors[transparentIndex * 3 + 2] = 0;
+        }
+
+        return new GifPalette(colors, transparentIndex);
     }
 
     public static byte[] Quantize(RgbaImage frame, GifPalette palette) {
@@ -63,6 +75,11 @@ internal static class GifPaletteQuantizer {
             var row = y * frame.Width;
             for (var x = 0; x < frame.Width; x++) {
                 var source = (row + x) * 4;
+                if (palette.HasTransparency && IsTransparent(frame.Pixels[source + 3])) {
+                    indexed[row + x] = (byte)palette.TransparentIndex;
+                    continue;
+                }
+
                 var r = ClampToByte(frame.Pixels[source] + currentRed[x + 1]);
                 var g = ClampToByte(frame.Pixels[source + 1] + currentGreen[x + 1]);
                 var b = ClampToByte(frame.Pixels[source + 2] + currentBlue[x + 1]);
@@ -94,6 +111,7 @@ internal static class GifPaletteQuantizer {
             var pixels = frame.Pixels;
             for (var i = 0; i < frame.Width * frame.Height; i++) {
                 var source = i * 4;
+                if (IsTransparent(pixels[source + 3])) continue;
                 var r = pixels[source];
                 var g = pixels[source + 1];
                 var b = pixels[source + 2];
@@ -106,6 +124,17 @@ internal static class GifPaletteQuantizer {
         }
 
         return histogram;
+    }
+
+    private static bool HasTransparentPixels(IReadOnlyList<RgbaImage> frames) {
+        foreach (var frame in frames) {
+            var pixels = frame.Pixels;
+            for (var i = 0; i < frame.Width * frame.Height; i++) {
+                if (IsTransparent(pixels[i * 4 + 3])) return true;
+            }
+        }
+
+        return false;
     }
 
     private static int LargestSplittableBox(IReadOnlyList<ColorBox> boxes) {
@@ -149,7 +178,8 @@ internal static class GifPaletteQuantizer {
         if (cached >= 0) return cached;
         var best = 0;
         var bestDistance = double.MaxValue;
-        for (var i = 0; i < PaletteSize; i++) {
+        var colorSlots = palette.HasTransparency ? palette.TransparentIndex : PaletteSize;
+        for (var i = 0; i < colorSlots; i++) {
             var offset = i * 3;
             var dr = red - palette.Colors[offset];
             var dg = green - palette.Colors[offset + 1];
@@ -173,6 +203,8 @@ internal static class GifPaletteQuantizer {
 
     private static double ClampToByte(double value) =>
         value < 0 ? 0 : value > 255 ? 255 : value;
+
+    private static bool IsTransparent(byte alpha) => alpha < 128;
 
     private static void Swap(ref double[] first, ref double[] second) {
         var temp = first;

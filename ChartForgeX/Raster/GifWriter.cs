@@ -6,6 +6,8 @@ using System.Text;
 namespace ChartForgeX.Raster;
 
 internal static class GifWriter {
+    private const int MaximumGifFieldValue = 65535;
+
     public static byte[] WriteRgba(IReadOnlyList<RgbaImage> frames, int delayCentiseconds, bool loop) {
         using var stream = new MemoryStream();
         WriteRgba(stream, frames, delayCentiseconds, loop);
@@ -21,33 +23,35 @@ internal static class GifWriter {
     public static void WriteRgba(Stream stream, AnimatedRasterFrames animation) {
         if (stream == null) throw new ArgumentNullException(nameof(stream));
         if (animation == null) throw new ArgumentNullException(nameof(animation));
+        ValidateLogicalScreen(animation);
         WriteAscii(stream, "GIF89a");
-        WriteUInt16(stream, animation.Width);
-        WriteUInt16(stream, animation.Height);
         var palette = GifPaletteQuantizer.BuildPalette(animation.Frames);
+        WriteUInt16(stream, animation.Width, "logical screen width");
+        WriteUInt16(stream, animation.Height, "logical screen height");
         stream.WriteByte(0xF7);
-        stream.WriteByte(0);
+        stream.WriteByte(palette.HasTransparency ? (byte)palette.TransparentIndex : (byte)0);
         stream.WriteByte(0);
         WritePalette(stream, palette);
         if (animation.Loop) WriteLoopExtension(stream);
         var indexedFrames = GifFrameOptimizer.BuildFrames(animation.Frames, palette);
-        foreach (var frame in indexedFrames) WriteFrame(stream, frame, animation.DelayCentiseconds);
+        foreach (var frame in indexedFrames) WriteFrame(stream, frame, animation.DelayCentiseconds, palette);
         stream.WriteByte(0x3B);
     }
 
-    private static void WriteFrame(Stream stream, GifIndexedFrame frame, int delayCentiseconds) {
+    private static void WriteFrame(Stream stream, GifIndexedFrame frame, int delayCentiseconds, GifPalette palette) {
+        ValidateFrame(frame);
         stream.WriteByte(0x21);
         stream.WriteByte(0xF9);
         stream.WriteByte(4);
-        stream.WriteByte(4);
-        WriteUInt16(stream, delayCentiseconds);
-        stream.WriteByte(0);
+        stream.WriteByte(palette.HasTransparency ? (byte)0x09 : (byte)0x04);
+        WriteUInt16(stream, delayCentiseconds, "frame delay");
+        stream.WriteByte(palette.HasTransparency ? (byte)palette.TransparentIndex : (byte)0);
         stream.WriteByte(0);
         stream.WriteByte(0x2C);
-        WriteUInt16(stream, frame.Left);
-        WriteUInt16(stream, frame.Top);
-        WriteUInt16(stream, frame.Width);
-        WriteUInt16(stream, frame.Height);
+        WriteUInt16(stream, frame.Left, "frame left offset");
+        WriteUInt16(stream, frame.Top, "frame top offset");
+        WriteUInt16(stream, frame.Width, "frame width");
+        WriteUInt16(stream, frame.Height, "frame height");
         stream.WriteByte(0);
         stream.WriteByte(8);
         WriteSubBlocks(stream, LzwEncode(frame.Pixels, 8));
@@ -110,7 +114,7 @@ internal static class GifWriter {
         WriteAscii(stream, "NETSCAPE2.0");
         stream.WriteByte(3);
         stream.WriteByte(1);
-        WriteUInt16(stream, 0);
+        WriteUInt16(stream, 0, "loop count");
         stream.WriteByte(0);
     }
 
@@ -131,7 +135,20 @@ internal static class GifWriter {
         stream.Write(bytes, 0, bytes.Length);
     }
 
-    private static void WriteUInt16(Stream stream, int value) {
+    private static void ValidateLogicalScreen(AnimatedRasterFrames animation) {
+        if (animation.Width > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(nameof(animation.Width), animation.Width, "GIF logical screen width must fit in an unsigned 16-bit field.");
+        if (animation.Height > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(nameof(animation.Height), animation.Height, "GIF logical screen height must fit in an unsigned 16-bit field.");
+    }
+
+    private static void ValidateFrame(GifIndexedFrame frame) {
+        if (frame.Left > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(nameof(frame.Left), frame.Left, "GIF frame left offset must fit in an unsigned 16-bit field.");
+        if (frame.Top > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(nameof(frame.Top), frame.Top, "GIF frame top offset must fit in an unsigned 16-bit field.");
+        if (frame.Width > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(nameof(frame.Width), frame.Width, "GIF frame width must fit in an unsigned 16-bit field.");
+        if (frame.Height > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(nameof(frame.Height), frame.Height, "GIF frame height must fit in an unsigned 16-bit field.");
+    }
+
+    private static void WriteUInt16(Stream stream, int value, string fieldName) {
+        if (value < 0 || value > MaximumGifFieldValue) throw new ArgumentOutOfRangeException(fieldName, value, "GIF " + fieldName + " must fit in an unsigned 16-bit field.");
         stream.WriteByte((byte)(value & 255));
         stream.WriteByte((byte)((value >> 8) & 255));
     }

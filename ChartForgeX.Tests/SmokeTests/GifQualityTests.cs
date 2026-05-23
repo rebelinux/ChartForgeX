@@ -42,6 +42,41 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentException>(() => GifWriter.WriteRgba(new[] { first, SolidFrame(8, 16, 12, 18, 24) }, 10, loop: false), "GIF export should reject mismatched animated raster frame dimensions.");
     }
 
+    private static void GifWriterPreservesTransparentPixels() {
+        var pixels = new byte[4 * 4 * 4];
+        for (var i = 0; i < 4 * 4; i++) {
+            var offset = i * 4;
+            pixels[offset] = 255;
+            pixels[offset + 1] = 0;
+            pixels[offset + 2] = 255;
+            pixels[offset + 3] = 0;
+        }
+
+        pixels[0] = 37;
+        pixels[1] = 99;
+        pixels[2] = 235;
+        pixels[3] = 255;
+
+        var first = new RgbaImage(4, 4, pixels);
+        var second = SolidFrame(4, 4, 37, 99, 235);
+        var gif = GifWriter.WriteRgba(new[] { first, second }, 10, loop: false);
+        var controls = ReadGraphicsControls(gif);
+        var descriptors = ReadImageDescriptors(gif);
+        var decoded = ReadDecodedFramePixels(gif);
+        Assert(controls.Length == 2 && controls[0].TransparentColorIndex >= 0 && controls[1].TransparentColorIndex >= 0, "Transparent GIF frames should enable the graphics-control transparency flag.");
+        Assert((controls[0].Packed & 0x1C) == 0x08 && (controls[1].Packed & 0x1C) == 0x08, "Transparent GIF frames should restore to the transparent background between full-canvas frames.");
+        Assert(gif[11] == controls[0].TransparentColorIndex, "Transparent GIFs should use the reserved transparent palette index as the logical screen background.");
+        Assert(descriptors.Length == 2 && descriptors[0].Width == 4 && descriptors[0].Height == 4 && descriptors[1].Width == 4 && descriptors[1].Height == 4, "Transparent GIF animations should keep full-canvas frames so transparent pixels can clear previous content.");
+        Assert(Array.IndexOf(decoded[0], (byte)controls[0].TransparentColorIndex) >= 0, "Transparent source pixels should be encoded with the reserved transparent palette index.");
+    }
+
+    private static void GifWriterRejectsOversizedCanvasDimensions() {
+        var tooWide = new RgbaImage(65536, 1, new byte[65536 * 4]);
+        var tooTall = new RgbaImage(1, 65536, new byte[65536 * 4]);
+        AssertThrows<ArgumentOutOfRangeException>(() => GifWriter.WriteRgba(new[] { tooWide }, 10, loop: false), "GIF export should reject canvas widths that cannot fit 16-bit GIF geometry fields.");
+        AssertThrows<ArgumentOutOfRangeException>(() => GifWriter.WriteRgba(new[] { tooTall }, 10, loop: false), "GIF export should reject canvas heights that cannot fit 16-bit GIF geometry fields.");
+    }
+
     private static void GifWriterClearsBeforeLzwWidthExpansion() {
         const int width = 80;
         const int height = 16;
@@ -86,6 +121,36 @@ internal static partial class SmokeTests {
         return false;
     }
 
+    private static GifGraphicsControl[] ReadGraphicsControls(byte[] gif) {
+        var controls = new System.Collections.Generic.List<GifGraphicsControl>();
+        var offset = 13 + 768;
+        while (offset < gif.Length && gif[offset] != 0x3B) {
+            if (gif[offset] == 0x21 && gif[offset + 1] == 0xF9) {
+                if (gif[offset + 2] != 4) throw new InvalidOperationException("Unexpected GIF graphics control block length.");
+                var packed = gif[offset + 3];
+                var transparentColorIndex = (packed & 0x01) == 0 ? -1 : gif[offset + 6];
+                controls.Add(new GifGraphicsControl(packed, transparentColorIndex));
+                offset += 8;
+                continue;
+            }
+
+            if (gif[offset] == 0x21) {
+                offset += 2;
+                SkipSubBlocks(gif, ref offset);
+                continue;
+            }
+
+            if (gif[offset] != 0x2C) throw new InvalidOperationException("Unexpected GIF block while reading graphics controls.");
+            var descriptorPacked = gif[offset + 9];
+            offset += 10;
+            if ((descriptorPacked & 0x80) != 0) offset += 3 * (1 << ((descriptorPacked & 0x07) + 1));
+            offset++;
+            SkipSubBlocks(gif, ref offset);
+        }
+
+        return controls.ToArray();
+    }
+
     private static GifImageDescriptor[] ReadImageDescriptors(byte[] gif) {
         var frames = new System.Collections.Generic.List<GifImageDescriptor>();
         var offset = 13 + 768;
@@ -113,31 +178,10 @@ internal static partial class SmokeTests {
     }
 
     private static byte[] ReadGraphicsControlPackedFields(byte[] gif) {
-        var controls = new System.Collections.Generic.List<byte>();
-        var offset = 13 + 768;
-        while (offset < gif.Length && gif[offset] != 0x3B) {
-            if (gif[offset] == 0x21 && gif[offset + 1] == 0xF9) {
-                if (gif[offset + 2] != 4) throw new InvalidOperationException("Unexpected GIF graphics control block length.");
-                controls.Add(gif[offset + 3]);
-                offset += 8;
-                continue;
-            }
-
-            if (gif[offset] == 0x21) {
-                offset += 2;
-                SkipSubBlocks(gif, ref offset);
-                continue;
-            }
-
-            if (gif[offset] != 0x2C) throw new InvalidOperationException("Unexpected GIF block while reading graphics controls.");
-            var packed = gif[offset + 9];
-            offset += 10;
-            if ((packed & 0x80) != 0) offset += 3 * (1 << ((packed & 0x07) + 1));
-            offset++;
-            SkipSubBlocks(gif, ref offset);
-        }
-
-        return controls.ToArray();
+        var graphicsControls = ReadGraphicsControls(gif);
+        var controls = new byte[graphicsControls.Length];
+        for (var i = 0; i < graphicsControls.Length; i++) controls[i] = graphicsControls[i].Packed;
+        return controls;
     }
 
     private static int[] ReadDecodedFramePixelCounts(byte[] gif) {
@@ -162,6 +206,28 @@ internal static partial class SmokeTests {
         return counts.ToArray();
     }
 
+    private static byte[][] ReadDecodedFramePixels(byte[] gif) {
+        var frames = new System.Collections.Generic.List<byte[]>();
+        var offset = 13 + 768;
+        while (offset < gif.Length && gif[offset] != 0x3B) {
+            if (gif[offset] == 0x21) {
+                offset += 2;
+                SkipSubBlocks(gif, ref offset);
+                continue;
+            }
+
+            if (gif[offset] != 0x2C) throw new InvalidOperationException("Unexpected GIF block while decoding image data.");
+            var packed = gif[offset + 9];
+            offset += 10;
+            if ((packed & 0x80) != 0) offset += 3 * (1 << ((packed & 0x07) + 1));
+            var minimumCodeSize = gif[offset++];
+            var data = ReadSubBlocks(gif, ref offset);
+            frames.Add(DecodeLzwPixels(data, minimumCodeSize));
+        }
+
+        return frames.ToArray();
+    }
+
     private static byte[] ReadSubBlocks(byte[] gif, ref int offset) {
         var bytes = new System.Collections.Generic.List<byte>();
         while (offset < gif.Length) {
@@ -175,13 +241,17 @@ internal static partial class SmokeTests {
     }
 
     private static int DecodeLzwPixelCount(byte[] data, int minimumCodeSize) {
+        return DecodeLzwPixels(data, minimumCodeSize).Length;
+    }
+
+    private static byte[] DecodeLzwPixels(byte[] data, int minimumCodeSize) {
         var clearCode = 1 << minimumCodeSize;
         var endCode = clearCode + 1;
         var dictionary = CreateLzwDictionary(clearCode);
         var codeSize = minimumCodeSize + 1;
         var nextCode = endCode + 1;
         byte[]? previous = null;
-        var count = 0;
+        var pixels = new System.Collections.Generic.List<byte>();
         var reader = new GifBitReader(data);
         while (reader.TryRead(codeSize, out var code)) {
             if (code == clearCode) {
@@ -192,12 +262,12 @@ internal static partial class SmokeTests {
                 continue;
             }
 
-            if (code == endCode) return count;
+            if (code == endCode) return pixels.ToArray();
             byte[] entry;
             if (code < dictionary.Count) entry = dictionary[code];
             else if (code == nextCode && previous != null) entry = Append(previous, previous[0]);
             else throw new InvalidOperationException("GIF LZW stream referenced an invalid code.");
-            count += entry.Length;
+            pixels.AddRange(entry);
             if (previous != null && nextCode < 4096) {
                 dictionary.Add(Append(previous, entry[0]));
                 nextCode++;
@@ -247,6 +317,16 @@ internal static partial class SmokeTests {
         public readonly int Top;
         public readonly int Width;
         public readonly int Height;
+    }
+
+    private readonly struct GifGraphicsControl {
+        public GifGraphicsControl(byte packed, int transparentColorIndex) {
+            Packed = packed;
+            TransparentColorIndex = transparentColorIndex;
+        }
+
+        public readonly byte Packed;
+        public readonly int TransparentColorIndex;
     }
 
     private ref struct GifBitReader {

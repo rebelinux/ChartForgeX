@@ -56,6 +56,8 @@ internal static partial class SmokeTests {
         ("Animated raster encoder dispatches formats", AnimatedRasterEncoderDispatchesFormats),
         ("GIF writer uses adaptive palette for brand colors", GifWriterUsesAdaptivePaletteForBrandColors),
         ("GIF writer uses delta frames for small motion", GifWriterUsesDeltaFramesForSmallMotion),
+        ("GIF writer preserves transparent pixels", GifWriterPreservesTransparentPixels),
+        ("GIF writer rejects oversized canvas dimensions", GifWriterRejectsOversizedCanvasDimensions),
         ("GIF writer clears before LZW width expansion", GifWriterClearsBeforeLzwWidthExpansion),
         ("APNG writer uses full-color delta frames for small motion", ApngWriterUsesFullColorDeltaFramesForSmallMotion),
         ("SVG and PNG preserve requested dimensions across chart kinds", SvgAndPngPreserveRequestedDimensionsAcrossChartKinds),

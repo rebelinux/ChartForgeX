@@ -33,7 +33,7 @@ internal static class GifFrameOptimizer {
         byte[]? previous = null;
         for (var i = 0; i < frames.Count; i++) {
             var current = GifPaletteQuantizer.Quantize(frames[i], palette);
-            indexed.Add(i == 0 || previous == null ? FullFrame(frames[i], current) : DeltaFrame(frames[i], current, previous));
+            indexed.Add(palette.HasTransparency || i == 0 || previous == null ? FullFrame(frames[i], current) : DeltaFrame(frames[i], current, previous));
             previous = current;
         }
 
