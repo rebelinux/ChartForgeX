@@ -18,7 +18,7 @@ internal static class TopologyMotionPlanner {
         if (explicitEdgeIds.Count > 0) {
             foreach (var edgeId in explicitEdgeIds) AddEdges(chart, nodes, entries, edgeId);
             if (options.Motion.PulseRouteEndpoints) AddEndpointNodeIds(entries, nodeIds);
-            return entries.Count == 0 ? null : new TopologyMotionPlan(MotionSourceId(options), null, entries, nodeIds.ToArray());
+            return entries.Count == 0 ? null : new TopologyMotionPlan(MotionSourceId(options), null, entries, OrderedNodeIds(nodeIds));
         }
 
         if (scenario == null) return null;
@@ -27,7 +27,7 @@ internal static class TopologyMotionPlanner {
             else if (step.Kind == TopologyScenarioStepKind.Node) nodeIds.Add(step.Id);
         }
 
-        return entries.Count == 0 ? null : new TopologyMotionPlan(scenario.Id, MotionSourceColor(scenario), entries, nodeIds.ToArray());
+        return entries.Count == 0 ? null : new TopologyMotionPlan(scenario.Id, MotionSourceColor(scenario), entries, OrderedNodeIds(nodeIds));
     }
 
     public static TopologyMotionSample Sample(TopologyMotionPlan plan, TopologyRenderOptions options, TopologyTheme theme) {
@@ -68,6 +68,9 @@ internal static class TopologyMotionPlanner {
             nodeIds.Add(entry.Edge.TargetNodeId);
         }
     }
+
+    private static string[] OrderedNodeIds(HashSet<string> nodeIds) =>
+        nodeIds.OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
     private static TopologyScenario? ResolveScenario(TopologyChart chart, TopologyRenderOptions options) {
         var id = options.Motion?.ScenarioId;

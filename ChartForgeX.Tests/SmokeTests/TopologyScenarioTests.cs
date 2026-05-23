@@ -207,6 +207,17 @@ internal static partial class SmokeTests {
             .WithMotion(TopologyMotionOptions.RoutePulseForEdges("curve")));
         Assert(ExtractElement(curvedSvg, "id=\"motion-curved-motion-tour-explicit-edges\"").Contains(" C ", StringComparison.Ordinal), "SVG motion marker tour paths should match curved edge rendering instead of flattening routes to straight segments.");
 
+        var orderedNodeChart = TopologyChart.Create()
+            .WithId("motion-node-order")
+            .WithViewport(420, 220, 20)
+            .WithLegend(null)
+            .AddNode("z", "Z", 40, 130)
+            .AddNode("a", "A", 270, 130)
+            .AddEdge("z-a", "z", "a");
+        var orderedNodeSvg = orderedNodeChart.ToSvg(new TopologyRenderOptions { IncludeLegend = false }
+            .WithMotion(TopologyMotionOptions.RoutePulseForEdges("z-a")));
+        Assert(orderedNodeSvg.IndexOf("data-cfx-role=\"topology-motion-node\" data-node-id=\"a\"", StringComparison.Ordinal) < orderedNodeSvg.IndexOf("data-cfx-role=\"topology-motion-node\" data-node-id=\"z\"", StringComparison.Ordinal), "Motion endpoint nodes should render in deterministic id order.");
+
         var scenarioOptions = TopologyMotionOptions.RoutePulseForScenario(" route ");
         Assert(scenarioOptions.ScenarioId == "route", "Topology motion scenario factories should trim stable ids.");
         scenarioOptions
