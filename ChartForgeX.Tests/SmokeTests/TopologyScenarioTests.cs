@@ -144,6 +144,25 @@ internal static partial class SmokeTests {
         };
         Assert(chart.ToGif(staleActiveScenarioOptions).Length > 128, "Default GIF motion should fall back to the first routable scenario when the active scenario id is stale.");
         Assert(chart.ToApng(staleActiveScenarioOptions).Length > 128, "Default APNG motion should fall back to the first routable scenario when the active scenario id is stale.");
+        AssertThrows<ArgumentException>(() => chart.ToGif(new TopologyRenderOptions { IncludeLegend = false }
+            .WithMotion(new TopologyMotionOptions {
+                ScenarioId = "missing",
+                DurationSeconds = 1,
+                FramesPerSecond = 4
+            })), "Explicit topology motion scenario ids should fail clearly when they do not match a scenario.");
+        var fallbackRouteChart = TopologyChart.Create()
+            .WithId("motion-routable-fallback")
+            .WithViewport(420, 220, 20)
+            .WithLegend(null)
+            .AddNode("a", "A", 40, 80)
+            .AddNode("b", "B", 220, 80)
+            .AddEdge("a-b", "a", "b", "flow", TopologyEdgeKind.DataFlow, TopologyHealthStatus.Healthy)
+            .AddScenario("info", "Info", scenario => scenario.AddNodeStep("a"))
+            .AddScenario("route", "Route", scenario => scenario.AddEdgeStep("a-b"));
+        Assert(fallbackRouteChart.ToGif(new TopologyRenderOptions { IncludeLegend = false }).Length > 128, "Default GIF motion should fall back to the first routable scenario when earlier scenarios have no edge route.");
+        Assert(fallbackRouteChart.ToApng(new TopologyRenderOptions { IncludeLegend = false, ActiveScenarioId = "missing" }).Length > 128, "Default APNG motion should fall back to the first routable scenario when the active scenario id is stale and earlier scenarios have no edge route.");
+        Assert(Math.Abs(TopologyChartExtensions.RasterFrameProgress(new TopologyMotionOptions { Loop = false }, 0, 1) - 1) < 0.0001, "Single-frame non-loop raster motion should sample the completed route state.");
+        Assert(Math.Abs(TopologyChartExtensions.RasterFrameProgress(new TopologyMotionOptions { Loop = true }, 0, 1)) < 0.0001, "Single-frame looping raster motion should still sample the route start state.");
         using var gifStream = new System.IO.MemoryStream();
         chart.WriteGif(gifStream, options);
         Assert(gifStream.ToArray().SequenceEqual(gif), "Topology motion GIF stream export should match byte-array export.");

@@ -10,18 +10,27 @@ internal static class TopologyMotionPlanner {
     public static TopologyMotionPlan? Build(TopologyChart chart, TopologyRenderOptions options) {
         if (options.Motion == null || chart.Edges.Count == 0) return null;
         options.Motion.Validate();
-        var scenario = ResolveScenario(chart, options);
         var nodes = chart.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
-        var entries = new List<TopologyMotionEntry>();
-        var nodeIds = new HashSet<string>(StringComparer.Ordinal);
         var explicitEdgeIds = options.Motion.EdgeIds;
         if (explicitEdgeIds.Count > 0) {
+            var entries = new List<TopologyMotionEntry>();
+            var nodeIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (var edgeId in explicitEdgeIds) AddEdges(chart, nodes, entries, edgeId);
             if (options.Motion.PulseRouteEndpoints) AddEndpointNodeIds(entries, nodeIds);
             return entries.Count == 0 ? null : new TopologyMotionPlan(MotionSourceId(options), null, entries, OrderedNodeIds(nodeIds));
         }
 
-        if (scenario == null) return null;
+        foreach (var scenario in ResolveScenarios(chart, options)) {
+            var plan = BuildScenarioPlan(chart, nodes, scenario);
+            if (plan != null) return plan;
+        }
+
+        return null;
+    }
+
+    private static TopologyMotionPlan? BuildScenarioPlan(TopologyChart chart, IReadOnlyDictionary<string, TopologyNode> nodes, TopologyScenario scenario) {
+        var entries = new List<TopologyMotionEntry>();
+        var nodeIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var step in scenario.Steps) {
             if (step.Kind == TopologyScenarioStepKind.Edge) AddEdges(chart, nodes, entries, step.Id);
             else if (step.Kind == TopologyScenarioStepKind.Node) nodeIds.Add(step.Id);
@@ -72,20 +81,31 @@ internal static class TopologyMotionPlanner {
     private static string[] OrderedNodeIds(HashSet<string> nodeIds) =>
         nodeIds.OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
-    private static TopologyScenario? ResolveScenario(TopologyChart chart, TopologyRenderOptions options) {
+    private static IEnumerable<TopologyScenario> ResolveScenarios(TopologyChart chart, TopologyRenderOptions options) {
         var id = options.Motion?.ScenarioId;
         if (!string.IsNullOrWhiteSpace(id)) {
-            return chart.Scenarios.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.Ordinal));
+            var scenarioId = id!.Trim();
+            var scenario = FindScenario(chart, scenarioId);
+            if (scenario == null) throw new ArgumentException("Topology motion scenario id '" + scenarioId + "' does not match any scenario.", nameof(options));
+            yield return scenario;
+            yield break;
         }
 
         id = options.ActiveScenarioId;
+        TopologyScenario? activeScenario = null;
         if (!string.IsNullOrWhiteSpace(id)) {
-            var activeScenario = chart.Scenarios.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.Ordinal));
-            if (activeScenario != null) return activeScenario;
+            activeScenario = FindScenario(chart, id!.Trim());
+            if (activeScenario != null) yield return activeScenario;
         }
 
-        return chart.Scenarios.Count == 0 ? null : chart.Scenarios[0];
+        foreach (var scenario in chart.Scenarios) {
+            if (activeScenario != null && string.Equals(scenario.Id, activeScenario.Id, StringComparison.Ordinal)) continue;
+            yield return scenario;
+        }
     }
+
+    private static TopologyScenario? FindScenario(TopologyChart chart, string scenarioId) =>
+        chart.Scenarios.FirstOrDefault(candidate => string.Equals(candidate.Id, scenarioId, StringComparison.Ordinal));
 
     private static string MotionSourceId(TopologyRenderOptions options) =>
         string.IsNullOrWhiteSpace(options.Motion?.ScenarioId) ? "explicit-edges" : options.Motion!.ScenarioId!.Trim();

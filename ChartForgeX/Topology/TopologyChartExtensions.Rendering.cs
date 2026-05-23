@@ -103,7 +103,7 @@ public static partial class TopologyChartExtensions {
             var requestedWidth = (int)Math.Ceiling(chart.Viewport.Width);
             var requestedHeight = (int)Math.Ceiling(chart.Viewport.Height);
             for (var frame = 0; frame < frameCount; frame++) {
-                motion.Progress = motion.Loop || frameCount == 1 ? frame / (double)frameCount : frame / (double)(frameCount - 1);
+                motion.Progress = RasterFrameProgress(motion, frame, frameCount);
                 frames.Add(renderer.RenderPreparedImage(prepared, options, requestedWidth, requestedHeight, plan));
             }
 
@@ -117,6 +117,14 @@ public static partial class TopologyChartExtensions {
         var rawFrameCount = Math.Ceiling(motion.DurationSeconds * 100.0 / delayCentiseconds);
         if (rawFrameCount > motion.MaximumRasterFrames) throw new ArgumentOutOfRangeException(nameof(TopologyMotionOptions.MaximumRasterFrames), rawFrameCount, "Topology animated raster export would exceed the configured motion frame limit.");
         return Math.Max(1, (int)rawFrameCount);
+    }
+
+    internal static double RasterFrameProgress(TopologyMotionOptions motion, int frame, int frameCount) {
+        if (motion == null) throw new ArgumentNullException(nameof(motion));
+        if (frameCount <= 0) throw new ArgumentOutOfRangeException(nameof(frameCount), frameCount, "Topology animated raster export requires at least one frame.");
+        if (frame < 0 || frame >= frameCount) throw new ArgumentOutOfRangeException(nameof(frame), frame, "Topology animated raster frame index is outside the sampled frame range.");
+        if (frameCount == 1) return motion.Loop ? 0 : 1;
+        return motion.Loop ? frame / (double)frameCount : frame / (double)(frameCount - 1);
     }
 
     /// <summary>
