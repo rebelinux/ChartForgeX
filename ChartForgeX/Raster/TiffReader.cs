@@ -19,10 +19,10 @@ internal static class TiffReader {
         var height = checked((int)GetRequiredValue(data, entries, 257, little));
         var compression = GetValue(data, entries, 259, little, 1);
         var photometric = GetValue(data, entries, 262, little, 2);
-        var samplesPerPixel = checked((int)GetValue(data, entries, 277, little, photometric == 1 ? 1u : 3u));
+        var samplesPerPixel = checked((int)GetValue(data, entries, 277, little, photometric == 0 || photometric == 1 ? 1u : 3u));
         if (width <= 0 || height <= 0) throw new InvalidDataException("TIFF dimensions must be positive.");
         if (compression != 1) throw new NotSupportedException("Only uncompressed TIFF images are supported.");
-        if (photometric != 1 && photometric != 2) throw new NotSupportedException("Only grayscale and RGB TIFF images are supported.");
+        if (photometric != 0 && photometric != 1 && photometric != 2) throw new NotSupportedException("Only grayscale and RGB TIFF images are supported.");
         if (samplesPerPixel != 1 && samplesPerPixel != 3 && samplesPerPixel != 4) throw new NotSupportedException("Only 1, 3, or 4 sample TIFF images are supported.");
         var bits = GetValues(data, entries, 258, little);
         if (bits.Count == 0) bits.Add(8);
@@ -30,6 +30,8 @@ internal static class TiffReader {
             if (bit != 8) throw new NotSupportedException("Only 8-bit TIFF samples are supported.");
         }
 
+        var planarConfiguration = GetValue(data, entries, 284, little, 1);
+        if (planarConfiguration != 1) throw new NotSupportedException("Planar TIFF images with separate sample planes are not supported.");
         var offsets = GetValues(data, entries, 273, little);
         var byteCounts = GetValues(data, entries, 279, little);
         if (offsets.Count == 0 || byteCounts.Count == 0) throw new InvalidDataException("TIFF image is missing strip data.");
@@ -44,6 +46,7 @@ internal static class TiffReader {
                 for (var x = 0; x < width && target < rgba.Length; x++) {
                     if (samplesPerPixel == 1) {
                         var gray = data[source++];
+                        if (photometric == 0) gray = (byte)(255 - gray);
                         rgba[target++] = gray; rgba[target++] = gray; rgba[target++] = gray; rgba[target++] = 255;
                     } else {
                         rgba[target++] = data[source++];

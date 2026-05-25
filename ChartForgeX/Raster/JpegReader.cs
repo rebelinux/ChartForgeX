@@ -314,8 +314,8 @@ internal static partial class JpegReader {
     private static void DecodeProgressiveDcFirst(byte[] data, JpegState state, JpegScan scan) {
         var reader = new JpegBitReader(data, scan.DataOffset, scan.DataEnd);
         var restartCounter = state.RestartInterval;
-        ForEachScanBlock(state.Frame!, scan, component => {
-            if (state.RestartInterval > 0 && restartCounter == 0) {
+        ForEachScanBlock(state.Frame!, scan, (component, beginsRestartUnit, endsRestartUnit) => {
+            if (beginsRestartUnit && state.RestartInterval > 0 && restartCounter == 0) {
                 reader.AlignToByte();
                 foreach (var item in scan.Components) item.Component.PreviousDc = 0;
                 restartCounter = state.RestartInterval;
@@ -325,7 +325,7 @@ internal static partial class JpegReader {
             var size = table.Decode(reader);
             component.PreviousDc += ReceiveExtended(reader, size);
             component.Coefficients[CurrentBlockOffset(component)] = component.PreviousDc << scan.SuccessiveLow;
-            if (state.RestartInterval > 0) restartCounter--;
+            if (endsRestartUnit && state.RestartInterval > 0) restartCounter--;
         });
     }
 
@@ -333,14 +333,14 @@ internal static partial class JpegReader {
         var reader = new JpegBitReader(data, scan.DataOffset, scan.DataEnd);
         var bit = 1 << scan.SuccessiveLow;
         var restartCounter = state.RestartInterval;
-        ForEachScanBlock(state.Frame!, scan, component => {
-            if (state.RestartInterval > 0 && restartCounter == 0) {
+        ForEachScanBlock(state.Frame!, scan, (component, beginsRestartUnit, endsRestartUnit) => {
+            if (beginsRestartUnit && state.RestartInterval > 0 && restartCounter == 0) {
                 reader.AlignToByte();
                 restartCounter = state.RestartInterval;
             }
 
             if (reader.ReadBit() != 0) component.Coefficients[CurrentBlockOffset(component)] |= bit;
-            if (state.RestartInterval > 0) restartCounter--;
+            if (endsRestartUnit && state.RestartInterval > 0) restartCounter--;
         });
     }
 
@@ -466,12 +466,12 @@ internal static partial class JpegReader {
         if ((Math.Abs(coefficient) & bit) == 0 && reader.ReadBit() != 0) coefficients[index] += coefficient > 0 ? bit : -bit;
     }
 
-    private static void ForEachScanBlock(JpegFrame frame, JpegScan scan, Action<JpegComponent> visit) {
+    private static void ForEachScanBlock(JpegFrame frame, JpegScan scan, Action<JpegComponent, bool, bool> visit) {
         if (scan.Components.Count == 1) {
             var component = scan.Components[0].Component;
             ForEachComponentBlock(component, (blockX, blockY) => {
                 component.CurrentBlockOffset = CoefficientOffset(component, blockX, blockY);
-                visit(component);
+                visit(component, true, true);
             });
             return;
         }
@@ -482,6 +482,8 @@ internal static partial class JpegReader {
         var mcuRows = DivideRoundUp(frame.Height, mcuHeight);
         for (var my = 0; my < mcuRows; my++) {
             for (var mx = 0; mx < mcuColumns; mx++) {
+                var blockCount = CountScanBlocksInMcu(scan, mx, my);
+                var blockIndex = 0;
                 foreach (var scanComponent in scan.Components) {
                     var component = scanComponent.Component;
                     for (var vy = 0; vy < component.V; vy++) {
@@ -490,12 +492,29 @@ internal static partial class JpegReader {
                             var blockY = my * component.V + vy;
                             if (blockX >= component.WidthInBlocks || blockY >= component.HeightInBlocks) continue;
                             component.CurrentBlockOffset = CoefficientOffset(component, blockX, blockY);
-                            visit(component);
+                            visit(component, blockIndex == 0, blockIndex == blockCount - 1);
+                            blockIndex++;
                         }
                     }
                 }
             }
         }
+    }
+
+    private static int CountScanBlocksInMcu(JpegScan scan, int mx, int my) {
+        var count = 0;
+        foreach (var scanComponent in scan.Components) {
+            var component = scanComponent.Component;
+            for (var vy = 0; vy < component.V; vy++) {
+                for (var hx = 0; hx < component.H; hx++) {
+                    var blockX = mx * component.H + hx;
+                    var blockY = my * component.V + vy;
+                    if (blockX < component.WidthInBlocks && blockY < component.HeightInBlocks) count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     private static void ForEachComponentBlock(JpegComponent component, Action<int, int> visit) {

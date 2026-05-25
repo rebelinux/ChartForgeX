@@ -111,6 +111,10 @@ internal static partial class SmokeTests {
         Assert(decodedIndexedBmp.Width == 2 && decodedIndexedBmp.Height == 1 && decodedIndexedBmp.Pixels[0] == 255 && decodedIndexedBmp.Pixels[4 + 2] == 255, "RasterImageDecoder should decode indexed BMP palettes.");
         Assert(RasterImageDecoder.Decode(sourceImage.ToPpm()).Height == 12, "RasterImageDecoder should decode dependency-free PPM images.");
         Assert(RasterImageDecoder.Decode(sourceImage.ToTiff()).Width == 18, "RasterImageDecoder should decode dependency-free uncompressed TIFF images.");
+        var whiteIsZeroTiff = RasterImageDecoder.Decode(GrayscaleTiff(0, new byte[] { 0, 255 }));
+        Assert(whiteIsZeroTiff.Pixels[0] == 255 && whiteIsZeroTiff.Pixels[4] == 0, "RasterImageDecoder should decode WhiteIsZero grayscale TIFF images.");
+        Assert(!RasterImageDecoder.TryDecode(PlanarRgbTiff(), out _), "RasterImageDecoder should reject unsupported planar TIFF images without misreading channel planes.");
+        Assert(!RasterImageDecoder.TryDecode(OversizedTiff(), out _), "RasterImageDecoder TryDecode should return false for malformed raster dimensions that overflow.");
         var imageFilePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "chartforgex-raster-input-" + Guid.NewGuid().ToString("N") + ".png");
         try {
             System.IO.File.WriteAllBytes(imageFilePath, sourcePng);
@@ -315,10 +319,55 @@ internal static partial class SmokeTests {
         return bytes;
     }
 
+    private static byte[] GrayscaleTiff(ushort photometric, byte[] pixels) => SimpleTiff(2, 1, photometric, 1, 1, pixels);
+
+    private static byte[] PlanarRgbTiff() => SimpleTiff(1, 1, 2, 3, 2, new byte[] { 255, 0, 0 });
+
+    private static byte[] OversizedTiff() => SimpleTiff(0x80000000, 1, 1, 1, 1, Array.Empty<byte>());
+
+    private static byte[] SimpleTiff(uint width, uint height, ushort photometric, ushort samplesPerPixel, ushort planarConfiguration, byte[] pixels) {
+        const int entryCount = 10;
+        const int ifdOffset = 8;
+        const int ifdBytes = 2 + entryCount * 12 + 4;
+        const int pixelOffset = ifdOffset + ifdBytes;
+        var bytes = new byte[pixelOffset + pixels.Length];
+        bytes[0] = (byte)'I';
+        bytes[1] = (byte)'I';
+        WriteLittleEndianShort(bytes, 2, 42);
+        WriteLittleEndian(bytes, 4, ifdOffset);
+        WriteLittleEndianShort(bytes, ifdOffset, entryCount);
+        var entry = ifdOffset + 2;
+        WriteTiffEntry(bytes, ref entry, 256, 4, 1, width);
+        WriteTiffEntry(bytes, ref entry, 257, 4, 1, height);
+        WriteTiffEntry(bytes, ref entry, 258, 3, 1, 8);
+        WriteTiffEntry(bytes, ref entry, 259, 3, 1, 1);
+        WriteTiffEntry(bytes, ref entry, 262, 3, 1, photometric);
+        WriteTiffEntry(bytes, ref entry, 273, 4, 1, pixelOffset);
+        WriteTiffEntry(bytes, ref entry, 277, 3, 1, samplesPerPixel);
+        WriteTiffEntry(bytes, ref entry, 278, 4, 1, height);
+        WriteTiffEntry(bytes, ref entry, 279, 4, 1, (uint)pixels.Length);
+        WriteTiffEntry(bytes, ref entry, 284, 3, 1, planarConfiguration);
+        Buffer.BlockCopy(pixels, 0, bytes, pixelOffset, pixels.Length);
+        return bytes;
+    }
+
+    private static void WriteTiffEntry(byte[] data, ref int offset, ushort tag, ushort type, uint count, uint value) {
+        WriteLittleEndianShort(data, offset, tag);
+        WriteLittleEndianShort(data, offset + 2, type);
+        WriteLittleEndian(data, offset + 4, unchecked((int)count));
+        WriteLittleEndian(data, offset + 8, unchecked((int)value));
+        offset += 12;
+    }
+
     private static void WriteLittleEndian(byte[] data, int offset, int value) {
         data[offset] = (byte)(value & 255);
         data[offset + 1] = (byte)((value >> 8) & 255);
         data[offset + 2] = (byte)((value >> 16) & 255);
         data[offset + 3] = (byte)((value >> 24) & 255);
+    }
+
+    private static void WriteLittleEndianShort(byte[] data, int offset, int value) {
+        data[offset] = (byte)(value & 255);
+        data[offset + 1] = (byte)((value >> 8) & 255);
     }
 }

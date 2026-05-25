@@ -51,9 +51,7 @@ public static class RasterImageDecoder {
             return false;
         } catch (UnauthorizedAccessException) {
             return false;
-        } catch (InvalidDataException) {
-            return false;
-        } catch (NotSupportedException) {
+        } catch (Exception ex) when (IsDecodeFailure(ex)) {
             return false;
         }
     }
@@ -68,11 +66,7 @@ public static class RasterImageDecoder {
         try {
             image = Read(stream);
             return true;
-        } catch (IOException) {
-            return false;
-        } catch (InvalidDataException) {
-            return false;
-        } catch (NotSupportedException) {
+        } catch (Exception ex) when (IsDecodeFailure(ex)) {
             return false;
         }
     }
@@ -87,12 +81,19 @@ public static class RasterImageDecoder {
         try {
             image = Decode(data);
             return true;
-        } catch (InvalidDataException) {
-            return false;
-        } catch (NotSupportedException) {
+        } catch (Exception ex) when (IsDecodeFailure(ex)) {
             return false;
         }
     }
+
+    private static bool IsDecodeFailure(Exception ex) =>
+        ex is IOException ||
+        ex is UnauthorizedAccessException ||
+        ex is InvalidDataException ||
+        ex is NotSupportedException ||
+        ex is ArgumentException ||
+        ex is ArithmeticException ||
+        ex is IndexOutOfRangeException;
 
     internal static string MimeTypeFor(byte[] data, string? path = null) {
         if (data != null) {
