@@ -13,6 +13,7 @@ internal static partial class JpegReader {
         public JpegFrame? Frame;
         public int RestartInterval;
         public int AdobeTransform = -1;
+        public bool HasJfif;
         public bool Progressive;
         public int Orientation = 1;
     }

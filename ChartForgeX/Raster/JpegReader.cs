@@ -70,6 +70,9 @@ internal static partial class JpegReader {
                 case 0xDD:
                     state.RestartInterval = ReadUInt16(data, segment);
                     break;
+                case 0xE0:
+                    ParseJfif(data, segment, segmentLength, state);
+                    break;
                 case 0xE1:
                     ParseExif(data, segment, segmentLength, state);
                     break;
@@ -194,6 +197,11 @@ internal static partial class JpegReader {
 
             return;
         }
+    }
+
+    private static void ParseJfif(byte[] data, int offset, int length, JpegState state) {
+        if (length < 5) return;
+        state.HasJfif = data[offset] == (byte)'J' && data[offset + 1] == (byte)'F' && data[offset + 2] == (byte)'I' && data[offset + 3] == (byte)'F' && data[offset + 4] == 0;
     }
 
     private static void ParseAdobe(byte[] data, int offset, int length, JpegState state) {
@@ -619,7 +627,11 @@ internal static partial class JpegReader {
     private static bool UsesDirectRgb(JpegFrame frame, JpegState state) =>
         frame.Components.Length == 3 &&
         (state.AdobeTransform == 0 ||
-         frame.Components[0].Id == (byte)'R' && frame.Components[1].Id == (byte)'G' && frame.Components[2].Id == (byte)'B');
+         frame.Components[0].Id == (byte)'R' && frame.Components[1].Id == (byte)'G' && frame.Components[2].Id == (byte)'B' ||
+         !state.HasJfif && state.AdobeTransform < 0 && !UsesDefaultYcbcrComponentIds(frame));
+
+    private static bool UsesDefaultYcbcrComponentIds(JpegFrame frame) =>
+        frame.Components[0].Id == 1 && frame.Components[1].Id == 2 && frame.Components[2].Id == 3;
 
     private static RgbaImage ApplyOrientation(RgbaImage image, int orientation) {
         if (orientation <= 1 || orientation > 8) return image;
