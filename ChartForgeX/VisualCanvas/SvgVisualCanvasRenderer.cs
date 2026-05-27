@@ -398,7 +398,15 @@ public sealed class SvgVisualCanvasRenderer {
         writer.StartElement("g").Attribute("data-cfx-role", "visual-canvas-image").EndStartElement().Line();
         if (image.Href.Length > 0) {
             var preserveAspectRatio = PreserveAspectRatio(image.Fit);
-            if (image.Fit == VisualCanvasImageFit.Center && image.SourceWidth > 0 && image.SourceHeight > 0) {
+            if (image.Fit == VisualCanvasImageFit.Tile && image.SourceWidth > 0 && image.SourceHeight > 0) {
+                var patternId = NextScope() + "-image-pattern";
+                writer.StartElement("defs").EndStartElement().Line()
+                    .StartElement("pattern").Attribute("id", patternId).Attribute("patternUnits", "userSpaceOnUse").Attribute("x", image.X).Attribute("y", image.Y).Attribute("width", image.SourceWidth).Attribute("height", image.SourceHeight).EndStartElement().Line()
+                    .StartElement("image").Attribute("x", 0).Attribute("y", 0).Attribute("width", image.SourceWidth).Attribute("height", image.SourceHeight).Attribute("href", image.Href).Attribute("preserveAspectRatio", "none").EndEmptyElement().Line()
+                    .EndElement().Line()
+                    .EndElement().Line();
+                writer.StartElement("rect").Attribute("x", image.X).Attribute("y", image.Y).Attribute("width", image.Width).Attribute("height", image.Height).Attribute("fill", "url(#" + patternId + ")").Attribute("opacity", image.Opacity).EndEmptyElement().Line();
+            } else if (image.Fit == VisualCanvasImageFit.Center && image.SourceWidth > 0 && image.SourceHeight > 0) {
                 var clipId = NextScope() + "-image-clip";
                 writer.StartElement("clipPath").Attribute("id", clipId).EndStartElement()
                     .StartElement("rect").Attribute("x", image.X).Attribute("y", image.Y).Attribute("width", image.Width).Attribute("height", image.Height).EndEmptyElement()
@@ -430,6 +438,7 @@ public sealed class SvgVisualCanvasRenderer {
             case VisualCanvasImageFit.Cover:
                 return "xMidYMid slice";
             case VisualCanvasImageFit.Center:
+            case VisualCanvasImageFit.Tile:
             case VisualCanvasImageFit.Stretch:
             default:
                 return "none";
