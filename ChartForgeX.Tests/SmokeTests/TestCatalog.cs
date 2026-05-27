@@ -56,6 +56,8 @@ internal static partial class SmokeTests {
         ("Raster formats include PNG and JPEG", RasterFormatsIncludePngAndJpeg),
         ("JPEG writer round-trips readable pixels", JpegWriterRoundTripsReadablePixels),
         ("Image composition composes anchored overlays and saves by extension", ImageCompositionComposesAnchoredOverlaysAndSavesByExtension),
+        ("Image composition clear replaces pixels", ImageCompositionClearReplacesPixels),
+        ("Visual canvas image IDs stay deterministic for fixed scope", VisualCanvasImageIdsStayDeterministicForFixedScope),
         ("PNG output is deflate-compressed", PngOutputIsCompressed),
         ("Animated raster encoder dispatches formats", AnimatedRasterEncoderDispatchesFormats),
         ("GIF writer uses adaptive palette for brand colors", GifWriterUsesAdaptivePaletteForBrandColors),

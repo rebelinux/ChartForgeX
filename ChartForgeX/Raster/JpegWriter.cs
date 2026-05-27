@@ -39,6 +39,8 @@ internal static class JpegWriter {
         53, 60, 61, 54, 47, 55, 62, 63
     };
 
+    private static readonly double[] DctBasis = BuildDctBasis();
+
     private static readonly byte[] DcLuminanceBits = { 0, 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 };
     private static readonly byte[] DcLuminanceValues = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
     private static readonly byte[] DcChrominanceBits = { 0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 };
@@ -195,26 +197,34 @@ internal static class JpegWriter {
     }
 
     private static void ForwardDct(double[] input, int[] output, byte[] quantization) {
-        var naturalCoefficients = new int[64];
+        for (var i = 0; i < ZigZag.Length; i++) {
+            var natural = ZigZag[i];
+            var basisOffset = natural * 64;
+            var sum = 0.0;
+            for (var sample = 0; sample < 64; sample++) sum += input[sample] * DctBasis[basisOffset + sample];
+            output[i] = (int)Math.Round(sum / quantization[natural]);
+        }
+    }
+
+    private static double[] BuildDctBasis() {
+        var basis = new double[64 * 64];
         for (var v = 0; v < 8; v++) {
             for (var u = 0; u < 8; u++) {
-                var sum = 0.0;
+                var cu = u == 0 ? 1 / Math.Sqrt(2) : 1;
+                var cv = v == 0 ? 1 / Math.Sqrt(2) : 1;
+                var natural = v * 8 + u;
                 for (var y = 0; y < 8; y++) {
                     for (var x = 0; x < 8; x++) {
-                        sum += input[y * 8 + x] *
+                        basis[natural * 64 + y * 8 + x] =
+                            0.25 * cu * cv *
                             Math.Cos(((2 * x + 1) * u * Math.PI) / 16.0) *
                             Math.Cos(((2 * y + 1) * v * Math.PI) / 16.0);
                     }
                 }
-
-                var cu = u == 0 ? 1 / Math.Sqrt(2) : 1;
-                var cv = v == 0 ? 1 / Math.Sqrt(2) : 1;
-                var natural = v * 8 + u;
-                naturalCoefficients[natural] = (int)Math.Round(0.25 * cu * cv * sum / quantization[natural]);
             }
         }
 
-        for (var i = 0; i < ZigZag.Length; i++) output[i] = naturalCoefficients[ZigZag[i]];
+        return basis;
     }
 
     private static int WriteBlock(BitWriter writer, int[] coefficients, int previousDc, HuffmanCode[] dcTable, HuffmanCode[] acTable) {

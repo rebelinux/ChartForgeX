@@ -46,6 +46,18 @@ internal static partial class SmokeTests {
         }
     }
 
+    private static void ImageCompositionClearReplacesPixels() {
+        var composition = ImageComposition.FromImage(SolidImage(6, 4, 20, 30, 40, 255))
+            .Clear(ChartColors.Transparent);
+        var transparent = composition.ToImage();
+        Assert(PixelAt(transparent, 2, 2).A == 0, "ImageComposition.Clear should replace existing pixels with transparent pixels.");
+
+        composition.Clear(ChartColor.FromRgba(90, 80, 70, 128));
+        var semiTransparent = composition.ToImage();
+        var pixel = PixelAt(semiTransparent, 2, 2);
+        Assert(pixel.R == 90 && pixel.G == 80 && pixel.B == 70 && pixel.A == 128, "ImageComposition.Clear should replace, not blend, semi-transparent fills.");
+    }
+
     private static void VisualCanvasTileFitRepeatsAcrossSvgAndPng() {
         var tile = SolidImage(4, 4, 240, 20, 40, 255);
         var canvas = VisualCanvas.Create(12, 4)
@@ -57,6 +69,19 @@ internal static partial class SmokeTests {
 
         var png = RasterImageDecoder.Decode(canvas.ToPng());
         Assert(PixelAt(png, 0, 0).R > 200 && PixelAt(png, 4, 0).R > 200 && PixelAt(png, 8, 0).R > 200, "PNG visual canvas tile fit should repeat the source image across the destination rectangle.");
+    }
+
+    private static void VisualCanvasImageIdsStayDeterministicForFixedScope() {
+        var tile = SolidImage(4, 4, 240, 20, 40, 255);
+        var canvas = VisualCanvas.Create(12, 8)
+            .WithBackdrop(VisualCanvasBackdropStyle.Transparent)
+            .AddRasterImage(0, 0, 12, 4, tile, VisualCanvasImageFit.Tile)
+            .AddRasterImage(2, 4, 6, 4, tile, VisualCanvasImageFit.Center);
+
+        var first = canvas.ToSvg("fixed-scope");
+        var second = canvas.ToSvg("fixed-scope");
+        Assert(first == second, "Visual canvas SVG image resource IDs should stay deterministic for a fixed render scope.");
+        Assert(first.Contains("-image-0-pattern", StringComparison.Ordinal) && first.Contains("-image-1-clip", StringComparison.Ordinal), "Visual canvas SVG image resource IDs should be derived from stable layer positions.");
     }
 
     private static RgbaImage GradientImage(int width, int height) {
