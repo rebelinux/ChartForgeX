@@ -271,6 +271,7 @@ public sealed partial class TopologyHtmlRenderer
       const query = state.query.trim().toLowerCase();
       const visibleNodes = new Set();
       const queryNodes = new Set();
+      const statusNodes = new Set();
       if (query) {
         wrapper.querySelectorAll('[data-cfx-role="topology-edge"]').forEach(edge => {
           if (!forceSearchText(edge).includes(query)) return;
@@ -283,6 +284,13 @@ public sealed partial class TopologyHtmlRenderer
           wrapper.querySelectorAll('[data-cfx-role="topology-node"][data-group-id="' + cssEscape(groupId) + '"]').forEach(node => queryNodes.add(attr(node, 'data-node-id')));
         });
       }
+      if (state.status) {
+        wrapper.querySelectorAll('[data-cfx-role="topology-edge"]').forEach(edge => {
+          if (attr(edge, 'data-cfx-status') !== state.status) return;
+          statusNodes.add(attr(edge, 'data-source-node-id'));
+          statusNodes.add(attr(edge, 'data-target-node-id'));
+        });
+      }
       wrapper.setAttribute('data-cfx-force-edges-visible', state.edges ? 'true' : 'false');
       wrapper.setAttribute('data-cfx-force-focus', state.focus ? 'true' : 'false');
       wrapper.setAttribute('data-cfx-force-edge-labels-visible', state.labels ? 'true' : 'false');
@@ -290,7 +298,7 @@ public sealed partial class TopologyHtmlRenderer
       wrapper.setAttribute('data-cfx-force-hide-moving-edges', state.hideMovingEdges ? 'true' : 'false');
       wrapper.querySelectorAll('[data-cfx-role="topology-node"]').forEach(node => {
         const groupOk = !state.group || attr(node, 'data-group-id') === state.group;
-        const statusOk = !state.status || attr(node, 'data-cfx-status') === state.status;
+        const statusOk = !state.status || attr(node, 'data-cfx-status') === state.status || statusNodes.has(attr(node, 'data-node-id'));
         const queryOk = !query || forceSearchText(node).includes(query) || queryNodes.has(attr(node, 'data-node-id'));
         const visible = groupOk && statusOk && queryOk;
         node.classList.toggle('cfx-topology-html-force-hidden', !visible);
@@ -299,7 +307,11 @@ public sealed partial class TopologyHtmlRenderer
       });
       setForceHidden('[data-cfx-role="topology-edge"]', edge => !state.edges || !visibleNodes.has(attr(edge, 'data-source-node-id')) || !visibleNodes.has(attr(edge, 'data-target-node-id')));
       setForceHidden('[data-cfx-role="topology-edge-label"]', label => !state.labels || !state.edges || !wrapper.querySelector('[data-cfx-role="topology-edge"][data-edge-id="' + cssEscape(attr(label, 'data-edge-id')) + '"]:not(.cfx-topology-html-force-hidden)'));
-      setForceHidden('[data-cfx-role="topology-group"]', group => !state.groups || (state.group && attr(group, 'data-group-id') !== state.group));
+      setForceHidden('[data-cfx-role="topology-group"]', group => {
+        const groupId = attr(group, 'data-group-id');
+        const hasVisibleNodes = !!wrapper.querySelector('[data-cfx-role="topology-node"][data-group-id="' + cssEscape(groupId) + '"]:not(.cfx-topology-html-force-hidden)');
+        return !state.groups || !hasVisibleNodes || (state.group && groupId !== state.group);
+      });
       const nodeCount = visibleNodes.size;
       const edgeCount = wrapper.querySelectorAll('[data-cfx-role="topology-edge"]:not(.cfx-topology-html-force-hidden)').length;
       const summary = forceGraphPanel.querySelector('[data-cfx-force-summary]');

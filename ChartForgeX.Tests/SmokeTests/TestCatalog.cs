@@ -281,6 +281,7 @@ internal static partial class SmokeTests {
         ("Topology force graph style reduces static noise", TopologyForceGraphStyleReducesStaticNoise),
         ("Topology force graph relationship profile spreads busy graphs", TopologyForceGraphRelationshipProfileSpreadsBusyGraphs),
         ("Topology force graph HTML pages expose graph controls", TopologyForceGraphHtmlPagesExposeGraphControls),
+        ("Topology force graph HTML group filters use prepared view", TopologyForceGraphHtmlGroupFiltersUsePreparedView),
         ("Topology relationship radial HTML pages expose focus controls", TopologyRelationshipRadialHtmlPagesExposeFocusControls),
         ("Topology relationship radial layout expands from root by hop", TopologyRelationshipRadialLayoutExpandsFromRootByHop),
         ("Topology relationship radial fanout ignores visited parent", TopologyRelationshipRadialFanoutIgnoresVisitedParent),

@@ -70,6 +70,7 @@ internal static partial class SmokeTests {
         Assert(html.Contains("data-cfx-force-toggle=\"edge-labels\"", StringComparison.Ordinal), "Force graph HTML should let users reveal edge labels on demand.");
         Assert(html.Contains("data-cfx-force-toggle=\"focus\"", StringComparison.Ordinal), "Force graph HTML should let users focus on one node's neighborhood.");
         Assert(html.Contains("data-cfx-role=\"topology-edge-label\"", StringComparison.Ordinal), "Force graph HTML should carry edge labels so focused neighborhoods can reveal what talks to what.");
+        Assert(html.Contains("data-cfx-role=\"topology-group\"", StringComparison.Ordinal), "Force graph HTML should carry group shells so the Groups toggle can reveal current clusters.");
         Assert(html.Contains("cfx-topology-html-force-focus-label", StringComparison.Ordinal), "Force graph HTML should reveal labels only for the focused relationship neighborhood.");
         Assert(html.Contains("data-cfx-force-toggle=\"hide-moving-edges\"", StringComparison.Ordinal), "Force graph HTML should support hiding noisy edges while panning and zooming.");
         Assert(html.Contains("cfx-topology-force-filter", StringComparison.Ordinal), "Force graph HTML should dispatch filter events for host integrations.");
@@ -79,6 +80,26 @@ internal static partial class SmokeTests {
         Assert(html.Contains("data-group-label=\"Group 1\"", StringComparison.Ordinal), "Force graph HTML search should include group labels.");
         Assert(html.Contains("queryNodes.add(attr(edge, 'data-source-node-id'))", StringComparison.Ordinal), "Force graph search should surface endpoints for matching edge terms.");
         Assert(html.Contains("if (!state.focus || !state.edges) {", StringComparison.Ordinal), "Force graph focus toggles should clear stale focus labels when disabled.");
+        Assert(html.Contains("statusNodes.add(attr(edge, 'data-source-node-id'))", StringComparison.Ordinal), "Force graph status filters should surface endpoints for matching edge statuses.");
+        Assert(html.Contains("const hasVisibleNodes = !!wrapper.querySelector", StringComparison.Ordinal), "Force graph group shells should disappear when filtering leaves them empty.");
+        Assert(html.Contains("style.setAttribute('data-cfx-export-style', 'force-filters')", StringComparison.Ordinal), "Force graph exports should serialize filter hiding styles into the SVG.");
+    }
+
+    private static void TopologyForceGraphHtmlGroupFiltersUsePreparedView() {
+        var chart = CreateForceGraphFixture("force-html-view", 3, 4)
+            .WithTitle("Interactive force graph view");
+
+        var options = new TopologyRenderOptions {
+                IncludeLegend = false,
+                View = new TopologyView { GroupIds = { "group-01" } }
+            }
+            .WithForceGraphStyle()
+            .WithHtmlForceGraphControls();
+        var html = chart.ToHtmlPage(options);
+
+        Assert(html.Contains("<option value=\"group-01\">Group 2</option>", StringComparison.Ordinal), "Force graph group filters should include groups that remain in the prepared view.");
+        Assert(!html.Contains("<option value=\"group-00\">Group 1</option>", StringComparison.Ordinal), "Force graph group filters should omit groups removed by the prepared view.");
+        Assert(!html.Contains("<option value=\"group-02\">Group 3</option>", StringComparison.Ordinal), "Force graph group filters should not offer off-view groups that would blank the graph.");
     }
 
     private static void TopologyRelationshipRadialHtmlPagesExposeFocusControls() {

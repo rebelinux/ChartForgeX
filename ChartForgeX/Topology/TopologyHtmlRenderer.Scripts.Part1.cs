@@ -383,7 +383,14 @@ public sealed partial class TopologyHtmlRenderer
     const exportName = () => (attr(wrapper, 'data-chart-id') || 'topology').replace(/[^a-z0-9_.-]+/gi, '-').replace(/^-+|-+$/g, '') || 'topology';
     const serializeSvg = () => {
       const svg = svgElement();
-      return svg ? { svg, data: new XMLSerializer().serializeToString(svg) } : null;
+      if (!svg) return null;
+      const clone = svg.cloneNode(true);
+      const defs = clone.querySelector('defs') || clone.insertBefore(document.createElementNS('http://www.w3.org/2000/svg', 'defs'), clone.firstChild);
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.setAttribute('data-cfx-export-style', 'force-filters');
+      style.textContent = '.cfx-topology-html-force-hidden{display:none!important}';
+      defs.appendChild(style);
+      return { svg, data: new XMLSerializer().serializeToString(clone) };
     };
     const emitExport = format => {
       wrapper.dispatchEvent(new CustomEvent('cfx-topology-export', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), format } }));

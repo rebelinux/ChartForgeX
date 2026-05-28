@@ -43,6 +43,7 @@ public sealed partial class TopologyHtmlRenderer {
         var enableSync = options.EnableHtmlInteractions && options.EnableHtmlSynchronizedState && !string.IsNullOrWhiteSpace(options.HtmlSyncGroupName);
         var syncGroup = enableSync ? options.HtmlSyncGroupName!.Trim() : string.Empty;
         var activeScenarioId = enableScenarioInteractions ? ResolveActiveScenarioId(chart, options.ActiveScenarioId) : options.ActiveScenarioId;
+        var forceControlsChart = enableForceGraphControls ? TopologyLayoutEngine.Prepare(chart, options.View, options) : chart;
         var writer = new HtmlMarkupWriter();
         writer.StartElement("div")
             .Attribute("class", wrapperClass)
@@ -62,7 +63,7 @@ public sealed partial class TopologyHtmlRenderer {
             .EndStartElement();
         if (renderScenarioControls) WriteScenarioControls(writer, scenariosClass, chart, activeScenarioId);
         if (enableScenarioPanel) WriteScenarioPanel(writer, scenarioPanelClass, chart, activeScenarioId, enableScenarioUrlState);
-        if (enableForceGraphControls) WriteForceGraphControls(writer, forceControlsClass, chart, options);
+        if (enableForceGraphControls) WriteForceGraphControls(writer, forceControlsClass, forceControlsChart, options);
         writer.StartElement("div").Attribute("class", viewportClass).EndStartElement();
         if (enableViewportControls || enableExportControls) {
             writer.StartElement("div").Attribute("class", controlsClass).Attribute("aria-label", "Topology controls").EndStartElement();
@@ -90,13 +91,19 @@ public sealed partial class TopologyHtmlRenderer {
         if (!interactiveScenarioControls && !forceGraphControls) return _svg.Render(chart, options);
         var activeScenarioId = options.ActiveScenarioId;
         var includeEdgeLabels = options.IncludeEdgeLabels;
+        var includeGroups = options.IncludeGroups;
         try {
             if (interactiveScenarioControls) options.ActiveScenarioId = null;
-            if (forceGraphControls) options.IncludeEdgeLabels = true;
+            if (forceGraphControls) {
+                options.IncludeEdgeLabels = true;
+                options.IncludeGroups = true;
+            }
+
             return _svg.Render(chart, options);
         } finally {
             options.ActiveScenarioId = activeScenarioId;
             options.IncludeEdgeLabels = includeEdgeLabels;
+            options.IncludeGroups = includeGroups;
         }
     }
 
