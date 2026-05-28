@@ -10,6 +10,11 @@ public sealed partial class TopologySvgRenderer {
         var layer = new SvgElement("g")
             .Class(prefix + "__nodes")
             .Attribute("data-cfx-role", "topology-nodes");
+        var groupLabels = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var groupInfo in chart.Groups) {
+            if (!string.IsNullOrWhiteSpace(groupInfo.Id)) groupLabels[groupInfo.Id] = groupInfo.Label;
+        }
+
         foreach (var node in chart.Nodes) {
             var color = NodeAccentColor(node, theme, options);
             var iconDefinition = ResolveNodeIcon(node, options);
@@ -33,6 +38,8 @@ public sealed partial class TopologySvgRenderer {
                 if (node.Longitude.HasValue) element.Attribute("data-node-longitude", F(node.Longitude.Value));
                 if (node.Latitude.HasValue) element.Attribute("data-node-latitude", F(node.Latitude.Value));
                 if (node.Metadata.TryGetValue("geoVisible", out var nodeGeoVisible)) element.Attribute("data-node-geo-visible", nodeGeoVisible);
+                element.Attribute("data-node-label", node.Label);
+                if (!string.IsNullOrWhiteSpace(node.GroupId) && groupLabels.TryGetValue(node.GroupId!, out var groupLabel)) element.Attribute("data-group-label", groupLabel);
                 if (!string.IsNullOrWhiteSpace(node.GroupId)) element.Attribute("data-group-id", node.GroupId!);
                 if (!string.IsNullOrWhiteSpace(node.Badge)) element.Attribute("data-node-badge", NodeBadge(node));
                 if (!string.IsNullOrWhiteSpace(node.Color)) element.Attribute("data-node-color", color);

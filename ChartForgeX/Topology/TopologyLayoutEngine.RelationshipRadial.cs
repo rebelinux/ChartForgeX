@@ -118,13 +118,19 @@ internal static partial class TopologyLayoutEngine {
             var state = states[current];
             if (state.Depth >= maxDepth) continue;
             var expanded = adjacency[current]
+                .Where(link => !states.ContainsKey(link.NeighborId))
+                .GroupBy(link => link.NeighborId, StringComparer.Ordinal)
+                .Select(group => group
+                    .OrderByDescending(link => RadialStatusPriority(link.Edge.Status))
+                    .ThenByDescending(link => link.Edge.Emphasis)
+                    .ThenBy(link => link.Edge.Id, StringComparer.Ordinal)
+                    .First())
                 .OrderByDescending(link => RadialStatusPriority(link.Edge.Status))
                 .ThenByDescending(link => link.Edge.Emphasis)
                 .ThenBy(link => link.NeighborId, StringComparer.Ordinal)
                 .Take(maxFanout)
                 .ToList();
             foreach (var link in expanded) {
-                if (states.ContainsKey(link.NeighborId)) continue;
                 var depth = state.Depth + 1;
                 var firstHopId = state.Depth == 0 ? link.NeighborId : state.FirstHopId;
                 states[link.NeighborId] = new RadialNodeState { Depth = depth, ParentId = current, FirstHopId = firstHopId };

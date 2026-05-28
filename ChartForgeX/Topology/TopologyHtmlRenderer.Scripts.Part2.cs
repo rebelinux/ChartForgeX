@@ -247,9 +247,9 @@ public sealed partial class TopologyHtmlRenderer
       emitSync('selection', { selection: { kind: detail.kind, id: detail.id, status: detail.status } });
     };
     const forceSearchText = element => [
-      attr(element, 'data-node-id'), attr(element, 'data-node-kind'), attr(element, 'data-group-id'),
-      attr(element, 'data-edge-id'), attr(element, 'data-edge-kind'), attr(element, 'data-source-node-id'), attr(element, 'data-target-node-id'),
-      attr(element, 'data-group-symbol'), element.textContent || ''
+      attr(element, 'data-node-id'), attr(element, 'data-node-label'), attr(element, 'data-node-kind'), attr(element, 'data-group-id'),
+      attr(element, 'data-edge-id'), attr(element, 'data-edge-label'), attr(element, 'data-edge-secondary-label'), attr(element, 'data-edge-tertiary-label'), attr(element, 'data-edge-kind'), attr(element, 'data-source-node-id'), attr(element, 'data-target-node-id'),
+      attr(element, 'data-group-label'), attr(element, 'data-group-symbol'), element.textContent || ''
     ].join(' ').toLowerCase();
     const cssEscape = value => window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, '\\$&');
     const forceGraphState = () => ({
@@ -270,6 +270,19 @@ public sealed partial class TopologyHtmlRenderer
       const state = forceGraphState();
       const query = state.query.trim().toLowerCase();
       const visibleNodes = new Set();
+      const queryNodes = new Set();
+      if (query) {
+        wrapper.querySelectorAll('[data-cfx-role="topology-edge"]').forEach(edge => {
+          if (!forceSearchText(edge).includes(query)) return;
+          queryNodes.add(attr(edge, 'data-source-node-id'));
+          queryNodes.add(attr(edge, 'data-target-node-id'));
+        });
+        wrapper.querySelectorAll('[data-cfx-role="topology-group"]').forEach(group => {
+          if (!forceSearchText(group).includes(query)) return;
+          const groupId = attr(group, 'data-group-id');
+          wrapper.querySelectorAll('[data-cfx-role="topology-node"][data-group-id="' + cssEscape(groupId) + '"]').forEach(node => queryNodes.add(attr(node, 'data-node-id')));
+        });
+      }
       wrapper.setAttribute('data-cfx-force-edges-visible', state.edges ? 'true' : 'false');
       wrapper.setAttribute('data-cfx-force-focus', state.focus ? 'true' : 'false');
       wrapper.setAttribute('data-cfx-force-edge-labels-visible', state.labels ? 'true' : 'false');
@@ -278,7 +291,7 @@ public sealed partial class TopologyHtmlRenderer
       wrapper.querySelectorAll('[data-cfx-role="topology-node"]').forEach(node => {
         const groupOk = !state.group || attr(node, 'data-group-id') === state.group;
         const statusOk = !state.status || attr(node, 'data-cfx-status') === state.status;
-        const queryOk = !query || forceSearchText(node).includes(query);
+        const queryOk = !query || forceSearchText(node).includes(query) || queryNodes.has(attr(node, 'data-node-id'));
         const visible = groupOk && statusOk && queryOk;
         node.classList.toggle('cfx-topology-html-force-hidden', !visible);
         wrapper.querySelectorAll('[data-cfx-role="topology-node-status"][data-node-id="' + cssEscape(attr(node, 'data-node-id')) + '"]').forEach(status => status.classList.toggle('cfx-topology-html-force-hidden', !visible));
@@ -296,7 +309,7 @@ public sealed partial class TopologyHtmlRenderer
     };
     const clearForceFocusLabels = () => {
       if (!forceGraphControls) return;
-      const state = forceGraphState();
+      const state = forceGraphPanel ? forceGraphState() : { labels: false };
       wrapper.querySelectorAll('.cfx-topology-html-force-focus-label').forEach(label => {
         label.classList.remove('cfx-topology-html-force-focus-label');
         if (!state.labels) label.classList.add('cfx-topology-html-force-hidden');
@@ -316,7 +329,10 @@ public sealed partial class TopologyHtmlRenderer
     const applyForceFocusLabels = detail => {
       if (!forceGraphControls || !forceGraphPanel) return;
       const state = forceGraphState();
-      if (!state.focus || !state.edges) return;
+      if (!state.focus || !state.edges) {
+        clearForceFocusLabels();
+        return;
+      }
       detail.related = detail.related || related(detail);
       const edgeIds = new Set(detail.related.edgeIds || []);
       if (detail.kind === 'edge') edgeIds.add(detail.id);

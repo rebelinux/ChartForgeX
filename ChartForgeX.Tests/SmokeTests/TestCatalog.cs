@@ -283,6 +283,7 @@ internal static partial class SmokeTests {
         ("Topology force graph HTML pages expose graph controls", TopologyForceGraphHtmlPagesExposeGraphControls),
         ("Topology relationship radial HTML pages expose focus controls", TopologyRelationshipRadialHtmlPagesExposeFocusControls),
         ("Topology relationship radial layout expands from root by hop", TopologyRelationshipRadialLayoutExpandsFromRootByHop),
+        ("Topology relationship radial fanout ignores visited parent", TopologyRelationshipRadialFanoutIgnoresVisitedParent),
         ("Topology relationship radial layout handles large ego graphs", TopologyRelationshipRadialLayoutHandlesLargeEgoGraphs),
         ("Topology force-directed layout anchors group hubs", TopologyForceDirectedLayoutAnchorsGroupHubs),
         ("Topology force-directed layout honors explicit group anchors", TopologyForceDirectedLayoutHonorsExplicitGroupAnchors),

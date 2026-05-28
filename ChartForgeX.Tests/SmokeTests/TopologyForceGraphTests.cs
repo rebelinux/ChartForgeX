@@ -74,6 +74,11 @@ internal static partial class SmokeTests {
         Assert(html.Contains("data-cfx-force-toggle=\"hide-moving-edges\"", StringComparison.Ordinal), "Force graph HTML should support hiding noisy edges while panning and zooming.");
         Assert(html.Contains("cfx-topology-force-filter", StringComparison.Ordinal), "Force graph HTML should dispatch filter events for host integrations.");
         Assert(html.Contains("cfx-topology-html-force-hidden", StringComparison.Ordinal), "Force graph HTML should include reusable filter classes.");
+        Assert(html.Contains("data-node-label=\"Node 0-0\"", StringComparison.Ordinal), "Force graph HTML search should include human-facing node labels even when dot labels are hidden.");
+        Assert(html.Contains("data-edge-label=\"bridge\"", StringComparison.Ordinal), "Force graph HTML search should include edge labels.");
+        Assert(html.Contains("data-group-label=\"Group 1\"", StringComparison.Ordinal), "Force graph HTML search should include group labels.");
+        Assert(html.Contains("queryNodes.add(attr(edge, 'data-source-node-id'))", StringComparison.Ordinal), "Force graph search should surface endpoints for matching edge terms.");
+        Assert(html.Contains("if (!state.focus || !state.edges) {", StringComparison.Ordinal), "Force graph focus toggles should clear stale focus labels when disabled.");
     }
 
     private static void TopologyRelationshipRadialHtmlPagesExposeFocusControls() {
@@ -130,6 +135,30 @@ internal static partial class SmokeTests {
         Assert(averageSecondDistance > averageFirstDistance + 70, "Second-hop conversations should be pushed farther away than direct conversations.");
         Assert(prepared.Nodes.All(node => node.Metadata.TryGetValue("layout.radial.root", out var value) && value == "root"), "Relationship-radial nodes should expose the radial root.");
         Assert(prepared.Edges.All(edge => edge.Metadata.TryGetValue("layout.radial", out var value) && value == "true"), "Relationship-radial edges should expose radial layout diagnostics.");
+    }
+
+    private static void TopologyRelationshipRadialFanoutIgnoresVisitedParent() {
+        var chart = TopologyChart.Create()
+            .WithId("radial-parent-fanout")
+            .WithViewport(720, 480, 24)
+            .WithLegend(null)
+            .WithLayout(TopologyLayoutMode.RelationshipRadial)
+            .AddAutoNode("root", "Root", TopologyNodeKind.Service, TopologyHealthStatus.Healthy, width: 42, height: 42)
+            .AddAutoNode("branch", "Branch", TopologyNodeKind.Endpoint, TopologyHealthStatus.Healthy, width: 30, height: 30)
+            .AddEdge("root-branch", "root", "branch", "root edge", TopologyEdgeKind.Dependency, TopologyHealthStatus.Critical, TopologyDirection.Bidirectional);
+
+        for (var i = 0; i < 3; i++) {
+            var leaf = "leaf-" + i.ToString("00", CultureInfo.InvariantCulture);
+            chart.AddAutoNode(leaf, "Leaf " + i.ToString(CultureInfo.InvariantCulture), TopologyNodeKind.Person, TopologyHealthStatus.Healthy, width: 24, height: 24)
+                .AddEdge("branch-" + leaf, "branch", leaf, "leaf", TopologyEdgeKind.Dependency, TopologyHealthStatus.Healthy, TopologyDirection.Forward);
+        }
+
+        var prepared = TopologyLayoutEngine.Prepare(chart, options: new TopologyRenderOptions { IncludeLegend = false, NodeDisplayMode = TopologyNodeDisplayMode.Dot }.WithRelationshipRadialFocus("root", maxDepth: 2, maxFanout: 3));
+        var leaves = prepared.Nodes.Where(node => node.Id.StartsWith("leaf-", StringComparison.Ordinal)).ToList();
+
+        Assert(leaves.Count == 3, "The fanout fixture should include three second-hop leaves.");
+        Assert(leaves.All(node => node.Metadata.TryGetValue("layout.radial.depth", out var depth) && depth == "2"), "Relationship-radial fanout should not let the visited parent consume a child expansion slot.");
+        Assert(leaves.All(node => !node.Metadata.ContainsKey("layout.radial.overflow")), "Relationship-radial fanout should keep in-scope leaves out of the overflow ring.");
     }
 
     private static void TopologyRelationshipRadialLayoutHandlesLargeEgoGraphs() {
