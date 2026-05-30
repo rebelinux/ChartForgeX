@@ -380,6 +380,7 @@ public sealed partial class TopologySvgRenderer {
                 if (group.Longitude.HasValue) element.Attribute("data-group-longitude", F(group.Longitude.Value));
                 if (group.Latitude.HasValue) element.Attribute("data-group-latitude", F(group.Latitude.Value));
                 if (group.Metadata.TryGetValue("geoVisible", out var groupGeoVisible)) element.Attribute("data-group-geo-visible", groupGeoVisible);
+                element.Attribute("data-group-label", group.Label);
                 if (!string.IsNullOrWhiteSpace(group.Symbol)) element.Attribute("data-group-symbol", TrimTo(group.Symbol!.Trim(), 12));
                 if (!string.IsNullOrWhiteSpace(group.Color)) element.Attribute("data-group-color", accent);
                 if (!string.IsNullOrWhiteSpace(group.IconId)) element.Attribute("data-group-icon-id", group.IconId);
@@ -542,6 +543,9 @@ public sealed partial class TopologySvgRenderer {
                     .Class(prefix + "__edge-wrap " + prefix + "__edge-wrap--" + CssToken(edge.Status.ToString()) + (edge.IsMuted ? " " + prefix + "__edge-wrap--muted" : string.Empty) + (selected ? " " + prefix + "--selected" : string.Empty) + highlight.CssClass(prefix, highlighted) + CustomCssClasses(edge.CssClass))
                     .Attribute("data-cfx-role", "topology-edge")
                     .Attribute("data-edge-id", edge.Id)
+                    .Attribute("data-edge-label", edge.Label)
+                    .Attribute("data-edge-secondary-label", edge.SecondaryLabel)
+                    .Attribute("data-edge-tertiary-label", edge.TertiaryLabel)
                     .Attribute("data-source-node-id", edge.SourceNodeId)
                     .Attribute("data-target-node-id", edge.TargetNodeId)
                     .Attribute("data-source-group-id", EdgeNodeGroupId(nodes, edge.SourceNodeId))
