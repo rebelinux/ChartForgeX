@@ -21,6 +21,93 @@ public sealed partial class TopologyHtmlRenderer
       }
       return { nodeIds: [], edgeIds: [], groupIds: [], edges: [] };
     };
+    const statusColor = status => {
+      const key = String(status || '').toLowerCase();
+      if (key === 'healthy') return 'var(--cfx-topology-healthy,#16a34a)';
+      if (key === 'warning') return 'var(--cfx-topology-warning,#f97316)';
+      if (key === 'critical') return 'var(--cfx-topology-critical,#ef4444)';
+      if (key === 'disabled') return 'var(--cfx-topology-disabled,#94a3b8)';
+      return 'var(--cfx-topology-unknown,#64748b)';
+    };
+    const panelRowClass = () => {
+      if (!selectionPanel) return 'cfx-topology-selection-panel__row';
+      const base = (selectionPanel.getAttribute('class') || 'cfx-topology-selection-panel').split(/\s+/)[0] || 'cfx-topology-selection-panel';
+      return base + '__row';
+    };
+    const addSelectionRow = (container, label, value) => {
+      if (!container || value === undefined || value === null || value === '') return;
+      const row = document.createElement('div');
+      row.className = panelRowClass();
+      const left = document.createElement('span');
+      const right = document.createElement('span');
+      left.textContent = label;
+      right.textContent = String(value);
+      row.append(left, right);
+      container.appendChild(row);
+    };
+    const setSelectionFacts = (container, rows) => {
+      if (!container) return;
+      container.replaceChildren();
+      rows.forEach(row => {
+        if (!row || row[1] === undefined || row[1] === null || row[1] === '') return;
+        const dt = document.createElement('dt');
+        const dd = document.createElement('dd');
+        dt.textContent = row[0];
+        dd.textContent = String(row[1]);
+        container.append(dt, dd);
+      });
+    };
+    const renderSelectionPanel = detail => {
+      if (!selectionPanel) return;
+      const title = selectionPanel.querySelector('[data-cfx-selection-title]');
+      const kind = selectionPanel.querySelector('[data-cfx-selection-kind]');
+      const status = selectionPanel.querySelector('[data-cfx-selection-status]');
+      const facts = selectionPanel.querySelector('[data-cfx-selection-facts]');
+      const meta = selectionPanel.querySelector('[data-cfx-selection-meta]');
+      const relatedPanel = selectionPanel.querySelector('[data-cfx-selection-related]');
+      if (!detail) {
+        selectionPanel.hidden = true;
+        selectionPanel.style.removeProperty('--cfx-topology-selection-status-color');
+        if (title) title.textContent = 'No item selected';
+        if (kind) kind.textContent = 'Selection';
+        if (status) status.textContent = '';
+        if (facts) facts.replaceChildren();
+        if (meta) meta.replaceChildren();
+        if (relatedPanel) relatedPanel.replaceChildren();
+        return;
+      }
+
+      selectionPanel.hidden = false;
+      selectionPanel.style.setProperty('--cfx-topology-selection-status-color', statusColor(detail.status));
+      const displayTitle = detail.kind === 'node'
+        ? (detail.metadata && detail.metadata.name) || (detail.element ? attr(detail.element, 'data-node-label') : '') || detail.id
+        : detail.kind === 'edge'
+          ? (detail.element ? attr(detail.element, 'data-edge-label') : '') || detail.id
+          : (detail.element ? attr(detail.element, 'data-group-label') : '') || detail.id;
+      if (title) title.textContent = displayTitle || detail.id || 'Selection';
+      if (kind) kind.textContent = detail.kind === 'node' ? (detail.nodeKind || 'Node') : detail.kind === 'edge' ? (detail.edgeKind || 'Edge') : 'Group';
+      if (status) status.textContent = detail.status || '';
+      setSelectionFacts(facts, [
+        ['ID', detail.id],
+        ['Status', detail.status],
+        ['Group', detail.groupId || detail.sourceGroupId || detail.targetGroupId],
+        ['Related nodes', (detail.related && detail.related.nodeIds || []).length],
+        ['Related edges', (detail.related && detail.related.edgeIds || []).length]
+      ]);
+      if (meta) {
+        meta.replaceChildren();
+        Object.entries(detail.metadata || {}).slice(0, 6).forEach(([key, value]) => addSelectionRow(meta, key, value));
+        Object.entries(detail.metrics || {}).slice(0, 4).forEach(([key, value]) => addSelectionRow(meta, key, value));
+      }
+      if (relatedPanel) {
+        relatedPanel.replaceChildren();
+        (detail.related && detail.related.edges || []).slice(0, 5).forEach(edge => {
+          const label = edge.kind || 'Edge';
+          const value = [edge.sourceNodeId, edge.targetNodeId].filter(Boolean).join(' -> ');
+          addSelectionRow(relatedPanel, label, value || edge.id);
+        });
+      }
+    };
     const clear = () => {
       wrapper.removeAttribute('data-cfx-selection-kind');
       wrapper.removeAttribute('data-cfx-selection-id');
@@ -30,6 +117,7 @@ public sealed partial class TopologyHtmlRenderer
         item.removeAttribute('aria-selected');
       });
       clearForceFocusLabels();
+      renderSelectionPanel(null);
     };
     const clearHover = () => {
       wrapper.removeAttribute('data-cfx-hover-kind');
@@ -231,10 +319,9 @@ public sealed partial class TopologyHtmlRenderer
       delete detail.element;
       wrapper.dispatchEvent(new CustomEvent('cfx-topology-hover', { bubbles: true, detail }));
     };
-    const select = element => {
+    const select = (element, emit = true, sync = true) => {
       const detail = identity(element);
       detail.related = related(detail);
-      delete detail.element;
       clear();
       wrapper.setAttribute('data-cfx-selection-kind', detail.kind);
       wrapper.setAttribute('data-cfx-selection-id', detail.id);
@@ -243,8 +330,10 @@ public sealed partial class TopologyHtmlRenderer
       element.setAttribute('aria-selected', 'true');
       applyRelatedClasses({ ...detail, element }, 'cfx-topology-html-', '');
       applyForceFocusLabels(detail);
-      wrapper.dispatchEvent(new CustomEvent('cfx-topology-select', { bubbles: true, detail }));
-      emitSync('selection', { selection: { kind: detail.kind, id: detail.id, status: detail.status } });
+      renderSelectionPanel({ ...detail, element });
+      delete detail.element;
+      if (emit) wrapper.dispatchEvent(new CustomEvent('cfx-topology-select', { bubbles: true, detail }));
+      if (sync) emitSync('selection', { selection: { kind: detail.kind, id: detail.id, status: detail.status } });
     };
     const forceSearchText = element => [
       attr(element, 'data-node-id'), attr(element, 'data-node-label'), attr(element, 'data-node-kind'), attr(element, 'data-group-id'),
@@ -383,13 +472,19 @@ public sealed partial class TopologyHtmlRenderer
         wrapper.dispatchEvent(new CustomEvent('cfx-topology-hover-clear', { bubbles: true }));
       });
     });
+    const initiallySelected = Array.from(wrapper.querySelectorAll(selectables)).find(element => attr(element, 'data-cfx-selected') === 'true');
+    if (initiallySelected) select(initiallySelected, false, false);
+    else renderSelectionPanel(null);
     if (viewportControls) {
       applyViewport(viewportState());
       wrapper.querySelectorAll('[data-cfx-topology-zoom]').forEach(button => {
-        button.addEventListener('click', () => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333));
+        button.addEventListener('click', event => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333, event));
       });
       wrapper.querySelectorAll('[data-cfx-topology-mode]').forEach(button => {
         button.addEventListener('click', () => setViewportMode(attr(button, 'data-cfx-topology-mode')));
+      });
+      wrapper.querySelectorAll('[data-cfx-topology-fit]').forEach(button => {
+        button.addEventListener('click', () => fitViewport());
       });
       wrapper.querySelectorAll('[data-cfx-topology-reset]').forEach(button => {
         button.addEventListener('click', () => resetViewport());
@@ -398,13 +493,15 @@ public sealed partial class TopologyHtmlRenderer
       let suppressClick = false;
       viewport.addEventListener('wheel', event => {
         event.preventDefault();
-        zoomBy(event.deltaY < 0 ? 1.08 : 0.92);
+        zoomBy(event.deltaY < 0 ? 1.08 : 0.92, event);
       }, { passive: false });
       viewport.addEventListener('pointerdown', event => {
-        if (event.button !== 0 || wrapper.getAttribute('data-cfx-topology-mode') !== 'pan') return;
+        if (event.button !== 0) return;
+        if (event.target instanceof Element && event.target.closest('.cfx-topology-controls,.cfx-topology-scenarios,.cfx-topology-scenario-panel,.cfx-topology-force-controls')) return;
         const state = viewportState();
         drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, moved: false };
-        viewport.setPointerCapture(event.pointerId);
+        wrapper.setAttribute('data-cfx-topology-dragging', 'true');
+        try { if (viewport.setPointerCapture) viewport.setPointerCapture(event.pointerId); } catch { }
       });
       viewport.addEventListener('pointermove', event => {
         if (!drag || drag.id !== event.pointerId) return;
@@ -419,14 +516,18 @@ public sealed partial class TopologyHtmlRenderer
       });
       viewport.addEventListener('pointerup', event => {
         if (!drag || drag.id !== event.pointerId) return;
-        viewport.releasePointerCapture(event.pointerId);
+        try { if (viewport.releasePointerCapture) viewport.releasePointerCapture(event.pointerId); } catch { }
         if (drag.moved) emitViewport();
         wrapper.removeAttribute('data-cfx-force-moving-edges');
+        wrapper.removeAttribute('data-cfx-topology-dragging');
         wrapper.querySelectorAll('.cfx-topology-html-force-moving').forEach(edge => edge.classList.remove('cfx-topology-html-force-moving'));
         drag = null;
       });
       viewport.addEventListener('pointercancel', event => {
-        if (drag && drag.id === event.pointerId) drag = null;
+        if (drag && drag.id === event.pointerId) {
+          wrapper.removeAttribute('data-cfx-topology-dragging');
+          drag = null;
+        }
       });
       wrapper.addEventListener('cfx-topology-set-viewport', event => {
         applyViewport(event.detail || {});
@@ -434,6 +535,7 @@ public sealed partial class TopologyHtmlRenderer
       });
       wrapper.addEventListener('cfx-topology-reset-viewport', () => resetViewport());
       wrapper.addEventListener('click', event => {
+        if (event.target instanceof Element && event.target.closest('.cfx-topology-controls,.cfx-topology-scenarios,.cfx-topology-scenario-panel,.cfx-topology-force-controls')) return;
         if (!suppressClick) return;
         suppressClick = false;
         event.preventDefault();
@@ -447,6 +549,13 @@ public sealed partial class TopologyHtmlRenderer
           else exportSvg();
         });
       });
+    }
+    if (fullscreenControl) {
+      wrapper.querySelectorAll('[data-cfx-topology-fullscreen]').forEach(button => {
+        button.addEventListener('click', () => toggleFullscreen());
+      });
+      document.addEventListener('fullscreenchange', setFullscreenState);
+      setFullscreenState();
     }
     if (forceGraphControls && forceGraphPanel) {
       forceGraphPanel.querySelectorAll('input,select').forEach(control => {
@@ -463,15 +572,27 @@ public sealed partial class TopologyHtmlRenderer
       applyForceGraphFilters();
     }
     if (scenarioControls) {
-      wrapper.querySelectorAll('[data-cfx-topology-scenario]').forEach(button => {
-        const scenarioId = attr(button, 'data-cfx-topology-scenario');
-        button.addEventListener('click', () => setScenario(scenarioId));
-        button.addEventListener('pointerenter', () => previewScenario(scenarioId));
-        button.addEventListener('pointerleave', clearScenarioPreview);
-        button.addEventListener('focus', () => previewScenario(scenarioId));
-        button.addEventListener('blur', clearScenarioPreview);
-      });
+      if (scenarioControlMode === 'checkboxes') {
+        wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]').forEach(input => {
+          const scenarioId = attr(input, 'data-cfx-topology-scenario-toggle');
+          input.addEventListener('change', () => setScenarioFilters(Array.from(wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]:checked')).map(item => attr(item, 'data-cfx-topology-scenario-toggle'))));
+          input.addEventListener('pointerenter', () => previewScenario(scenarioId));
+          input.addEventListener('pointerleave', clearScenarioPreview);
+          input.addEventListener('focus', () => previewScenario(scenarioId));
+          input.addEventListener('blur', clearScenarioPreview);
+        });
+      } else {
+        wrapper.querySelectorAll('[data-cfx-topology-scenario]').forEach(button => {
+          const scenarioId = attr(button, 'data-cfx-topology-scenario');
+          button.addEventListener('click', () => setScenario(scenarioId));
+          button.addEventListener('pointerenter', () => previewScenario(scenarioId));
+          button.addEventListener('pointerleave', clearScenarioPreview);
+          button.addEventListener('focus', () => previewScenario(scenarioId));
+          button.addEventListener('blur', clearScenarioPreview);
+        });
+      }
       wrapper.addEventListener('cfx-topology-set-scenario', event => setScenario((event.detail || {}).scenarioId || ''));
+      wrapper.addEventListener('cfx-topology-set-scenario-filters', event => setScenarioFilters((event.detail || {}).scenarioIds || []));
       wrapper.addEventListener('cfx-topology-clear-scenario', () => setScenario(''));
       wrapper.addEventListener('cfx-topology-set-scenario-step', event => setScenarioStep((event.detail || {}).index, false));
       wrapper.querySelectorAll('[data-cfx-scenario-step-control]').forEach(button => {
@@ -492,8 +613,9 @@ public sealed partial class TopologyHtmlRenderer
       }
       const initialScenario = scenarioUrlParam('scenario') || attr(wrapper, 'data-cfx-active-scenario');
       const initialScenarioStep = scenarioUrlParam('scenarioStep');
-      setScenario(initialScenario, false, false);
-      if (initialScenarioStep) setScenarioStep(initialScenarioStep, false, false, false);
+      if (scenarioControlMode === 'checkboxes') setScenarioFilters(initialScenario ? [initialScenario] : Array.from(wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]:checked')).map(item => attr(item, 'data-cfx-topology-scenario-toggle')), false, false);
+      else setScenario(initialScenario, false, false);
+      if (initialScenarioStep && scenarioControlMode !== 'checkboxes') setScenarioStep(initialScenarioStep, false, false, false);
     }
     wrapper.addEventListener('click', event => {
       const element = event.target instanceof Element ? event.target.closest(selectables) : null;
@@ -545,6 +667,8 @@ public sealed partial class TopologyHtmlRenderer
           wrapper.dispatchEvent(new CustomEvent('cfx-topology-viewport', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), state: viewportState(), sourceChartId: detail.chartId } }));
         } else if (detail.action === 'scenario') {
           setScenario(detail.scenarioId || '');
+        } else if (detail.action === 'scenario-filters') {
+          setScenarioFilters(detail.scenarioIds || []);
         } else if (detail.action === 'scenario-step') {
           if (detail.scenarioId && attr(wrapper, 'data-cfx-active-scenario') !== detail.scenarioId) setScenario(detail.scenarioId);
           setScenarioStep(detail.index, false);

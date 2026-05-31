@@ -7,6 +7,11 @@ public sealed partial class TopologyHtmlRenderer
         return (InteractionScriptPart1() + "\n" + InteractionScriptPart2())
             .Replace(".cfx-topology-wrapper", "." + cssPrefix + "-wrapper")
             .Replace(".cfx-topology-viewport", "." + cssPrefix + "-viewport")
+            .Replace(".cfx-topology-controls", "." + cssPrefix + "-controls")
+            .Replace(".cfx-topology-scenarios", "." + cssPrefix + "-scenarios")
+            .Replace(".cfx-topology-scenario-panel", "." + cssPrefix + "-scenario-panel")
+            .Replace(".cfx-topology-selection-panel", "." + cssPrefix + "-selection-panel")
+            .Replace(".cfx-topology-force-controls", "." + cssPrefix + "-force-controls")
             .Replace("cfx-topology-html-", cssPrefix + "-html-");
     }
 }

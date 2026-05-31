@@ -69,6 +69,25 @@ public sealed class TopologyTheme {
     };
 
     /// <summary>
+    /// Creates a topology theme backed by CSS variables for dynamic light/dark hosts.
+    /// </summary>
+    /// <returns>A topology theme that resolves colors from <c>--cfx-topology-*</c> variables.</returns>
+    public static TopologyTheme CssVariables() => new() {
+        Background = "var(--cfx-topology-background,#FFFFFF)",
+        Foreground = "var(--cfx-topology-foreground,#0F172A)",
+        MutedForeground = "var(--cfx-topology-muted,#475569)",
+        Card = "var(--cfx-topology-card,#FFFFFF)",
+        Surface = "var(--cfx-topology-surface,#F8FAFC)",
+        Border = "var(--cfx-topology-border,#CBD5E1)",
+        Accent = "var(--cfx-topology-accent,#2563EB)",
+        Healthy = "var(--cfx-topology-healthy,#16A34A)",
+        Warning = "var(--cfx-topology-warning,#F97316)",
+        Critical = "var(--cfx-topology-critical,#EF4444)",
+        Unknown = "var(--cfx-topology-unknown,#64748B)",
+        Disabled = "var(--cfx-topology-disabled,#94A3B8)"
+    };
+
+    /// <summary>
     /// Resolves a status color.
     /// </summary>
     /// <param name="status">The health status.</param>
