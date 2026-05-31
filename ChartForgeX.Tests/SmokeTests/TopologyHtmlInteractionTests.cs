@@ -75,6 +75,7 @@ internal static partial class SmokeTests {
         Assert(html.Contains("cfx-topology-scenario", StringComparison.Ordinal), "Interactive topology HTML should dispatch host-friendly scenario events.");
         Assert(html.Contains("cfx-topology-set-scenario", StringComparison.Ordinal), "Interactive topology HTML should allow hosts to activate scenarios.");
         Assert(html.Contains("cfx-topology-clear-scenario", StringComparison.Ordinal), "Interactive topology HTML should allow hosts to clear active scenarios.");
+        Assert(html.Contains("wrapper.removeAttribute('data-cfx-active-scenarios')", StringComparison.Ordinal), "Clearing an active scenario should also clear stale multi-route checkbox state.");
         Assert(html.Contains("const initialScenarioStep = scenarioUrlParam('scenarioStep')", StringComparison.Ordinal), "Interactive topology HTML should read the initial legacy route step before normalizing query parameters.");
         Assert(html.Contains("setScenario(initialScenario, false, false)", StringComparison.Ordinal) && html.Contains("setScenarioStep(initialScenarioStep, false, false, false)", StringComparison.Ordinal), "Interactive topology HTML should restore initial scenario state without emitting startup sync or host events.");
         Assert(html.Contains("if (!scenarioId) return null", StringComparison.Ordinal), "Scenario step controls should disable when All routes are visible.");
@@ -121,6 +122,7 @@ internal static partial class SmokeTests {
         Assert(checkboxHtml.Contains("const toggleFullscreen = () =>", StringComparison.Ordinal), "Fullscreen controls should be handled by the topology runtime.");
         Assert(checkboxHtml.Contains("fullscreenchange", StringComparison.Ordinal) && checkboxHtml.Contains("emitFullscreenState", StringComparison.Ordinal), "Fullscreen state events should be emitted after browser fullscreen state changes.");
         Assert(checkboxHtml.Contains("scenarioIdTokens(initialScenario)", StringComparison.Ordinal), "Checkbox scenario mode should restore multi-route filters from URL state.");
+        Assert(checkboxHtml.Contains("initialScenarioStep && (scenarioControlMode !== 'checkboxes' || attr(wrapper, 'data-cfx-active-scenario'))", StringComparison.Ordinal), "Checkbox scenario mode should restore route step deep links only when the URL names one active route.");
         Assert(checkboxHtml.Contains("syncScenarioUrl(routes.map(route => route.scenarioId).join(','), '')", StringComparison.Ordinal), "Checkbox scenario mode should serialize route filters into URL state when enabled.");
     }
 
@@ -188,6 +190,7 @@ internal static partial class SmokeTests {
         Assert(viewportHtml.Contains("data-cfx-topology-fit=\"true\"", StringComparison.Ordinal), "Topology viewport controls should include fit-to-view.");
         Assert(viewportHtml.Contains("data-cfx-topology-dragging", StringComparison.Ordinal), "Topology viewport controls should track direct drag panning state.");
         Assert(viewportHtml.Contains("const zoomBy = (factor, origin) =>", StringComparison.Ordinal), "Topology viewport controls should zoom around the pointer or active control.");
+        Assert(viewportHtml.Contains("button.addEventListener('click', () => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333))", StringComparison.Ordinal), "Topology zoom buttons should zoom around the viewport center instead of the overlaid toolbar button.");
         Assert(viewportHtml.Contains("const topologySvg = () =>", StringComparison.Ordinal) && viewportHtml.Contains("[data-cfx-role=\"topology\"]", StringComparison.Ordinal), "Topology viewport controls should target the real topology SVG instead of toolbar icon SVGs.");
         Assert(viewportHtml.Contains("cfx-topology-set-viewport", StringComparison.Ordinal), "Topology viewport controls should allow hosts to drive viewport state.");
         Assert(viewportHtml.Contains("cfx-topology-reset-viewport", StringComparison.Ordinal), "Topology viewport controls should allow hosts to reset viewport state.");

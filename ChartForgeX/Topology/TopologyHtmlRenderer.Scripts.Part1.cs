@@ -363,6 +363,7 @@ public sealed partial class TopologyHtmlRenderer
       clearScenarioStep();
       clearScenarioPreview();
       wrapper.removeAttribute('data-cfx-active-scenario');
+      wrapper.removeAttribute('data-cfx-active-scenarios');
       wrapper.style.removeProperty('--cfx-topology-active-scenario-color');
       wrapper.querySelectorAll('.cfx-topology-html-scenario-active,.cfx-topology-html-scenario-muted').forEach(item => {
         item.classList.remove('cfx-topology-html-scenario-active', 'cfx-topology-html-scenario-muted');

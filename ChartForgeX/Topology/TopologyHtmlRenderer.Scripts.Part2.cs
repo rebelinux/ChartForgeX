@@ -478,7 +478,7 @@ public sealed partial class TopologyHtmlRenderer
     if (viewportControls) {
       applyViewport(viewportState());
       wrapper.querySelectorAll('[data-cfx-topology-zoom]').forEach(button => {
-        button.addEventListener('click', event => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333, event));
+        button.addEventListener('click', () => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333));
       });
       wrapper.querySelectorAll('[data-cfx-topology-mode]').forEach(button => {
         button.addEventListener('click', () => setViewportMode(attr(button, 'data-cfx-topology-mode')));
@@ -617,7 +617,7 @@ public sealed partial class TopologyHtmlRenderer
       const initialScenarioStep = scenarioUrlParam('scenarioStep');
       if (scenarioControlMode === 'checkboxes') setScenarioFilters(initialScenario ? scenarioIdTokens(initialScenario) : Array.from(wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]:checked')).map(item => attr(item, 'data-cfx-topology-scenario-toggle')), false, false);
       else setScenario(initialScenario, false, false);
-      if (initialScenarioStep && scenarioControlMode !== 'checkboxes') setScenarioStep(initialScenarioStep, false, false, false);
+      if (initialScenarioStep && (scenarioControlMode !== 'checkboxes' || attr(wrapper, 'data-cfx-active-scenario'))) setScenarioStep(initialScenarioStep, false, false, false);
     }
     wrapper.addEventListener('click', event => {
       const element = event.target instanceof Element ? event.target.closest(selectables) : null;
