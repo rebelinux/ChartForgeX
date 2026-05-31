@@ -491,13 +491,15 @@ public sealed partial class TopologyHtmlRenderer
       });
       let drag = null;
       let suppressClick = false;
+      const isViewportChrome = target => target instanceof Element && target.closest('.cfx-topology-controls,.cfx-topology-scenarios,.cfx-topology-scenario-panel,.cfx-topology-selection-panel,.cfx-topology-force-controls');
       viewport.addEventListener('wheel', event => {
+        if (isViewportChrome(event.target)) return;
         event.preventDefault();
         zoomBy(event.deltaY < 0 ? 1.08 : 0.92, event);
       }, { passive: false });
       viewport.addEventListener('pointerdown', event => {
         if (event.button !== 0) return;
-        if (event.target instanceof Element && event.target.closest('.cfx-topology-controls,.cfx-topology-scenarios,.cfx-topology-scenario-panel,.cfx-topology-force-controls')) return;
+        if (isViewportChrome(event.target)) return;
         const state = viewportState();
         drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, moved: false };
         wrapper.setAttribute('data-cfx-topology-dragging', 'true');
@@ -535,7 +537,7 @@ public sealed partial class TopologyHtmlRenderer
       });
       wrapper.addEventListener('cfx-topology-reset-viewport', () => resetViewport());
       wrapper.addEventListener('click', event => {
-        if (event.target instanceof Element && event.target.closest('.cfx-topology-controls,.cfx-topology-scenarios,.cfx-topology-scenario-panel,.cfx-topology-force-controls')) return;
+        if (isViewportChrome(event.target)) return;
         if (!suppressClick) return;
         suppressClick = false;
         event.preventDefault();
@@ -613,7 +615,7 @@ public sealed partial class TopologyHtmlRenderer
       }
       const initialScenario = scenarioUrlParam('scenario') || attr(wrapper, 'data-cfx-active-scenario');
       const initialScenarioStep = scenarioUrlParam('scenarioStep');
-      if (scenarioControlMode === 'checkboxes') setScenarioFilters(initialScenario ? [initialScenario] : Array.from(wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]:checked')).map(item => attr(item, 'data-cfx-topology-scenario-toggle')), false, false);
+      if (scenarioControlMode === 'checkboxes') setScenarioFilters(initialScenario ? scenarioIdTokens(initialScenario) : Array.from(wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]:checked')).map(item => attr(item, 'data-cfx-topology-scenario-toggle')), false, false);
       else setScenario(initialScenario, false, false);
       if (initialScenarioStep && scenarioControlMode !== 'checkboxes') setScenarioStep(initialScenarioStep, false, false, false);
     }

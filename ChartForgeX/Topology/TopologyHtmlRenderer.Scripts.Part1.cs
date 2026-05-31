@@ -49,6 +49,7 @@ public sealed partial class TopologyHtmlRenderer
       return values;
     };
     const unique = values => Array.from(new Set(values.filter(value => value)));
+    const scenarioIdTokens = value => unique(String(value || '').split(/[,\s]+/).map(item => item.trim()));
     const scenarioIds = element => (attr(element, 'data-scenario-ids') || '').split(/\s+/).filter(value => value);
     const scenarioStepIndices = (element, scenarioId) => (attr(element, 'data-scenario-step-indices') || '').split(/\s+/).filter(value => value.startsWith(scenarioId + ':')).flatMap(value => value.slice(scenarioId.length + 1).split(',').filter(index => index));
     const findScenarioButton = scenarioId => Array.from(wrapper.querySelectorAll('[data-cfx-topology-scenario],[data-cfx-topology-scenario-toggle]')).find(button => (attr(button, 'data-cfx-topology-scenario') || attr(button, 'data-cfx-topology-scenario-toggle')) === scenarioId) || null;
@@ -254,12 +255,12 @@ public sealed partial class TopologyHtmlRenderer
       }, 900);
       setScenarioStep(index++, true);
     };
-    const copyScenarioLink = () => { syncScenarioUrl(attr(wrapper, 'data-cfx-active-scenario'), wrapper.getAttribute('data-cfx-active-scenario-step') || ''); const url = window.location.href; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(() => {}); wrapper.dispatchEvent(new CustomEvent('cfx-topology-scenario-link', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), url } })); };
-    const setFullscreenState = () => wrapper.setAttribute('data-cfx-topology-fullscreen', document.fullscreenElement === wrapper ? 'true' : 'false');
+    const copyScenarioLink = () => { syncScenarioUrl(attr(wrapper, 'data-cfx-active-scenario') || attr(wrapper, 'data-cfx-active-scenarios'), wrapper.getAttribute('data-cfx-active-scenario-step') || ''); const url = window.location.href; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(() => {}); wrapper.dispatchEvent(new CustomEvent('cfx-topology-scenario-link', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), url } })); };
+    const emitFullscreenState = () => wrapper.dispatchEvent(new CustomEvent('cfx-topology-fullscreen', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), fullscreen: document.fullscreenElement === wrapper } }));
+    const setFullscreenState = () => { wrapper.setAttribute('data-cfx-topology-fullscreen', document.fullscreenElement === wrapper ? 'true' : 'false'); emitFullscreenState(); };
     const toggleFullscreen = () => {
-      if (!document.fullscreenElement && wrapper.requestFullscreen) wrapper.requestFullscreen().then(setFullscreenState).catch(() => {});
-      else if (document.fullscreenElement === wrapper && document.exitFullscreen) document.exitFullscreen().then(setFullscreenState).catch(() => {});
-      wrapper.dispatchEvent(new CustomEvent('cfx-topology-fullscreen', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), fullscreen: document.fullscreenElement === wrapper } }));
+      if (!document.fullscreenElement && wrapper.requestFullscreen) wrapper.requestFullscreen().catch(() => {});
+      else if (document.fullscreenElement === wrapper && document.exitFullscreen) document.exitFullscreen().catch(() => {});
     };
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const numberAttr = (name, fallback) => {
@@ -398,16 +399,26 @@ public sealed partial class TopologyHtmlRenderer
         route.groupIds.forEach(id => groupIds.add(id));
       });
       wrapper.setAttribute('data-cfx-active-scenarios', routes.map(route => route.scenarioId).join(' '));
+      if (routes.length === 1) {
+        wrapper.setAttribute('data-cfx-active-scenario', routes[0].scenarioId);
+        if (routes[0].color) wrapper.style.setProperty('--cfx-topology-active-scenario-color', routes[0].color);
+        else wrapper.style.removeProperty('--cfx-topology-active-scenario-color');
+      } else {
+        wrapper.removeAttribute('data-cfx-active-scenario');
+        wrapper.style.removeProperty('--cfx-topology-active-scenario-color');
+      }
       wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]').forEach(input => input.checked = routes.some(route => route.scenarioId === attr(input, 'data-cfx-topology-scenario-toggle')));
       wrapper.querySelectorAll('[data-cfx-role="topology-edge"]').forEach(edge => {
         const active = edgeIds.has(attr(edge, 'data-edge-id'));
         edge.classList.toggle('cfx-topology-html-scenario-active', active);
         edge.classList.toggle('cfx-topology-html-scenario-muted', !active);
+        if (active && routes.length === 1) edge.setAttribute('data-cfx-active-scenario-step-indices', scenarioStepIndices(edge, routes[0].scenarioId).join(' '));
       });
       wrapper.querySelectorAll('[data-cfx-role="topology-node"]').forEach(node => {
         const active = nodeIds.has(attr(node, 'data-node-id'));
         node.classList.toggle('cfx-topology-html-scenario-active', active);
         node.classList.toggle('cfx-topology-html-scenario-muted', !active);
+        if (active && routes.length === 1) node.setAttribute('data-cfx-active-scenario-step-indices', scenarioStepIndices(node, routes[0].scenarioId).join(' '));
       });
       wrapper.querySelectorAll('[data-cfx-role="topology-edge-label"]').forEach(label => {
         const active = edgeIds.has(attr(label, 'data-edge-id'));
@@ -425,6 +436,8 @@ public sealed partial class TopologyHtmlRenderer
         group.classList.toggle('cfx-topology-html-scenario-muted', !active);
       });
       renderScenarioPanel(routes.length === 1 ? routes[0] : { ...routes[0], label: routes.length + ' routes enabled', description: routes.map(route => route.label).join(' / '), stepCount: routes.reduce((sum, route) => sum + route.stepCount, 0), steps: routes.flatMap(route => route.steps), metadata: {} });
+      updateScenarioStepControls(false);
+      syncScenarioUrl(routes.map(route => route.scenarioId).join(','), '');
       if (emit) wrapper.dispatchEvent(new CustomEvent('cfx-topology-scenario-filter', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), scenarioIds: routes.map(route => route.scenarioId), routes: routes.map(route => ({ scenarioId: route.scenarioId, label: route.label, description: route.description, color: route.color, stepCount: route.stepCount })), nodeIds: Array.from(nodeIds), edgeIds: Array.from(edgeIds), groupIds: Array.from(groupIds) } }));
       if (sync) emitSync('scenario-filters', { scenarioIds: routes.map(route => route.scenarioId) });
     };

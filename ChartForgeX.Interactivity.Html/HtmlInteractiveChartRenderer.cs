@@ -59,7 +59,7 @@ public sealed class HtmlInteractiveChartRenderer {
         var writer = new HtmlMarkupWriter();
         writer.StartElement("style")
             .Attribute("data-cfx-interactive-assets", "true")
-            .RawTrusted(HtmlInteractiveAssets.Style)
+            .RawTrusted(InteractiveFragmentStyle)
             .EndElement()
             .Line()
             .RawTrusted(BuildChartSection(chart, options, title))
@@ -72,6 +72,11 @@ public sealed class HtmlInteractiveChartRenderer {
     }
 
     internal static string InteractiveStyle => HtmlInteractiveAssets.Style;
+
+    internal static string InteractiveFragmentStyle => HtmlInteractiveAssets.Style
+        .Replace(":root {", ".cfx-interactive-chart {")
+        .Replace("\n* {", "\n.cfx-interactive-chart, .cfx-interactive-chart * {")
+        .Replace("\nbody {", "\n.cfx-interactive-chart {");
 
     internal static string InteractiveScript => HtmlInteractiveAssets.Script;
 

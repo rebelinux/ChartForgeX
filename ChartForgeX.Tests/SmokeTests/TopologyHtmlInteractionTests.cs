@@ -119,6 +119,9 @@ internal static partial class SmokeTests {
         Assert(checkboxHtml.Contains("cfx-topology-scenario-filter", StringComparison.Ordinal), "Checkbox scenario mode should dispatch host-friendly route-filter events.");
         Assert(checkboxHtml.Contains("cfx-topology-set-scenario-filters", StringComparison.Ordinal), "Checkbox scenario mode should allow hosts to drive route filters.");
         Assert(checkboxHtml.Contains("const toggleFullscreen = () =>", StringComparison.Ordinal), "Fullscreen controls should be handled by the topology runtime.");
+        Assert(checkboxHtml.Contains("fullscreenchange", StringComparison.Ordinal) && checkboxHtml.Contains("emitFullscreenState", StringComparison.Ordinal), "Fullscreen state events should be emitted after browser fullscreen state changes.");
+        Assert(checkboxHtml.Contains("scenarioIdTokens(initialScenario)", StringComparison.Ordinal), "Checkbox scenario mode should restore multi-route filters from URL state.");
+        Assert(checkboxHtml.Contains("syncScenarioUrl(routes.map(route => route.scenarioId).join(','), '')", StringComparison.Ordinal), "Checkbox scenario mode should serialize route filters into URL state when enabled.");
     }
 
     private static void TopologyHtmlPagesExposeSelectionInteractions() {
@@ -176,6 +179,7 @@ internal static partial class SmokeTests {
         Assert(selectionPanelHtml.Contains("const renderSelectionPanel = detail =>", StringComparison.Ordinal), "Selection interactions should update built-in detail panels from the same host event detail.");
         Assert(selectionPanelHtml.Contains("select(initiallySelected, false, false)", StringComparison.Ordinal), "Selection panels should hydrate server-selected elements without emitting startup events.");
         Assert(selectionPanelHtml.Contains("cfx-topology-selection-panel__row", StringComparison.Ordinal), "Selection panels should include compact fact rows for metadata, metrics, and related edges.");
+        Assert(selectionPanelHtml.Contains(".cfx-topology-selection-panel,.cfx-topology-force-controls", StringComparison.Ordinal), "Viewport gestures should ignore selection panel interactions.");
 
         var viewportHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { IncludeLegend = false, EnableHtmlInteractions = true, EnableHtmlViewportControls = true });
         Assert(viewportHtml.Contains("data-cfx-viewport-controls=\"true\"", StringComparison.Ordinal), "Topology HTML pages should expose opt-in viewport controls.");
