@@ -119,6 +119,7 @@ internal static partial class SmokeTests {
         Assert(checkboxHtml.Contains("const setScenarioFilters = (scenarioIds, emit = true, sync = true) =>", StringComparison.Ordinal), "Checkbox scenario mode should support enabling multiple route filters.");
         Assert(checkboxHtml.Contains("cfx-topology-scenario-filter", StringComparison.Ordinal), "Checkbox scenario mode should dispatch host-friendly route-filter events.");
         Assert(checkboxHtml.Contains("cfx-topology-set-scenario-filters", StringComparison.Ordinal), "Checkbox scenario mode should allow hosts to drive route filters.");
+        Assert(checkboxHtml.Contains("input.checked = attr(input, 'data-cfx-topology-scenario-toggle') === scenarioId", StringComparison.Ordinal), "Singular scenario updates should keep checkbox route controls visually synchronized.");
         Assert(checkboxHtml.Contains("const toggleFullscreen = () =>", StringComparison.Ordinal), "Fullscreen controls should be handled by the topology runtime.");
         Assert(checkboxHtml.Contains("fullscreenchange", StringComparison.Ordinal) && checkboxHtml.Contains("emitFullscreenState", StringComparison.Ordinal), "Fullscreen state events should be emitted after browser fullscreen state changes.");
         Assert(checkboxHtml.Contains("scenarioIdTokens(initialScenario)", StringComparison.Ordinal), "Checkbox scenario mode should restore multi-route filters from URL state.");
@@ -179,9 +180,12 @@ internal static partial class SmokeTests {
         Assert(selectionPanelHtml.Contains("data-cfx-topology-selection-panel=\"true\"", StringComparison.Ordinal), "Selection panels should render a host-independent detail surface.");
         Assert(selectionPanelHtml.Contains("data-cfx-selection-title=\"true\"", StringComparison.Ordinal), "Selection panels should expose a title target for runtime updates.");
         Assert(selectionPanelHtml.Contains("const renderSelectionPanel = detail =>", StringComparison.Ordinal), "Selection interactions should update built-in detail panels from the same host event detail.");
-        Assert(selectionPanelHtml.Contains("select(initiallySelected, false, false)", StringComparison.Ordinal), "Selection panels should hydrate server-selected elements without emitting startup events.");
+        Assert(selectionPanelHtml.Contains("hydrateSelected(initiallySelected)", StringComparison.Ordinal), "Selection panels should hydrate server-selected elements without emitting startup events or dimming unrelated topology elements.");
         Assert(selectionPanelHtml.Contains("cfx-topology-selection-panel__row", StringComparison.Ordinal), "Selection panels should include compact fact rows for metadata, metrics, and related edges.");
         Assert(selectionPanelHtml.Contains(".cfx-topology-selection-panel,.cfx-topology-force-controls", StringComparison.Ordinal), "Viewport gestures should ignore selection panel interactions.");
+        var helperSelectionPanelHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions().WithHtmlSelectionPanel());
+        Assert(helperSelectionPanelHtml.Contains("data-cfx-interactive=\"true\"", StringComparison.Ordinal), "Selection panel fluent helper should enable topology HTML interactions.");
+        Assert(helperSelectionPanelHtml.Contains("data-cfx-topology-selection-panel=\"true\"", StringComparison.Ordinal), "Selection panel fluent helper should render the panel without requiring a separate interactions toggle.");
 
         var viewportHtml = CreateSampleTopologyChart().ToHtmlPage(new TopologyRenderOptions { IncludeLegend = false, EnableHtmlInteractions = true, EnableHtmlViewportControls = true });
         Assert(viewportHtml.Contains("data-cfx-viewport-controls=\"true\"", StringComparison.Ordinal), "Topology HTML pages should expose opt-in viewport controls.");
@@ -189,6 +193,7 @@ internal static partial class SmokeTests {
         Assert(viewportHtml.Contains("data-cfx-topology-zoom=\"in\"", StringComparison.Ordinal) && viewportHtml.Contains("data-cfx-topology-zoom=\"out\"", StringComparison.Ordinal), "Topology viewport controls should include zoom actions.");
         Assert(viewportHtml.Contains("data-cfx-topology-fit=\"true\"", StringComparison.Ordinal), "Topology viewport controls should include fit-to-view.");
         Assert(viewportHtml.Contains("data-cfx-topology-dragging", StringComparison.Ordinal), "Topology viewport controls should track direct drag panning state.");
+        Assert(viewportHtml.Contains(".cfx-topology-wrapper[data-cfx-viewport-controls='true'] .cfx-topology-viewport>svg", StringComparison.Ordinal), "Viewport transforms should target only the embedded topology SVG, not toolbar icon SVGs.");
         Assert(viewportHtml.Contains("const zoomBy = (factor, origin) =>", StringComparison.Ordinal), "Topology viewport controls should zoom around the pointer or active control.");
         Assert(viewportHtml.Contains("button.addEventListener('click', () => zoomBy(attr(button, 'data-cfx-topology-zoom') === 'in' ? 1.2 : 0.8333333333))", StringComparison.Ordinal), "Topology zoom buttons should zoom around the viewport center instead of the overlaid toolbar button.");
         Assert(viewportHtml.Contains("const topologySvg = () =>", StringComparison.Ordinal) && viewportHtml.Contains("[data-cfx-role=\"topology\"]", StringComparison.Ordinal), "Topology viewport controls should target the real topology SVG instead of toolbar icon SVGs.");

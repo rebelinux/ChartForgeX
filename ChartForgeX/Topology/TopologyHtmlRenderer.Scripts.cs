@@ -4,7 +4,7 @@ public sealed partial class TopologyHtmlRenderer
 {
     private static string InteractionScript(string cssPrefix)
     {
-        return (InteractionScriptPart1() + "\n" + InteractionScriptPart2())
+        var script = TopologyHtmlAssets.InteractionScript
             .Replace(".cfx-topology-wrapper", "." + cssPrefix + "-wrapper")
             .Replace(".cfx-topology-viewport", "." + cssPrefix + "-viewport")
             .Replace(".cfx-topology-controls", "." + cssPrefix + "-controls")
@@ -13,5 +13,6 @@ public sealed partial class TopologyHtmlRenderer
             .Replace(".cfx-topology-selection-panel", "." + cssPrefix + "-selection-panel")
             .Replace(".cfx-topology-force-controls", "." + cssPrefix + "-force-controls")
             .Replace("cfx-topology-html-", cssPrefix + "-html-");
+        return "<script>\n" + script + "\n</script>";
     }
 }

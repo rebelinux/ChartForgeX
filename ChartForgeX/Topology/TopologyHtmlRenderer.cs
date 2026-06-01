@@ -285,7 +285,7 @@ public sealed partial class TopologyHtmlRenderer {
             .Append(".cfx-topology-viewport{position:relative}")
             .Append(".cfx-topology-wrapper svg{max-width:100%;height:auto;display:block;overflow:visible}")
             .Append(".cfx-topology-wrapper[data-cfx-viewport-controls='true'] .cfx-topology-viewport{overflow:hidden;touch-action:none}")
-            .Append(".cfx-topology-wrapper[data-cfx-viewport-controls='true'] svg{transform:translate(var(--cfx-topology-pan-x,0),var(--cfx-topology-pan-y,0)) scale(var(--cfx-topology-zoom,1));transform-origin:center center;transition:transform .12s ease;will-change:transform}")
+            .Append(".cfx-topology-wrapper[data-cfx-viewport-controls='true'] .cfx-topology-viewport>svg{transform:translate(var(--cfx-topology-pan-x,0),var(--cfx-topology-pan-y,0)) scale(var(--cfx-topology-zoom,1));transform-origin:center center;transition:transform .12s ease;will-change:transform}")
             .Append(".cfx-topology-controls{position:absolute;z-index:5;top:12px;left:12px;display:grid;gap:6px}")
             .Append(".cfx-topology-wrapper[data-cfx-controls-placement='top-right'] .cfx-topology-controls{left:auto;right:12px}")
             .Append(".cfx-topology-wrapper[data-cfx-controls-placement='bottom-left'] .cfx-topology-controls{top:auto;bottom:12px}")

@@ -368,6 +368,7 @@ public static class TopologyRenderOptionsExtensions {
     public static TopologyRenderOptions WithHtmlSelectionPanel(this TopologyRenderOptions options, bool enabled = true) {
         if (options == null) throw new ArgumentNullException(nameof(options));
         options.EnableHtmlSelectionPanel = enabled;
+        if (enabled) options.EnableHtmlInteractions = true;
         return options;
     }
 
