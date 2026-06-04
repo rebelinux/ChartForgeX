@@ -87,6 +87,7 @@
 .cfx-topology-wrapper .cfx-topology-html-scenario-step-active{opacity:1;filter:drop-shadow(0 10px 18px rgba(15,23,42,.2))}
 .cfx-topology-wrapper .cfx-topology-html-scenario-step-active .cfx-topology__edge{stroke-width:6!important}
 .cfx-topology-wrapper .cfx-topology-html-scenario-step-active .cfx-topology__node-card{stroke-width:3!important}
+.cfx-topology-wrapper .cfx-topology-html-filter-hidden{display:none!important}
 .cfx-topology-wrapper .cfx-topology-html-force-hidden{display:none!important}
 .cfx-topology-wrapper .cfx-topology-html-force-faded{opacity:.12!important}
 .cfx-topology-wrapper[data-cfx-force-focus='true'] .cfx-topology-html-muted,.cfx-topology-wrapper[data-cfx-force-focus='true'] .cfx-topology-html-hover-muted{opacity:.06!important}

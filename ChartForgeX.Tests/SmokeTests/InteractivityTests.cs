@@ -184,6 +184,18 @@ internal static partial class SmokeTests {
         Assert(fragment.Contains("data-cfx-chart-id=\"embedded-security-posture\"", StringComparison.Ordinal), "Interactive fragments should preserve configured chart ids for host synchronization.");
         Assert(fragment.Contains("cfxRuntimeBound", StringComparison.Ordinal), "Interactive fragments should guard chart roots against duplicate event binding when embedded several times.");
         Assert(fragment.Contains("<script>", StringComparison.Ordinal), "Interactive fragments should include the dependency-free runtime script.");
+        var assetlessFragment = SampleChart().ToInteractiveHtmlFragmentWithoutAssets(options => {
+            options.IdScope = "assetless-security-posture";
+            options.Interaction.ChartId = "assetless-security-posture";
+            options.Interaction.Enable(ChartInteractionFeatures.Zoom | ChartInteractionFeatures.Pan);
+        });
+        Assert(assetlessFragment.Contains("class=\"cfx-interactive-chart\"", StringComparison.Ordinal), "Asset-light interactive fragments should still include the reusable chart section.");
+        Assert(assetlessFragment.Contains("data-cfx-chart-id=\"assetless-security-posture\"", StringComparison.Ordinal), "Asset-light interactive fragments should preserve configured chart ids.");
+        Assert(!assetlessFragment.Contains("data-cfx-interactive-assets=\"true\"", StringComparison.Ordinal), "Asset-light interactive fragments should omit inline interactive chart CSS assets.");
+        Assert(!assetlessFragment.Contains("<script>", StringComparison.Ordinal), "Asset-light interactive fragments should omit the inline interactive chart runtime script.");
+        Assert(HtmlInteractiveChartRenderer.BuildFragmentStyle().Contains(".cfx-interactive-chart, .cfx-interactive-chart * {", StringComparison.Ordinal), "Host-registered interactive chart CSS should remain scoped to chart fragments.");
+        Assert(HtmlInteractiveChartRenderer.BuildInteractionScript().Contains("cfxRuntimeBound", StringComparison.Ordinal), "Host-registered interactive chart runtime should keep duplicate binding guards.");
+        Assert(!HtmlInteractiveChartRenderer.BuildInteractionScript().Contains("<script>", StringComparison.Ordinal), "Host-registered interactive chart runtime should return raw JavaScript for library registration.");
 
         var noReset = SampleChart().ToInteractiveHtmlPage(options => {
             options.IncludeResetButton = false;

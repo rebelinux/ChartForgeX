@@ -41,6 +41,21 @@ public static class InteractiveChartExtensions {
     public static string ToInteractiveHtmlFragment(this Chart chart, Action<HtmlChartInteractionOptions>? configure) => new HtmlInteractiveChartRenderer().RenderFragment(chart, configure);
 
     /// <summary>
+    /// Renders a chart to an interactive HTML fragment without stylesheet or script assets.
+    /// </summary>
+    /// <param name="chart">The chart to render.</param>
+    /// <returns>An embeddable interactive HTML fragment that expects the host document to register interactive chart assets.</returns>
+    public static string ToInteractiveHtmlFragmentWithoutAssets(this Chart chart) => new HtmlInteractiveChartRenderer().RenderFragmentWithoutAssets(chart);
+
+    /// <summary>
+    /// Renders a chart to an interactive HTML fragment without stylesheet or script assets.
+    /// </summary>
+    /// <param name="chart">The chart to render.</param>
+    /// <param name="configure">An optional configuration callback for the HTML interaction adapter.</param>
+    /// <returns>An embeddable interactive HTML fragment that expects the host document to register interactive chart assets.</returns>
+    public static string ToInteractiveHtmlFragmentWithoutAssets(this Chart chart, Action<HtmlChartInteractionOptions>? configure) => new HtmlInteractiveChartRenderer().RenderFragmentWithoutAssets(chart, configure);
+
+    /// <summary>
     /// Saves a chart as a self-contained interactive HTML document.
     /// </summary>
     /// <param name="chart">The chart to render.</param>

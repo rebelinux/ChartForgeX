@@ -323,6 +323,7 @@ public static class TopologyRenderOptionsExtensions {
     public static TopologyRenderOptions WithHtmlScenarioControls(this TopologyRenderOptions options, bool enabled = true) {
         if (options == null) throw new ArgumentNullException(nameof(options));
         options.EnableHtmlScenarioControls = enabled;
+        if (enabled) options.EnableHtmlInteractions = true;
         return options;
     }
 
@@ -336,6 +337,8 @@ public static class TopologyRenderOptionsExtensions {
         if (options == null) throw new ArgumentNullException(nameof(options));
         TopologyModelGuards.EnumDefined(mode, nameof(mode));
         options.HtmlScenarioControlMode = mode;
+        options.EnableHtmlInteractions = true;
+        options.EnableHtmlScenarioControls = true;
         return options;
     }
 
@@ -356,6 +359,7 @@ public static class TopologyRenderOptionsExtensions {
     public static TopologyRenderOptions WithHtmlScenarioPanel(this TopologyRenderOptions options, bool enabled = true) {
         if (options == null) throw new ArgumentNullException(nameof(options));
         options.EnableHtmlScenarioPanel = enabled;
+        if (enabled) options.EnableHtmlInteractions = true;
         return options;
     }
 
@@ -407,6 +411,7 @@ public static class TopologyRenderOptionsExtensions {
     public static TopologyRenderOptions WithHtmlScenarioUrlState(this TopologyRenderOptions options, bool enabled = true) {
         if (options == null) throw new ArgumentNullException(nameof(options));
         options.EnableHtmlScenarioUrlState = enabled;
+        if (enabled) options.EnableHtmlInteractions = true;
         return options;
     }
 

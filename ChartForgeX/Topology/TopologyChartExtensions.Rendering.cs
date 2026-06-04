@@ -24,6 +24,14 @@ public static partial class TopologyChartExtensions {
     public static string ToHtmlFragment(this TopologyChart chart, TopologyRenderOptions? options = null) => new TopologyHtmlRenderer().RenderFragment(chart, options);
 
     /// <summary>
+    /// Renders the topology chart to an HTML fragment without renderer-owned stylesheet or script assets.
+    /// </summary>
+    /// <param name="chart">The topology chart.</param>
+    /// <param name="options">Optional render options.</param>
+    /// <returns>An embeddable HTML fragment that expects the host document to register topology HTML assets.</returns>
+    public static string ToHtmlFragmentWithoutAssets(this TopologyChart chart, TopologyRenderOptions? options = null) => new TopologyHtmlRenderer().RenderFragmentWithoutAssets(chart, options);
+
+    /// <summary>
     /// Renders the topology chart to a complete HTML page.
     /// </summary>
     /// <param name="chart">The topology chart.</param>

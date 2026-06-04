@@ -330,6 +330,57 @@
       wrapper.dispatchEvent(new CustomEvent('cfx-topology-fit', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), state: viewportState() } }));
       emitViewport();
     };
+    const isViewportVisible = element => {
+      if (!element || !(element instanceof Element)) return false;
+      if (element.classList.contains('cfx-topology-html-filter-hidden') || element.classList.contains('cfx-topology-html-force-hidden')) return false;
+      if (element.closest('.cfx-topology-html-filter-hidden,.cfx-topology-html-force-hidden')) return false;
+      return true;
+    };
+    const elementBounds = element => {
+      try {
+        if (element && element.getBBox) {
+          const box = element.getBBox();
+          if (box && Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0) return box;
+        }
+      } catch { }
+      return null;
+    };
+    const fitViewportToElements = (elements, emit = true) => {
+      if (!viewportControls) return false;
+      const svg = topologySvg();
+      const viewBox = svg && svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+      if (!svg || !viewBox || viewBox.width <= 0 || viewBox.height <= 0) return false;
+      const boxes = Array.from(elements || []).filter(isViewportVisible).map(elementBounds).filter(box => box);
+      if (!boxes.length) return false;
+      const bounds = boxes.reduce((current, box) => ({
+        x: Math.min(current.x, box.x),
+        y: Math.min(current.y, box.y),
+        right: Math.max(current.right, box.x + box.width),
+        bottom: Math.max(current.bottom, box.y + box.height)
+      }), { x: boxes[0].x, y: boxes[0].y, right: boxes[0].x + boxes[0].width, bottom: boxes[0].y + boxes[0].height });
+      const metrics = viewportMetrics();
+      const unitX = metrics.svgWidth / viewBox.width;
+      const unitY = metrics.svgHeight / viewBox.height;
+      const boundsWidth = Math.max(1, (bounds.right - bounds.x) * unitX);
+      const boundsHeight = Math.max(1, (bounds.bottom - bounds.y) * unitY);
+      const padding = 44;
+      const zoom = clamp(Math.min(metrics.width / (boundsWidth + padding * 2), metrics.availableHeight / (boundsHeight + padding * 2)), 0.5, 3.2);
+      const centerX = (bounds.x + (bounds.right - bounds.x) / 2 - viewBox.x) * unitX;
+      const centerY = (bounds.y + (bounds.bottom - bounds.y) / 2 - viewBox.y) * unitY;
+      const originX = metrics.svgWidth / 2;
+      const originY = metrics.svgHeight / 2;
+      const targetX = metrics.width / 2;
+      const targetY = metrics.availableHeight / 2;
+      const panX = targetX - originX - zoom * (centerX - originX);
+      const panY = targetY - originY - zoom * (centerY - originY);
+      applyViewport({ zoom, panX, panY });
+      if (emit) {
+        wrapper.dispatchEvent(new CustomEvent('cfx-topology-fit', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), state: viewportState(), mode: 'visible', count: boxes.length } }));
+        emitViewport();
+      }
+      return true;
+    };
+    const fitVisibleTopology = (emit = true) => fitViewportToElements(wrapper.querySelectorAll('[data-cfx-role="topology-node"]:not(.cfx-topology-html-filter-hidden):not(.cfx-topology-html-force-hidden)'), emit);
     const markForceGraphMoving = () => {
       if (!forceGraphControls || wrapper.getAttribute('data-cfx-force-hide-moving-edges') !== 'true') return;
       wrapper.setAttribute('data-cfx-force-moving-edges', 'true');
@@ -723,6 +774,7 @@
           ...base,
           kind: 'node',
           id: attr(element, 'data-node-id'),
+          label: attr(element, 'data-node-label'),
           nodeKind: attr(element, 'data-node-kind'),
           groupId: attr(element, 'data-group-id'),
           displayMode: attr(element, 'data-node-display-mode'),
@@ -744,6 +796,7 @@
           ...base,
           kind: 'edge',
           id: attr(element, 'data-edge-id'),
+          label: attr(element, 'data-edge-label'),
           edgeKind: attr(element, 'data-edge-kind'),
           sourceNodeId: attr(element, 'data-source-node-id'),
           targetNodeId: attr(element, 'data-target-node-id'),
@@ -778,6 +831,7 @@
           ...base,
           kind: 'group',
           id: attr(element, 'data-group-id'),
+          label: attr(element, 'data-group-label'),
           symbol: attr(element, 'data-group-symbol'),
           color: attr(element, 'data-group-color'),
           iconId: attr(element, 'data-group-icon-id'),
@@ -925,6 +979,101 @@
       renderSelectionPanel({ ...detail, element });
       delete detail.element;
     };
+    const topologyFilterSearchText = element => [
+      attr(element, 'data-node-id'), attr(element, 'data-node-label'), attr(element, 'data-node-kind'), attr(element, 'data-group-id'),
+      attr(element, 'data-edge-id'), attr(element, 'data-edge-label'), attr(element, 'data-edge-secondary-label'), attr(element, 'data-edge-tertiary-label'), attr(element, 'data-edge-kind'), attr(element, 'data-source-node-id'), attr(element, 'data-target-node-id'),
+      attr(element, 'data-group-label'), attr(element, 'data-group-symbol'), attr(element, 'data-cfx-status'), element.textContent || ''
+    ].join(' ').toLowerCase();
+    const topologyFilterEscape = value => window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, '\\$&');
+    let topologyFilterState = { query: '', status: '', group: '', kind: '', edges: true, labels: true, groups: true };
+    const setTopologyFilterHidden = (selector, predicate) => {
+      wrapper.querySelectorAll(selector).forEach(element => element.classList.toggle('cfx-topology-html-filter-hidden', predicate(element)));
+    };
+    const setTopologyFilterAttributes = detail => {
+      wrapper.setAttribute('data-cfx-filter-query', detail.query || '');
+      wrapper.setAttribute('data-cfx-filter-status', detail.status || '');
+      wrapper.setAttribute('data-cfx-filter-group', detail.group || '');
+      wrapper.setAttribute('data-cfx-filter-kind', detail.kind || '');
+      wrapper.setAttribute('data-cfx-filter-active', detail.active ? 'true' : 'false');
+      wrapper.setAttribute('data-cfx-visible-nodes', String(detail.nodes));
+      wrapper.setAttribute('data-cfx-visible-edges', String(detail.edges));
+    };
+    const applyTopologyFilter = state => {
+      topologyFilterState = Object.assign({}, topologyFilterState, state || {});
+      const query = String(topologyFilterState.query || '').trim().toLowerCase();
+      const status = String(topologyFilterState.status || '').trim();
+      const group = String(topologyFilterState.group || '').trim();
+      const kind = String(topologyFilterState.kind || '').trim();
+      const showEdges = topologyFilterState.edges !== false;
+      const showLabels = topologyFilterState.labels !== false;
+      const showGroups = topologyFilterState.groups !== false;
+      const active = !!(query || status || group || kind || !showEdges || !showLabels || !showGroups);
+      const visibleNodes = new Set();
+      const queryNodes = new Set();
+      const statusNodes = new Set();
+      if (query) {
+        wrapper.querySelectorAll('[data-cfx-role="topology-edge"]').forEach(edge => {
+          if (!topologyFilterSearchText(edge).includes(query)) return;
+          queryNodes.add(attr(edge, 'data-source-node-id'));
+          queryNodes.add(attr(edge, 'data-target-node-id'));
+        });
+        wrapper.querySelectorAll('[data-cfx-role="topology-group"]').forEach(groupElement => {
+          if (!topologyFilterSearchText(groupElement).includes(query)) return;
+          const groupId = attr(groupElement, 'data-group-id');
+          wrapper.querySelectorAll('[data-cfx-role="topology-node"][data-group-id="' + topologyFilterEscape(groupId) + '"]').forEach(node => queryNodes.add(attr(node, 'data-node-id')));
+        });
+      }
+      if (status) {
+        wrapper.querySelectorAll('[data-cfx-role="topology-edge"]').forEach(edge => {
+          if (attr(edge, 'data-cfx-status') !== status) return;
+          statusNodes.add(attr(edge, 'data-source-node-id'));
+          statusNodes.add(attr(edge, 'data-target-node-id'));
+        });
+      }
+      wrapper.querySelectorAll('[data-cfx-role="topology-node"]').forEach(node => {
+        const nodeId = attr(node, 'data-node-id');
+        const groupOk = !group || attr(node, 'data-group-id') === group;
+        const statusOk = !status || attr(node, 'data-cfx-status') === status || statusNodes.has(nodeId);
+        const kindOk = !kind || attr(node, 'data-node-kind') === kind;
+        const queryOk = !query || topologyFilterSearchText(node).includes(query) || queryNodes.has(nodeId);
+        const visible = groupOk && statusOk && kindOk && queryOk;
+        node.classList.toggle('cfx-topology-html-filter-hidden', !visible);
+        wrapper.querySelectorAll('[data-cfx-role="topology-node-status"][data-node-id="' + topologyFilterEscape(nodeId) + '"]').forEach(statusBadge => statusBadge.classList.toggle('cfx-topology-html-filter-hidden', !visible));
+        if (visible) visibleNodes.add(nodeId);
+      });
+      const nodeById = id => wrapper.querySelector('[data-cfx-role="topology-node"][data-node-id="' + topologyFilterEscape(id) + '"]');
+      setTopologyFilterHidden('[data-cfx-role="topology-edge"]', edge => {
+        const sourceId = attr(edge, 'data-source-node-id');
+        const targetId = attr(edge, 'data-target-node-id');
+        const source = nodeById(sourceId);
+        const target = nodeById(targetId);
+        const endpointsVisible = visibleNodes.has(sourceId) && visibleNodes.has(targetId);
+        const edgeQueryOk = !query || topologyFilterSearchText(edge).includes(query) || (source && topologyFilterSearchText(source).includes(query)) || (target && topologyFilterSearchText(target).includes(query));
+        const edgeStatusOk = !status || attr(edge, 'data-cfx-status') === status || (source && attr(source, 'data-cfx-status') === status) || (target && attr(target, 'data-cfx-status') === status);
+        return !showEdges || !endpointsVisible || !edgeQueryOk || !edgeStatusOk;
+      });
+      setTopologyFilterHidden('[data-cfx-role="topology-edge-label"]', label => !showLabels || !showEdges || !wrapper.querySelector('[data-cfx-role="topology-edge"][data-edge-id="' + topologyFilterEscape(attr(label, 'data-edge-id')) + '"]:not(.cfx-topology-html-filter-hidden):not(.cfx-topology-html-force-hidden)'));
+      setTopologyFilterHidden('[data-cfx-role="topology-group"]', groupElement => {
+        const groupId = attr(groupElement, 'data-group-id');
+        const hasVisibleNodes = !!wrapper.querySelector('[data-cfx-role="topology-node"][data-group-id="' + topologyFilterEscape(groupId) + '"]:not(.cfx-topology-html-filter-hidden):not(.cfx-topology-html-force-hidden)');
+        return !showGroups || !hasVisibleNodes || (group && groupId !== group);
+      });
+      const detail = {
+        chartId: attr(wrapper, 'data-chart-id'),
+        nodes: visibleNodes.size,
+        edges: wrapper.querySelectorAll('[data-cfx-role="topology-edge"]:not(.cfx-topology-html-filter-hidden):not(.cfx-topology-html-force-hidden)').length,
+        query: topologyFilterState.query || '',
+        status,
+        group,
+        kind,
+        active
+      };
+      setTopologyFilterAttributes(detail);
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-filter', { bubbles: true, detail }));
+      if (active && visibleNodes.size) fitVisibleTopology(false);
+      restoreForceFocusLabels();
+    };
+    const clearTopologyFilter = () => applyTopologyFilter({ query: '', status: '', group: '', kind: '', edges: true, labels: true, groups: true });
     const forceSearchText = element => [
       attr(element, 'data-node-id'), attr(element, 'data-node-label'), attr(element, 'data-node-kind'), attr(element, 'data-group-id'),
       attr(element, 'data-edge-id'), attr(element, 'data-edge-label'), attr(element, 'data-edge-secondary-label'), attr(element, 'data-edge-tertiary-label'), attr(element, 'data-edge-kind'), attr(element, 'data-source-node-id'), attr(element, 'data-target-node-id'),
@@ -1005,7 +1154,10 @@
       const edgeCount = wrapper.querySelectorAll('[data-cfx-role="topology-edge"]:not(.cfx-topology-html-force-hidden)').length;
       const summary = forceGraphPanel.querySelector('[data-cfx-force-summary]');
       if (summary) summary.textContent = nodeCount + ' nodes / ' + edgeCount + ' edges visible';
-      wrapper.dispatchEvent(new CustomEvent('cfx-topology-force-filter', { bubbles: true, detail: { chartId: attr(wrapper, 'data-chart-id'), nodes: nodeCount, edges: edgeCount, query: state.query, status: state.status, group: state.group } }));
+      const detail = { chartId: attr(wrapper, 'data-chart-id'), nodes: nodeCount, edges: edgeCount, query: state.query, status: state.status, group: state.group, kind: '', active: !!(state.query || state.status || state.group || !state.edges || !state.labels || !state.groups) };
+      setTopologyFilterAttributes(detail);
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-filter', { bubbles: true, detail }));
+      wrapper.dispatchEvent(new CustomEvent('cfx-topology-force-filter', { bubbles: true, detail }));
       restoreForceFocusLabels();
     };
     const clearForceFocusLabels = () => {
@@ -1126,6 +1278,18 @@
         emitViewport();
       });
       wrapper.addEventListener('cfx-topology-reset-viewport', () => resetViewport());
+      wrapper.addEventListener('cfx-topology-fit-visible', event => {
+        const detail = event.detail || {};
+        if (detail.kind && detail.id) {
+          const element = findSelection(detail);
+          if (element) {
+            fitViewportToElements([element]);
+            return;
+          }
+        }
+
+        fitVisibleTopology();
+      });
       wrapper.addEventListener('click', event => {
         if (isViewportChrome(event.target)) return;
         if (!suppressClick) return;
@@ -1163,6 +1327,8 @@
       });
       applyForceGraphFilters();
     }
+    wrapper.addEventListener('cfx-topology-set-filter', event => applyTopologyFilter(event.detail || {}));
+    wrapper.addEventListener('cfx-topology-clear-filter', () => clearTopologyFilter());
     if (scenarioControls) {
       if (scenarioControlMode === 'checkboxes') {
         wrapper.querySelectorAll('[data-cfx-topology-scenario-toggle]').forEach(input => {

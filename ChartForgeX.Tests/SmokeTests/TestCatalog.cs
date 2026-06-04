@@ -6,6 +6,7 @@ internal static partial class SmokeTests {
     internal static (string Name, Action Run)[] Tests { get; } = {
         ("Source files stay under architecture line budget", SourceFilesStayUnderArchitectureLineBudget),
         ("Project files keep strict build settings", ProjectFilesKeepStrictBuildSettings),
+        ("Interactive JavaScript assets stay generated from source fragments", InteractiveJavaScriptAssetsStayGeneratedFromSourceFragments),
         ("VS Code markup extension keeps CLI-backed contract", VsCodeMarkupExtensionKeepsCliBackedContract),
         ("Chart-kind traits centralize renderer classification", ChartKindTraitsCentralizeRendererClassification),
         ("Line polish layers stay shared across SVG and PNG", LinePolishLayersStaySharedAcrossSvgAndPng),

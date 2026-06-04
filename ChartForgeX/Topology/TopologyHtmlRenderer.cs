@@ -23,6 +23,16 @@ public sealed partial class TopologyHtmlRenderer {
         return RenderFragmentCore(chart, options, includeAssets: true);
     }
 
+    /// <summary>
+    /// Renders an embeddable HTML fragment without renderer-owned stylesheet or script assets.
+    /// </summary>
+    /// <param name="chart">The topology chart.</param>
+    /// <param name="options">Optional render options.</param>
+    /// <returns>An HTML fragment that expects the caller to register topology HTML assets.</returns>
+    public string RenderFragmentWithoutAssets(TopologyChart chart, TopologyRenderOptions? options = null) {
+        return RenderFragmentCore(chart, options, includeAssets: false);
+    }
+
     private string RenderFragmentCore(TopologyChart chart, TopologyRenderOptions? options, bool includeAssets) {
         if (chart == null) throw new ArgumentNullException(nameof(chart));
         options ??= new TopologyRenderOptions();
@@ -155,6 +165,28 @@ public sealed partial class TopologyHtmlRenderer {
         writer.EndElement().Line()
             .EndElement().Line();
         return writer.Build();
+    }
+
+    /// <summary>
+    /// Builds the renderer-owned stylesheet used by topology HTML fragments.
+    /// </summary>
+    /// <param name="options">Optional render options whose CSS prefix should be honored.</param>
+    /// <param name="theme">Optional topology theme whose font family should be used.</param>
+    /// <returns>CSS ready to register once in a host document.</returns>
+    public static string BuildFragmentStyle(TopologyRenderOptions? options = null, TopologyTheme? theme = null) {
+        options ??= new TopologyRenderOptions();
+        theme ??= TopologyTheme.Light();
+        return StyleSheet(CssClassPrefix(options), CssFontFamily(theme.FontFamily), theme.Background, includePageShell: false);
+    }
+
+    /// <summary>
+    /// Builds the renderer-owned JavaScript runtime used by interactive topology HTML fragments.
+    /// </summary>
+    /// <param name="options">Optional render options whose CSS prefix should be honored.</param>
+    /// <returns>JavaScript ready to register once in a host document.</returns>
+    public static string BuildInteractionScript(TopologyRenderOptions? options = null) {
+        options ??= new TopologyRenderOptions();
+        return InteractionScriptBody(CssClassPrefix(options));
     }
 
     private static void WriteIconButton(HtmlMarkupWriter writer, string dataAttribute, string dataValue, string title, string ariaLabel, bool? pressed, string icon, string? text = null) {

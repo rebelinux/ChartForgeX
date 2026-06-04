@@ -71,6 +71,39 @@ public sealed class HtmlInteractiveChartRenderer {
         return writer.Build();
     }
 
+    /// <summary>
+    /// Renders the specified chart to an embeddable interactive HTML fragment without stylesheet or script assets.
+    /// </summary>
+    /// <param name="chart">The chart to render.</param>
+    /// <returns>An embeddable interactive HTML fragment that expects the caller to register interactive chart assets.</returns>
+    public string RenderFragmentWithoutAssets(Chart chart) => RenderFragmentWithoutAssets(chart, null);
+
+    /// <summary>
+    /// Renders the specified chart to an embeddable interactive HTML fragment without stylesheet or script assets.
+    /// </summary>
+    /// <param name="chart">The chart to render.</param>
+    /// <param name="configure">An optional configuration callback for the HTML interaction adapter.</param>
+    /// <returns>An embeddable interactive HTML fragment that expects the caller to register interactive chart assets.</returns>
+    public string RenderFragmentWithoutAssets(Chart chart, Action<HtmlChartInteractionOptions>? configure) {
+        if (chart == null) throw new ArgumentNullException(nameof(chart));
+        var options = new HtmlChartInteractionOptions();
+        configure?.Invoke(options);
+        var title = options.PageTitle ?? ChartTitle(chart, "ChartForgeX interactive chart");
+        return BuildChartSection(chart, options, title);
+    }
+
+    /// <summary>
+    /// Builds the stylesheet used by embeddable interactive chart fragments.
+    /// </summary>
+    /// <returns>CSS ready to register once in a host document.</returns>
+    public static string BuildFragmentStyle() => InteractiveFragmentStyle;
+
+    /// <summary>
+    /// Builds the JavaScript runtime used by embeddable interactive chart fragments.
+    /// </summary>
+    /// <returns>JavaScript ready to register once in a host document.</returns>
+    public static string BuildInteractionScript() => InteractiveScript;
+
     internal static string InteractiveStyle => HtmlInteractiveAssets.Style;
 
     internal static string InteractiveFragmentStyle => HtmlInteractiveAssets.Style
