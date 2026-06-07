@@ -25,7 +25,7 @@ ChartForgeX renders polished charts, visual blocks, topology diagrams, and stati
 
 ChartForgeX turns .NET data into deterministic static visuals: charts, chart grids, visual blocks, visual canvases, topology diagrams, and map-backed report graphics. It is meant for generated reports, documentation, email, static websites, dashboards, wallpapers, social preview images, Office-style generators, and other hosts that need polished output without a JavaScript chart dependency.
 
-The core package renders SVG, script-free static HTML, PNG, BMP, PPM, and TIFF without runtime package dependencies. Optional browser behavior lives in adapter packages, so a static report can stay static while a dashboard can opt into tooltips, selection, zoom, pan, brush ranges, synchronized charts, and export controls.
+The core package renders SVG, script-free static HTML, PNG, GIF, JPEG, BMP, PPM, and TIFF without runtime package dependencies. Optional browser behavior lives in adapter packages, so a static report can stay static while a dashboard can opt into tooltips, selection, zoom, pan, brush ranges, synchronized charts, and export controls.
 
 ## Visual Tour
 
@@ -152,7 +152,7 @@ Optional interaction support is split into separate packages:
 
 | Package | Purpose |
 | --- | --- |
-| `ChartForgeX` | Static SVG, HTML, PNG, BMP, PPM, and TIFF rendering. |
+| `ChartForgeX` | Static SVG, HTML, PNG, GIF, JPEG, BMP, PPM, and TIFF rendering. |
 | `ChartForgeX.Interactivity` | Host-neutral interaction contracts. |
 | `ChartForgeX.Interactivity.Html` | Self-contained HTML/SVG interaction adapter. |
 | `ChartForgeX.Markup` | Markdown-friendly topology markup parser and C# emitter. |
@@ -173,12 +173,12 @@ The output API follows one rule: `To*` returns content, `Save*` writes a file, a
 | Static HTML | `chart.ToHtmlFragment()`, `chart.ToHtmlPage()`, or `chart.SaveHtml("chart.html")` |
 | PNG bytes/file | `chart.ToPng()` or `chart.SavePng("chart.png")` |
 | Layered visual canvas | `VisualCanvas.CreateSocialPreview()`, `VisualCanvas.CreateDesktopWallpaper()`, `canvas.ToSvg()`, `canvas.SavePng("social-preview.png")`, or `canvas.Save("social-preview.jpg", rasterOptions)` for fixed-size wallpaper, social image, report cover, and hero compositions |
-| Reusable image composition | `ImageComposition.FromFile("wallpaper.jpg").DrawImage(...).DrawText(...).Save("wallpaper-output.jpg")` for dependency-free background plus overlay generation |
+| Reusable image composition | `ImageComposition.FromFile("wallpaper.jpg").DrawImage(...).DrawText(...).StrokeRectangle(...).Save("wallpaper-output.jpg")`, `composition.Write(stream, RasterImageFormat.Png)`, or `ImageComposition.TryFromBytes(...)` for dependency-free background plus overlay generation |
 | Topology animated raster | `topology.ToGif(options)`, `topology.ToApng(options)`, `topology.WriteGif(stream, options)`, `topology.WriteApng(stream, options)`, `topology.SaveGif("route.gif", options)`, or `topology.SaveApng("route.apng", options)` with `TopologyMotionOptions.RoutePulseForScenario(...)` or `.RoutePulseForEdges(...)` |
-| Extension-inferred file output | `chart.Save("chart.svg")`, `chart.Save("chart.html")`, `chart.Save("chart.png")`, `chart.Save("chart.jpg")`, `chart.Save("chart.tiff")`; topology also supports `topology.Save("route.gif", options)` and `topology.Save("route.apng", options)` |
-| Advanced raster output | `ToRasterImage`, `WriteRasterImage`, and `SaveRasterImage` for PNG, JPEG, BMP, PPM, and TIFF; plus format helpers such as `ToBmp`, `ToPpm`, and `ToTiff` |
+| Extension-inferred file output | `chart.Save("chart.svg")`, `chart.Save("chart.html")`, `chart.Save("chart.png")`, `chart.Save("chart.gif")`, `chart.Save("chart.jpg")`, `chart.Save("chart.tiff")`; topology also supports animated `topology.Save("route.gif", options)` and `topology.Save("route.apng", options)` |
+| Advanced raster output | `ToRasterImage`, `WriteRasterImage`, and `SaveRasterImage` for PNG, GIF, JPEG, BMP, PPM, and TIFF; plus format helpers such as `ToBmp`, `ToPpm`, and `ToTiff` |
 
-`Save(path)` infers `.svg`, `.html`, `.htm`, `.png`, `.jpg`, `.jpeg`, `.bmp`, `.ppm`, `.tiff`, and `.tif`. Topology `Save(path, options)` also infers `.gif` and `.apng` when `TopologyMotionOptions` describes a route. Animated GIF output uses an adaptive palette, error diffusion, and cropped delta frames for compatibility-friendly previews. APNG keeps full RGBA color and also crops unchanged frame regions for high-fidelity animated raster output, while SVG remains the highest-fidelity script-free animated surface. Unsupported or empty extensions fail before a file is opened. `RasterImageOptions` controls JPEG quality and the background used when alpha must be flattened.
+`Save(path)` infers `.svg`, `.html`, `.htm`, `.png`, `.gif`, `.jpg`, `.jpeg`, `.bmp`, `.ppm`, `.tiff`, and `.tif`. Topology `Save(path, options)` also infers animated `.gif` and `.apng` when `TopologyMotionOptions` describes a route. Animated GIF output uses an adaptive palette, error diffusion, and cropped delta frames for compatibility-friendly previews. APNG keeps full RGBA color and also crops unchanged frame regions for high-fidelity animated raster output, while SVG remains the highest-fidelity script-free animated surface. Unsupported or empty extensions fail before a file is opened. `RasterImageOptions` controls JPEG quality, PNG compression level, and the background used when alpha must be flattened.
 
 ## Simple Definitions
 

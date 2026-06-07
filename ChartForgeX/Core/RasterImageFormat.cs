@@ -27,5 +27,10 @@ public enum RasterImageFormat {
     /// <summary>
     /// Baseline JPEG flattened against the configured raster background.
     /// </summary>
-    Jpeg
+    Jpeg,
+
+    /// <summary>
+    /// Graphics Interchange Format with an adaptive palette.
+    /// </summary>
+    Gif
 }

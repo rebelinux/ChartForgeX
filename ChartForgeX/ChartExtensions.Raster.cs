@@ -577,12 +577,24 @@ public static partial class ChartExtensions {
     public static byte[] ToPng(this RgbaImage image) => RasterImageEncoder.Encode(image, RasterImageFormat.Png);
 
     /// <summary>
+    /// Encodes an RGBA image as PNG bytes using dependency-free raster options.
+    /// </summary>
+    public static byte[] ToPng(this RgbaImage image, RasterImageOptions? options) => RasterImageEncoder.Encode(image, RasterImageFormat.Png, options);
+
+    /// <summary>
     /// Encodes RGBA pixels to JPEG bytes after flattening transparent pixels against the configured background.
     /// </summary>
     /// <param name="image">The image to encode.</param>
     /// <param name="options">Optional raster export options.</param>
     /// <returns>A JPEG image.</returns>
     public static byte[] ToJpeg(this RgbaImage image, RasterImageOptions? options = null) => RasterImageEncoder.Encode(image, RasterImageFormat.Jpeg, options);
+
+    /// <summary>
+    /// Encodes RGBA pixels to GIF bytes using an adaptive palette.
+    /// </summary>
+    /// <param name="image">The image to encode.</param>
+    /// <returns>A GIF image.</returns>
+    public static byte[] ToGif(this RgbaImage image) => RasterImageEncoder.Encode(image, RasterImageFormat.Gif);
 
     /// <summary>
     /// Encodes RGBA pixels to a dependency-free raster format.

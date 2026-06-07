@@ -7,6 +7,7 @@ namespace ChartForgeX.Core;
 /// </summary>
 public class RasterImageOptions {
     private int _jpegQuality = 90;
+    private int _pngCompressionLevel = 6;
 
     /// <summary>
     /// Gets or sets the background used when flattening transparent pixels for formats that do not preserve alpha.
@@ -24,6 +25,20 @@ public class RasterImageOptions {
         set {
             if (value < 1 || value > 100) throw new System.ArgumentOutOfRangeException(nameof(value), value, "JPEG quality must be between 1 and 100.");
             _jpegQuality = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets PNG deflate compression from 0 to 9, where 0 disables compression, 1-3 favors speed, and 4-9 favors smaller output.
+    /// </summary>
+    /// <remarks>
+    /// The dependency-free PNG writer maps the level to the compression modes available on the current .NET target.
+    /// </remarks>
+    public int PngCompressionLevel {
+        get => _pngCompressionLevel;
+        set {
+            if (value < 0 || value > 9) throw new System.ArgumentOutOfRangeException(nameof(value), value, "PNG compression level must be between 0 and 9.");
+            _pngCompressionLevel = value;
         }
     }
 }

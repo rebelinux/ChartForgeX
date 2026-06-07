@@ -58,7 +58,7 @@ internal sealed partial class RgbaCanvas {
         FillRoundedRectPixels(x * _scale, y * _scale, width * _scale, height * _scale, radius * _scale, topColor, bottomColor);
     }
 
-    public void StrokeRect(double x, double y, double width, double height, ChartColor color, int thickness = 1) {
+    public void StrokeRect(double x, double y, double width, double height, ChartColor color, double thickness = 1) {
         DrawLine(x, y, x + width, y, color, thickness);
         DrawLine(x + width, y, x + width, y + height, color, thickness);
         DrawLine(x + width, y + height, x, y + height, color, thickness);

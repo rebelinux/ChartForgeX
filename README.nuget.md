@@ -2,7 +2,7 @@
 
 ChartForgeX renders polished charts, visual blocks, topology diagrams, and static report visuals from .NET without adding runtime chart dependencies to generated output.
 
-The core package renders SVG, script-free static HTML, PNG, BMP, PPM, and TIFF. Optional browser behavior lives in adapter packages, so generated reports can stay static while dashboard hosts can opt into tooltips, selection, zoom, pan, synchronized charts, and export controls.
+The core package renders SVG, script-free static HTML, PNG, GIF, JPEG, BMP, PPM, and TIFF. Optional browser behavior lives in adapter packages, so generated reports can stay static while dashboard hosts can opt into tooltips, selection, zoom, pan, synchronized charts, and export controls.
 
 ## Install
 
@@ -14,7 +14,7 @@ ChartForgeX targets `net472`, `netstandard2.0`, `net8.0`, and `net10.0`. The cor
 
 | Package | Purpose |
 | --- | --- |
-| `ChartForgeX` | Static SVG, HTML, PNG, BMP, PPM, and TIFF rendering. |
+| `ChartForgeX` | Static SVG, HTML, PNG, GIF, JPEG, BMP, PPM, and TIFF rendering. |
 | `ChartForgeX.Interactivity` | Host-neutral interaction contracts. |
 | `ChartForgeX.Interactivity.Html` | Self-contained HTML/SVG interaction adapter. |
 
@@ -103,8 +103,11 @@ When you do not need deferred host definitions, build directly with helpers such
 | SVG markup | `chart.ToSvg()` or `chart.SaveSvg("chart.svg")` |
 | Static HTML | `chart.ToHtmlFragment()`, `chart.ToHtmlPage()`, or `chart.SaveHtml("chart.html")` |
 | PNG bytes/file | `chart.ToPng()` or `chart.SavePng("chart.png")` |
-| JPEG and raster file output | `chart.Save("chart.jpg", rasterOptions)`, `chart.SaveRasterImage("chart.tiff")`, or `ImageComposition.FromFile("wallpaper.jpg").Save("wallpaper-output.jpg")` |
-| Extension-inferred file output | `chart.Save("chart.svg")`, `chart.Save("chart.html")`, `chart.Save("chart.png")`, `chart.Save("chart.jpg")`, `chart.Save("chart.tiff")` |
+| GIF, JPEG, and raster file output | `chart.Save("chart.gif")`, `chart.Save("chart.jpg", rasterOptions)`, `chart.SaveRasterImage("chart.tiff")`, or `ImageComposition.FromFile("wallpaper.jpg").Save("wallpaper-output.gif")` |
+| Reusable image composition | `ImageComposition.TryFromBytes(bytes, out var composition)`, `composition.StrokeRectangle(...)`, `composition.DrawCallout(...)`, `composition.Write(stream, RasterImageFormat.Png)`, or `composition.Save(path, RasterImageFormat.Gif)` |
+| Extension-inferred file output | `chart.Save("chart.svg")`, `chart.Save("chart.html")`, `chart.Save("chart.png")`, `chart.Save("chart.gif")`, `chart.Save("chart.jpg")`, `chart.Save("chart.tiff")` |
+
+`RasterImageOptions` controls JPEG quality, PNG compression level, and the flattening background for opaque formats.
 
 ## Links
 

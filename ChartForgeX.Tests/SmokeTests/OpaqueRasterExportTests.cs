@@ -19,21 +19,29 @@ internal static partial class SmokeTests {
         AssertBmpHeader(SampleChart().ToRasterImage(RasterImageFormat.Bmp), 640, 360);
         AssertPpmHeader(SampleChart().ToRasterImage(RasterImageFormat.Ppm), 640, 360);
         AssertTiffHeader(SampleChart().ToRasterImage(RasterImageFormat.Tiff), 640, 360);
+        AssertGifHeader(SampleChart().ToRasterImage(RasterImageFormat.Gif));
         var supportedFormats = RasterImageFormatExtensions.GetSupportedFormats();
-        Assert(supportedFormats.SequenceEqual(new[] { RasterImageFormat.Png, RasterImageFormat.Jpeg, RasterImageFormat.Bmp, RasterImageFormat.Ppm, RasterImageFormat.Tiff }), "Supported raster formats should be discoverable in stable order.");
+        Assert(supportedFormats.SequenceEqual(new[] { RasterImageFormat.Png, RasterImageFormat.Gif, RasterImageFormat.Jpeg, RasterImageFormat.Bmp, RasterImageFormat.Ppm, RasterImageFormat.Tiff }), "Supported raster formats should be discoverable in stable order.");
+        Assert((int)RasterImageFormat.Jpeg == 4 && (int)RasterImageFormat.Gif == 5, "Adding GIF should not renumber existing raster image formats.");
+        Assert(RasterImageFormat.Gif.IsSupported(), "GIF should be reported as a supported raster format.");
         Assert(RasterImageFormat.Bmp.IsSupported(), "BMP should be reported as a supported raster format.");
         Assert(RasterImageFormat.Ppm.IsSupported(), "PPM should be reported as a supported raster format.");
         Assert(RasterImageFormat.Tiff.IsSupported(), "TIFF should be reported as a supported raster format.");
         Assert(!((RasterImageFormat)999).IsSupported(), "Unknown raster formats should not be reported as supported.");
+        Assert(RasterImageFormat.Gif.GetFileExtension() == ".gif", "GIF file extension metadata should be available.");
         Assert(RasterImageFormat.Bmp.GetFileExtension() == ".bmp", "BMP file extension metadata should be available.");
         Assert(RasterImageFormat.Ppm.GetFileExtension() == ".ppm", "PPM file extension metadata should be available.");
         Assert(RasterImageFormat.Tiff.GetFileExtension() == ".tiff", "TIFF file extension metadata should be available.");
+        Assert(RasterImageFormat.Gif.GetFileExtensions().SequenceEqual(new[] { ".gif" }), "GIF extension aliases should be discoverable.");
         Assert(RasterImageFormat.Bmp.GetFileExtensions().SequenceEqual(new[] { ".bmp" }), "BMP extension aliases should be discoverable.");
         Assert(RasterImageFormat.Ppm.GetFileExtensions().SequenceEqual(new[] { ".ppm" }), "PPM extension aliases should be discoverable.");
         Assert(RasterImageFormat.Tiff.GetFileExtensions().SequenceEqual(new[] { ".tiff", ".tif" }), "TIFF extension aliases should be discoverable with the conventional extension first.");
+        Assert(RasterImageFormat.Gif.GetMimeType() == "image/gif", "GIF MIME metadata should be available.");
         Assert(RasterImageFormat.Bmp.GetMimeType() == "image/bmp", "BMP MIME metadata should be available.");
         Assert(RasterImageFormat.Ppm.GetMimeType() == "image/x-portable-pixmap", "PPM MIME metadata should be available.");
         Assert(RasterImageFormat.Tiff.GetMimeType() == "image/tiff", "TIFF MIME metadata should be available.");
+        Assert(RasterImageFormatExtensions.FromFileExtension("gif") == RasterImageFormat.Gif, "Bare GIF extension tokens should resolve to GIF format.");
+        Assert(RasterImageFormatExtensions.FromFileExtension("report.gif") == RasterImageFormat.Gif, "GIF paths should resolve to GIF format.");
         Assert(RasterImageFormatExtensions.FromFileExtension("bmp") == RasterImageFormat.Bmp, "Bare BMP extension tokens should resolve to BMP format.");
         Assert(RasterImageFormatExtensions.FromFileExtension(".bmp") == RasterImageFormat.Bmp, "BMP extensions should resolve to BMP format.");
         Assert(RasterImageFormatExtensions.FromFileExtension("PPM") == RasterImageFormat.Ppm, "Bare PPM extension tokens should resolve case-insensitively.");
@@ -44,12 +52,20 @@ internal static partial class SmokeTests {
         Assert(RasterImageFormatExtensions.FromFileExtension(".report.bmp") == RasterImageFormat.Bmp, "Dot-prefixed BMP filenames should resolve from the final extension.");
         Assert(RasterImageFormatExtensions.FromFileExtension(".report.tif") == RasterImageFormat.Tiff, "Dot-prefixed TIF filenames should resolve from the final extension.");
         Assert(RasterImageFormatExtensions.TryFromFileExtension("report.bmp", out var inferredBmp) && inferredBmp == RasterImageFormat.Bmp, "BMP extensions should resolve through the non-throwing helper.");
+        Assert(RasterImageFormatExtensions.TryFromFileExtension("report.gif", out var inferredGif) && inferredGif == RasterImageFormat.Gif, "GIF extensions should resolve through the non-throwing helper.");
         Assert(RasterImageFormatExtensions.TryFromFileExtension("tiff", out var inferredBareTiff) && inferredBareTiff == RasterImageFormat.Tiff, "Bare TIFF extension tokens should resolve through the non-throwing helper.");
         Assert(RasterImageFormatExtensions.TryFromFileExtension("report.TIFF", out var inferredTiff) && inferredTiff == RasterImageFormat.Tiff, "TIFF extensions should resolve through the non-throwing helper.");
         Assert(RasterImageFormatExtensions.TryFromFileExtension(".report.PPM", out var inferredDotPrefixedPpm) && inferredDotPrefixedPpm == RasterImageFormat.Ppm, "Dot-prefixed filenames should resolve through the non-throwing helper.");
-        Assert(!RasterImageFormatExtensions.TryFromFileExtension("report.gif", out _), "Unsupported raster extensions should not resolve through the non-throwing helper.");
+        Assert(!RasterImageFormatExtensions.TryFromFileExtension("report.webp", out _), "Unsupported raster extensions should not resolve through the non-throwing helper.");
         Assert(!RasterImageFormatExtensions.TryFromFileExtension(null, out _), "Null raster extensions should not resolve through the non-throwing helper.");
         Assert(!RasterImageFormatExtensions.TryFromFileExtension(" ", out _), "Empty raster extensions should not resolve through the non-throwing helper.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new RasterImageOptions { PngCompressionLevel = -1 }, "PNG compression options should reject negative levels.");
+        AssertThrows<ArgumentOutOfRangeException>(() => new RasterImageOptions { PngCompressionLevel = 10 }, "PNG compression options should reject levels above 9.");
+        var pngFast = SampleChart().ToRasterImage(RasterImageFormat.Png, new RasterImageOptions { PngCompressionLevel = 0 });
+        var pngCompact = SampleChart().ToRasterImage(RasterImageFormat.Png, new RasterImageOptions { PngCompressionLevel = 9 });
+        AssertPngHeader(pngFast);
+        AssertPngHeader(pngCompact);
+        Assert(pngFast.Length >= pngCompact.Length, "PNG compression options should allow callers to trade speed for smaller output.");
         using var chartStream = new MemoryStream();
         SampleChart().WriteRasterImage(chartStream, RasterImageFormat.Bmp);
         Assert(chartStream.ToArray().SequenceEqual(SampleChart().ToRasterImage(RasterImageFormat.Bmp)), "Chart stream raster export should match byte-array export.");
@@ -62,6 +78,9 @@ internal static partial class SmokeTests {
         using var chartTiffStream = new MemoryStream();
         SampleChart().WriteTiff(chartTiffStream);
         Assert(chartTiffStream.ToArray().SequenceEqual(SampleChart().ToTiff()), "Chart TIFF stream export should match byte-array export.");
+        using var chartGifStream = new MemoryStream();
+        SampleChart().WriteRasterImage(chartGifStream, RasterImageFormat.Gif);
+        Assert(chartGifStream.ToArray().SequenceEqual(SampleChart().ToRasterImage(RasterImageFormat.Gif)), "Chart GIF stream export should match byte-array export.");
         AssertThrows<ArgumentOutOfRangeException>(() => SampleChart().ToRasterImage((RasterImageFormat)999), "Generic raster export should reject unknown formats.");
         using var invalidFormatStream = new MemoryStream();
         AssertThrows<ArgumentOutOfRangeException>(() => SampleChart().WriteRasterImage(invalidFormatStream, (RasterImageFormat)999), "Generic raster stream export should reject unknown formats before writing.");
@@ -69,7 +88,7 @@ internal static partial class SmokeTests {
         AssertThrows<ArgumentOutOfRangeException>(() => ((RasterImageFormat)999).GetFileExtension(), "Raster format file extension metadata should reject unknown formats.");
         AssertThrows<ArgumentOutOfRangeException>(() => ((RasterImageFormat)999).GetFileExtensions(), "Raster format file extension alias metadata should reject unknown formats.");
         AssertThrows<ArgumentOutOfRangeException>(() => ((RasterImageFormat)999).GetMimeType(), "Raster format MIME metadata should reject unknown formats.");
-        AssertThrows<ArgumentException>(() => RasterImageFormatExtensions.FromFileExtension("chart.gif"), "Raster format extension inference should reject unsupported extensions.");
+        AssertThrows<ArgumentException>(() => RasterImageFormatExtensions.FromFileExtension("chart.webp"), "Raster format extension inference should reject unsupported extensions.");
         AssertThrows<ArgumentException>(() => RasterImageFormatExtensions.FromFileExtension(" "), "Raster format extension inference should reject empty extensions.");
         AssertThrows<ArgumentNullException>(() => SampleChart().WriteRasterImage(null!, RasterImageFormat.Bmp), "Generic raster stream export should reject null streams.");
         AssertThrows<ArgumentNullException>(() => SampleChart().WriteBmp(null!), "Format-specific raster stream export should reject null streams.");
@@ -101,13 +120,14 @@ internal static partial class SmokeTests {
         AssertExtensionInferredSave("chart", ".svg", path => SampleChart().Save(path), bytes => Assert(System.Text.Encoding.UTF8.GetString(bytes).Contains("<svg", StringComparison.Ordinal), "Save should infer SVG from the output extension."));
         AssertExtensionInferredSave("chart", ".html", path => SampleChart().Save(path), bytes => Assert(System.Text.Encoding.UTF8.GetString(bytes).Contains("<!DOCTYPE html>", StringComparison.OrdinalIgnoreCase), "Save should infer HTML from the output extension."));
         AssertExtensionInferredSave("chart", ".png", path => SampleChart().Save(path), bytes => AssertPngHeader(bytes));
+        AssertExtensionInferredSave("chart", ".gif", path => SampleChart().Save(path), bytes => AssertGifHeader(bytes));
         AssertExtensionInferredSave("chart", ".bmp", path => SampleChart().Save(path), bytes => AssertBmpHeader(bytes, 640, 360));
         AssertExtensionInferredSave("chart", ".tif", path => SampleChart().Save(path), bytes => AssertTiffHeader(bytes, 640, 360));
         AssertDotPrefixedExtensionInferredSave(path => SampleChart().Save(path), bytes => AssertBmpHeader(bytes, 640, 360));
         AssertExtensionInferredSave("grid", ".ppm", path => GridForInferredSave().Save(path), bytes => AssertPpmHeader(bytes, null, null));
         AssertExtensionInferredSave("block", ".png", path => MetricCard.Create().WithSize(180, 100).WithMetric("CPU", "42%").Save(path), bytes => AssertPngHeader(bytes));
         AssertExtensionInferredSave("visual-grid", ".html", path => VisualGrid.CreateMetricStrip("Endpoint", new[] { MetricCard.Create().WithMetric("CPU", "42%") }).Save(path), bytes => Assert(System.Text.Encoding.UTF8.GetString(bytes).Contains("<!DOCTYPE html>", StringComparison.OrdinalIgnoreCase), "Visual grid Save should infer HTML from the output extension."));
-        AssertThrows<ArgumentException>(() => SampleChart().Save("chart.gif"), "Save should reject unsupported image extensions.");
+        AssertThrows<ArgumentException>(() => SampleChart().Save("chart.webp"), "Save should reject unsupported image extensions.");
 
         var transparent = Chart.Create()
             .WithSize(32, 24)
@@ -242,6 +262,12 @@ internal static partial class SmokeTests {
     private static void AssertPngHeader(byte[] png) {
         Assert(png.Length > 64, "PNG output should contain an encoded image.");
         Assert(png[0] == 137 && png[1] == 80 && png[2] == 78 && png[3] == 71, "PNG signature should be valid.");
+    }
+
+    private static void AssertGifHeader(byte[] gif) {
+        Assert(gif.Length > 128, "GIF output should contain an encoded image.");
+        Assert(gif[0] == (byte)'G' && gif[1] == (byte)'I' && gif[2] == (byte)'F', "GIF signature should be valid.");
+        Assert(gif[gif.Length - 1] == 0x3B, "GIF output should end with a trailer byte.");
     }
 
     private static void AssertBmpHeader(byte[] bmp, int? expectedWidth, int? expectedHeight) {
