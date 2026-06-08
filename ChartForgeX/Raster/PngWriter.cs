@@ -3,13 +3,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using ChartForgeX.Core;
 
 namespace ChartForgeX.Raster;
 
 internal static class PngWriter {
     public static byte[] WriteRgba(RgbaImage image) => WriteRgba(image.Width, image.Height, image.Pixels);
 
-    public static byte[] WriteRgba(int width, int height, byte[] rgba) {
+    public static byte[] WriteRgba(RgbaImage image, RasterImageOptions? options) => WriteRgba(image.Width, image.Height, image.Pixels, options);
+
+    public static byte[] WriteRgba(int width, int height, byte[] rgba) => WriteRgba(width, height, rgba, null);
+
+    public static byte[] WriteRgba(int width, int height, byte[] rgba, RasterImageOptions? options) {
         using var ms = new MemoryStream();
         ms.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, 0, 8);
         var ihdr = new List<byte>();
@@ -23,20 +28,34 @@ internal static class PngWriter {
             Buffer.BlockCopy(rgba, src, raw, dst, width * 4);
             src += width * 4; dst += width * 4;
         }
-        WriteChunk(ms, "IDAT", ZlibDeflate(raw));
+        WriteChunk(ms, "IDAT", ZlibDeflate(raw, options));
         WriteChunk(ms, "IEND", Array.Empty<byte>());
         return ms.ToArray();
     }
 
-    private static byte[] ZlibDeflate(byte[] data) {
+    private static byte[] ZlibDeflate(byte[] data, RasterImageOptions? options) {
+        var compressionLevel = options?.PngCompressionLevel ?? 6;
         using var ms = new MemoryStream();
-        ms.WriteByte(0x78); ms.WriteByte(0x9C);
-        using (var deflate = new DeflateStream(ms, CompressionLevel.Optimal, true)) {
+        WriteZlibHeader(ms, compressionLevel);
+        using (var deflate = new DeflateStream(ms, ToCompressionLevel(compressionLevel), true)) {
             deflate.Write(data, 0, data.Length);
         }
 
         WriteUInt(ms, Adler32(data));
         return ms.ToArray();
+    }
+
+    private static CompressionLevel ToCompressionLevel(int compressionLevel) {
+        if (compressionLevel <= 0) return CompressionLevel.NoCompression;
+        if (compressionLevel <= 3) return CompressionLevel.Fastest;
+        return CompressionLevel.Optimal;
+    }
+
+    private static void WriteZlibHeader(Stream stream, int compressionLevel) {
+        stream.WriteByte(0x78);
+        if (compressionLevel <= 0) stream.WriteByte(0x01);
+        else if (compressionLevel <= 3) stream.WriteByte(0x5E);
+        else stream.WriteByte(0x9C);
     }
 
     private static uint Adler32(byte[] data) {

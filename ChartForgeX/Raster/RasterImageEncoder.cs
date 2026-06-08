@@ -16,7 +16,9 @@ internal static class RasterImageEncoder {
     internal static byte[] Encode(RgbaImage image, RasterImageFormat format, RasterImageOptions? options = null) {
         switch (format) {
             case RasterImageFormat.Png:
-                return PngWriter.WriteRgba(image);
+                return PngWriter.WriteRgba(image, options);
+            case RasterImageFormat.Gif:
+                return GifWriter.WriteRgba(new[] { image }, 10, false);
             case RasterImageFormat.Jpeg:
                 return JpegWriter.WriteRgba(image, options);
             case RasterImageFormat.Bmp:
@@ -34,8 +36,11 @@ internal static class RasterImageEncoder {
         ThrowIfNull(stream);
         switch (format) {
             case RasterImageFormat.Png:
-                var png = PngWriter.WriteRgba(image);
+                var png = PngWriter.WriteRgba(image, options);
                 stream.Write(png, 0, png.Length);
+                break;
+            case RasterImageFormat.Gif:
+                GifWriter.WriteRgba(stream, new[] { image }, 10, false);
                 break;
             case RasterImageFormat.Jpeg:
                 JpegWriter.WriteRgba(stream, image, options);
