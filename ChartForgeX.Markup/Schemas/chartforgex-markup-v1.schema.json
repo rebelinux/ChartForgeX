@@ -342,8 +342,7 @@
         "title",
         "subtitle",
         "capabilities",
-        "column",
-        "row"
+        "totalRows"
       ],
       "sections": [
         {

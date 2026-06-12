@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using ChartForgeX.Primitives;
 using ChartForgeX.VisualArtifacts;
@@ -94,9 +93,9 @@ public sealed class MarkupFlowParser {
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) flow.Id = id;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) flow.Title = title;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) flow.Subtitle = subtitle;
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "width", out var width) && !string.IsNullOrWhiteSpace(width)) flow.Width = VisualMarkupFenceOptions.ParseDouble(width, "width");
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "height", out var height) && !string.IsNullOrWhiteSpace(height)) flow.Height = VisualMarkupFenceOptions.ParseDouble(height, "height");
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "padding", out var padding) && !string.IsNullOrWhiteSpace(padding)) flow.Padding = VisualMarkupFenceOptions.ParseDouble(padding, "padding");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "width", out var width) && !string.IsNullOrWhiteSpace(width)) flow.Width = ParsePositiveFiniteDouble(width, "width");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "height", out var height) && !string.IsNullOrWhiteSpace(height)) flow.Height = ParsePositiveFiniteDouble(height, "height");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "padding", out var padding) && !string.IsNullOrWhiteSpace(padding)) flow.Padding = ParseNonNegativeFiniteDouble(padding, "padding");
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "layout", out var layout) && !string.IsNullOrWhiteSpace(layout)) flow.LayoutMode = ParseLayout(layout);
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "direction", out var direction) && !string.IsNullOrWhiteSpace(direction)) flow.Direction = ParseDirection(direction);
         } catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is FormatException || ex is OverflowException) {
@@ -266,8 +265,8 @@ public sealed class MarkupFlowParser {
             step.Color = color;
         }
         if (attributes.TryGetValue("badge", out var badge)) step.Badge = badge;
-        if (attributes.TryGetValue("width", out var width)) step.Width = VisualMarkupFenceOptions.ParseDouble(width, "width");
-        if (attributes.TryGetValue("height", out var height)) step.Height = VisualMarkupFenceOptions.ParseDouble(height, "height");
+        if (attributes.TryGetValue("width", out var width)) step.Width = ParsePositiveFiniteDouble(width, "width");
+        if (attributes.TryGetValue("height", out var height)) step.Height = ParsePositiveFiniteDouble(height, "height");
     }
 
     private static void ParseConnector(FlowArtifact flow, List<string> tokens) {
@@ -292,14 +291,14 @@ public sealed class MarkupFlowParser {
     private static void ParseViewport(FlowArtifact flow, List<string> tokens) {
         RequireTokenCount(tokens, 2, "viewport");
         ParseSize(flow, tokens[1]);
-        if (tokens.Count > 2) flow.Padding = VisualMarkupFenceOptions.ParseDouble(tokens[2], "padding");
+        if (tokens.Count > 2) flow.Padding = ParseNonNegativeFiniteDouble(tokens[2], "padding");
     }
 
     private static void ParseSize(FlowArtifact flow, string value) {
         var parts = value.Split(new[] { 'x', 'X', ',' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 2) throw new ArgumentException("Flow size must use WIDTHxHEIGHT syntax.");
-        flow.Width = double.Parse(parts[0], CultureInfo.InvariantCulture);
-        flow.Height = double.Parse(parts[1], CultureInfo.InvariantCulture);
+        flow.Width = ParsePositiveFiniteDouble(parts[0], "width");
+        flow.Height = ParsePositiveFiniteDouble(parts[1], "height");
     }
 
     private static FlowArtifactLayoutMode ParseLayout(string value) {
@@ -545,6 +544,18 @@ public sealed class MarkupFlowParser {
         } catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException) {
             throw new ArgumentException(name + " must be a valid hex color.", ex);
         }
+    }
+
+    private static double ParsePositiveFiniteDouble(string value, string name) {
+        var parsed = VisualMarkupFenceOptions.ParseDouble(value, name);
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed) || parsed <= 0) throw new ArgumentException("Flow " + name + " must be a positive finite number.");
+        return parsed;
+    }
+
+    private static double ParseNonNegativeFiniteDouble(string value, string name) {
+        var parsed = VisualMarkupFenceOptions.ParseDouble(value, name);
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed) || parsed < 0) throw new ArgumentException("Flow " + name + " must be a non-negative finite number.");
+        return parsed;
     }
 
     private static void RequireTokenCount(List<string> tokens, int count, string command) {

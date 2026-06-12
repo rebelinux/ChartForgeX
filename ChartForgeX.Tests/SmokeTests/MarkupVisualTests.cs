@@ -109,6 +109,29 @@ padding -1
 
         Assert(invalidAxisBoundsResult.HasErrors, "Invalid chart bounds and padding should produce parse diagnostics.");
         Assert(Diagnostics(invalidAxisBoundsResult).Contains("maximum must be greater than minimum", StringComparison.Ordinal) && Diagnostics(invalidAxisBoundsResult).Contains("non-negative finite", StringComparison.Ordinal), "Invalid chart option diagnostics should report bad bounds and padding.");
+
+        const string invalidOptionPadding = @"```chartforgex chart v1
+values 1 2
+options:
+| option | value |
+| ------ | ----- |
+| padding | -1 |
+```";
+        var invalidOptionPaddingResult = new MarkupChartParser().Parse(invalidOptionPadding);
+
+        Assert(invalidOptionPaddingResult.HasErrors, "Invalid chart options-table padding should produce parse diagnostics.");
+        Assert(Diagnostics(invalidOptionPaddingResult).Contains("non-negative finite", StringComparison.Ordinal), "Chart options-table diagnostics should cover padding.");
+
+        const string invalidOptionAxisAndOpacity = @"```chartforgex chart v1
+values 1 2
+option xMin 10
+option xMax 5
+annotation hBand 4 6 opacity=2
+```";
+        var invalidOptionAxisAndOpacityResult = new MarkupChartParser().Parse(invalidOptionAxisAndOpacity);
+
+        Assert(invalidOptionAxisAndOpacityResult.HasErrors, "Invalid chart option axis bounds and annotation opacity should produce parse diagnostics.");
+        Assert(Diagnostics(invalidOptionAxisAndOpacityResult).Contains("maximum must be greater than minimum", StringComparison.Ordinal) && Diagnostics(invalidOptionAxisAndOpacityResult).Contains("between 0 and 1", StringComparison.Ordinal), "Chart option diagnostics should cover bounds and annotation opacity.");
     }
 
     private static void MarkupFlowParserParsesTopologyCompatibleFlow() {
@@ -179,6 +202,14 @@ connect intake -> done ""handoff"" color:nope
 
         Assert(result.HasErrors, "Invalid flow colors should produce parse diagnostics before preview export.");
         Assert(Diagnostics(result).Contains("valid hex color", StringComparison.Ordinal), "Invalid flow colors should be reported as markup diagnostics.");
+
+        const string invalidDimensions = @"```chartforgex flow v1
+step api ""API"" width=-1 height=NaN
+```";
+        var invalidDimensionsResult = new MarkupFlowParser().Parse(invalidDimensions);
+
+        Assert(invalidDimensionsResult.HasErrors, "Invalid flow step dimensions should produce parse diagnostics before preview export.");
+        Assert(Diagnostics(invalidDimensionsResult).Contains("positive finite", StringComparison.Ordinal), "Invalid flow step dimension diagnostics should explain positive finite validation.");
     }
 
     private static void MarkupSequenceParserParsesSequenceMarkup() {
@@ -297,6 +328,16 @@ task Deploy 5 1
 
         Assert(invalidRangeAndProgressResult.HasErrors, "Invalid timeline ranges and progress values should produce parse diagnostics.");
         Assert(Diagnostics(invalidRangeAndProgressResult).Contains("between 0 and 1", StringComparison.Ordinal) && Diagnostics(invalidRangeAndProgressResult).Contains("end must be greater than or equal to start", StringComparison.Ordinal), "Timeline diagnostics should report bad progress and reversed ranges.");
+
+        const string invalidFiniteValuesAndDependency = @"```chartforgex timeline v1 {type=gantt}
+today NaN
+task Build NaN 5
+task Test 5 6 dependsOn=2
+```";
+        var invalidFiniteValuesAndDependencyResult = new MarkupTimelineParser().Parse(invalidFiniteValuesAndDependency);
+
+        Assert(invalidFiniteValuesAndDependencyResult.HasErrors, "Invalid timeline coordinates and dependency indexes should produce parse diagnostics.");
+        Assert(Diagnostics(invalidFiniteValuesAndDependencyResult).Contains("finite number", StringComparison.Ordinal) && Diagnostics(invalidFiniteValuesAndDependencyResult).Contains("earlier zero-based Gantt item index", StringComparison.Ordinal), "Timeline diagnostics should report non-finite values and invalid dependencies.");
     }
 
     private static void MarkupSequenceParserReportsMalformedArrowMessages() {

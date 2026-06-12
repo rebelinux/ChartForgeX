@@ -144,13 +144,13 @@ public sealed class MarkupTimelineParser {
                 case "item":
                 case "range":
                 case "event":
-                    state.Items.Add(ParseCommandItem(tokens, TimelineItemKind.Item));
+                    state.Items.Add(ParseCommandItem(state, tokens, TimelineItemKind.Item));
                     break;
                 case "task":
-                    state.Items.Add(ParseCommandItem(tokens, TimelineItemKind.Task));
+                    state.Items.Add(ParseCommandItem(state, tokens, TimelineItemKind.Task));
                     break;
                 case "milestone":
-                    state.Items.Add(ParseCommandItem(tokens, TimelineItemKind.Milestone));
+                    state.Items.Add(ParseCommandItem(state, tokens, TimelineItemKind.Milestone));
                     break;
                 default:
                     Add(result, lineNumber, MarkupDiagnosticSeverity.Warning, "Unknown timeline command '" + tokens[0] + "'.");
@@ -161,7 +161,7 @@ public sealed class MarkupTimelineParser {
         }
     }
 
-    private static TimelineItem ParseCommandItem(List<string> tokens, TimelineItemKind kind) {
+    private static TimelineItem ParseCommandItem(TimelineState state, List<string> tokens, TimelineItemKind kind) {
         var minimum = kind == TimelineItemKind.Milestone ? 3 : 4;
         RequireTokenCount(tokens, minimum, tokens[0]);
         var item = new TimelineItem {
@@ -178,7 +178,7 @@ public sealed class MarkupTimelineParser {
             item.Color = color;
         }
 
-        ValidateTimelineItem(item);
+        ValidateTimelineItem(state, item);
         return item;
     }
 
@@ -206,7 +206,7 @@ public sealed class MarkupTimelineParser {
                 DependsOn = row.TryGetValue("dependson", out var dependsOn) && !string.IsNullOrWhiteSpace(dependsOn) ? VisualMarkupFenceOptions.ParseInt32(dependsOn, "dependsOn") : -1,
                 Color = color
             };
-            ValidateTimelineItem(item);
+            ValidateTimelineItem(state, item);
             state.Items.Add(item);
         } catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException) {
             Add(result, lineNumber, MarkupDiagnosticSeverity.Error, ex.Message);
@@ -254,9 +254,15 @@ public sealed class MarkupTimelineParser {
     }
 
     private static TimelineValue ParseTimelineValue(string value) {
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) return new TimelineValue(number);
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) {
+            if (double.IsNaN(number) || double.IsInfinity(number)) throw new ArgumentException("Timeline value must be a finite number.");
+            return new TimelineValue(number);
+        }
+
         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var date)) return new TimelineValue(date);
-        return new TimelineValue(VisualMarkupFenceOptions.ParseDouble(value, "timeline value"));
+        var parsed = VisualMarkupFenceOptions.ParseDouble(value, "timeline value");
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed)) throw new ArgumentException("Timeline value must be a finite number.");
+        return new TimelineValue(parsed);
     }
 
     private static double ParseProgress(string value) {
@@ -265,9 +271,20 @@ public sealed class MarkupTimelineParser {
         return progress;
     }
 
-    private static void ValidateTimelineItem(TimelineItem item) {
+    private static void ValidateTimelineItem(TimelineState state, TimelineItem item) {
         if (item.Kind != TimelineItemKind.Milestone && item.End.ToAxisValue() < item.Start.ToAxisValue()) throw new ArgumentException("Timeline item end must be greater than or equal to start.");
+        if (item.DependsOn < -1) throw new ArgumentException("Timeline dependsOn must reference an earlier zero-based Gantt item index.");
+        if (item.DependsOn >= 0 && IsGanttItem(state, item) && item.DependsOn >= CountPriorGanttItems(state)) throw new ArgumentException("Timeline dependsOn must reference an earlier zero-based Gantt item index.");
     }
+
+    private static int CountPriorGanttItems(TimelineState state) {
+        var count = 0;
+        foreach (var item in state.Items) if (IsGanttItem(state, item)) count++;
+        return count;
+    }
+
+    private static bool IsGanttItem(TimelineState state, TimelineItem item) =>
+        state.Mode == TimelineMode.Gantt || item.Kind == TimelineItemKind.Task;
 
     private static void ParseSize(TimelineState state, string value) {
         var parts = value.Split(new[] { 'x', 'X', ',' }, StringSplitOptions.RemoveEmptyEntries);

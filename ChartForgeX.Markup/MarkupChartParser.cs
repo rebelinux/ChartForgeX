@@ -473,21 +473,25 @@ public sealed partial class MarkupChartParser {
                 case "xaxisminimum":
                 case "xmin":
                     state.XAxisMinimum = VisualMarkupFenceOptions.ParseDouble(value, key);
+                    ValidateAxisBoundsIfComplete(state.XAxisMinimum, state.XAxisMaximum, "X-axis");
                     break;
                 case "xaxismaximum":
                 case "xmax":
                     state.XAxisMaximum = VisualMarkupFenceOptions.ParseDouble(value, key);
+                    ValidateAxisBoundsIfComplete(state.XAxisMinimum, state.XAxisMaximum, "X-axis");
                     break;
                 case "yaxisminimum":
                 case "ymin":
                     state.YAxisMinimum = VisualMarkupFenceOptions.ParseDouble(value, key);
+                    ValidateAxisBoundsIfComplete(state.YAxisMinimum, state.YAxisMaximum, "Y-axis");
                     break;
                 case "yaxismaximum":
                 case "ymax":
                     state.YAxisMaximum = VisualMarkupFenceOptions.ParseDouble(value, key);
+                    ValidateAxisBoundsIfComplete(state.YAxisMinimum, state.YAxisMaximum, "Y-axis");
                     break;
                 case "padding":
-                    state.Padding = VisualMarkupFenceOptions.ParseDouble(value, key);
+                    state.Padding = ParseNonNegativeFiniteDouble(value, key);
                     break;
                 case "sparkline":
                     state.Sparkline = VisualMarkupFenceOptions.ParseBoolean(value, key);

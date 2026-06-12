@@ -97,7 +97,7 @@ public sealed partial class MarkupChartParser {
             annotation.Color = color;
         }
 
-        if (attributes.TryGetValue("opacity", out var opacity)) annotation.Opacity = ParseDouble(opacity);
+        if (attributes.TryGetValue("opacity", out var opacity)) annotation.Opacity = ParseUnitIntervalDouble(opacity, "annotation opacity");
         state.Annotations.Add(annotation);
     }
 

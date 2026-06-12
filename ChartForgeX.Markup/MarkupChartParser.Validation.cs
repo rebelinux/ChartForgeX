@@ -18,8 +18,22 @@ public sealed partial class MarkupChartParser {
     private static void ParseAxisBounds(string minimumValue, string maximumValue, string axisName, out double minimum, out double maximum) {
         minimum = ParseDouble(minimumValue);
         maximum = ParseDouble(maximumValue);
+        ValidateAxisBounds(minimum, maximum, axisName);
+    }
+
+    private static void ValidateAxisBoundsIfComplete(double? minimum, double? maximum, string axisName) {
+        if (minimum.HasValue && maximum.HasValue) ValidateAxisBounds(minimum.Value, maximum.Value, axisName);
+    }
+
+    private static void ValidateAxisBounds(double minimum, double maximum, string axisName) {
         if (double.IsNaN(minimum) || double.IsInfinity(minimum) || double.IsNaN(maximum) || double.IsInfinity(maximum)) throw new ArgumentException(axisName + " bounds must be finite numbers.");
         if (maximum <= minimum) throw new ArgumentException(axisName + " maximum must be greater than minimum.");
+    }
+
+    private static double ParseUnitIntervalDouble(string value, string name) {
+        var parsed = ParseDouble(value);
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed) || parsed < 0 || parsed > 1) throw new ArgumentException("Chart " + name + " must be between 0 and 1.");
+        return parsed;
     }
 
     private static int ParseTickCount(string value, string name) {

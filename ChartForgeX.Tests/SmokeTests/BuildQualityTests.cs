@@ -141,6 +141,7 @@ internal static partial class SmokeTests {
         Assert(markupSchema.Contains("chartforgex sequence v1", StringComparison.Ordinal) && markupSchema.Contains("SequenceArtifact", StringComparison.Ordinal), "Markup v1 schema should document native sequence artifacts.");
         Assert(markupSchema.Contains("interactionBoundary", StringComparison.Ordinal) && markupSchema.Contains("future host or adapter package", StringComparison.Ordinal), "Markup v1 schema should keep rich table interaction as a future adapter boundary.");
         Assert(markupSchema.Contains("\"multiselect\"", StringComparison.Ordinal) && markupSchema.Contains("\"cellselect\"", StringComparison.Ordinal) && markupSchema.Contains("\"virtualization\"", StringComparison.Ordinal) && !markupSchema.Contains("\"paginate\"", StringComparison.Ordinal), "Markup v1 schema should mirror parser-supported table capabilities.");
+        Assert(markupSchema.Contains("\"totalRows\"", StringComparison.Ordinal) && !markupSchema.Contains("\"column\",\r\n        \"row\"", StringComparison.Ordinal) && !markupSchema.Contains("\"column\",\n        \"row\"", StringComparison.Ordinal), "Markup v1 schema should advertise table commands that the parser actually supports.");
 
         var markupReference = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "markup-v1-reference.md"));
         Assert(markupReference.Contains("chartforgex <kind> v1", StringComparison.Ordinal), "Markup v1 reference should document the required native fence shape.");
