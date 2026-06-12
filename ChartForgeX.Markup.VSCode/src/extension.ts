@@ -100,7 +100,7 @@ async function previewActiveDocument(context: vscode.ExtensionContext, resource?
 async function refreshPreview(context: vscode.ExtensionContext, document: vscode.TextDocument, panel: vscode.WebviewPanel): Promise<void> {
   const requestVersion = document.version;
   if (!isChartForgeXMarkup(document)) {
-    panel.webview.html = renderMessage('No chartforgex topology block was found in this document.');
+    panel.webview.html = renderMessage('No versioned ChartForgeX visual block was found in this document.');
     return;
   }
 
@@ -279,8 +279,10 @@ function isChartForgeXMarkup(document: vscode.TextDocument): boolean {
     return true;
   }
 
-  return /```+\s*(chartforgex|cfx)[\s-]+topology\b/i.test(document.getText()) ||
-    /~~~+\s*(chartforgex|cfx)[\s-]+topology\b/i.test(document.getText());
+  return /```+\s*chartforgex\s+(topology|table|chart|flow|timeline|sequence)\s+v1\b/i.test(document.getText()) ||
+    /~~~+\s*chartforgex\s+(topology|table|chart|flow|timeline|sequence)\s+v1\b/i.test(document.getText()) ||
+    /```+\s*mermaid\b/i.test(document.getText()) ||
+    /~~~+\s*mermaid\b/i.test(document.getText());
 }
 
 async function runCli(context: vscode.ExtensionContext, document: vscode.TextDocument, command: string, extraArgs: string[] = []): Promise<CliResult> {

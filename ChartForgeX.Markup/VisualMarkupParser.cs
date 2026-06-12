@@ -83,25 +83,26 @@ public sealed class VisualMarkupParser {
                 ParseChart(result, block);
                 break;
             case VisualMarkupKind.Flow:
+                ParseFlow(result, block);
+                break;
             case VisualMarkupKind.Timeline:
+                ParseTimeline(result, block);
+                break;
+            case VisualMarkupKind.Sequence:
+                ParseSequence(result, block);
+                break;
             case VisualMarkupKind.Mermaid:
-                Add(result, block.FenceLine, MarkupDiagnosticSeverity.Warning, "Parser dispatch for '" + block.FenceName + "' visual fences is not implemented yet.");
+                Add(result, block.FenceLine, MarkupDiagnosticSeverity.Warning, "No parser is registered for '" + block.FenceName + "' visual fences.");
                 break;
             default:
-                Add(result, block.FenceLine, MarkupDiagnosticSeverity.Warning, "Parser dispatch for visual kind '" + block.Kind + "' is not implemented.");
+                Add(result, block.FenceLine, MarkupDiagnosticSeverity.Warning, "No parser is registered for visual kind '" + block.Kind + "'.");
                 break;
         }
     }
 
     private static void ParseTopology(VisualMarkupParseResult result, VisualMarkupBlock block) {
-        var topologyResult = new MarkupTopologyParser().Parse(block.Payload);
-        foreach (var diagnostic in topologyResult.Diagnostics) {
-            result.Diagnostics.Add(new MarkupDiagnostic {
-                Line = diagnostic.Line <= 0 ? block.FenceLine : block.StartLine + diagnostic.Line - 1,
-                Severity = diagnostic.Severity,
-                Message = diagnostic.Message
-            });
-        }
+        var topologyResult = new MarkupTopologyParser().ParseBlock(block);
+        foreach (var diagnostic in topologyResult.Diagnostics) result.Diagnostics.Add(diagnostic);
 
         if (topologyResult.HasErrors || topologyResult.Document == null) return;
         var document = topologyResult.Document;
@@ -113,43 +114,71 @@ public sealed class VisualMarkupParser {
         artifact.Subtitle = document.Subtitle ?? string.Empty;
         artifact.ExportFormats = VisualArtifactExportFormat.Svg | VisualArtifactExportFormat.Png | VisualArtifactExportFormat.Html;
         artifact.Metadata["fence"] = block.FenceName;
+        artifact.Metadata["schemaVersion"] = block.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        artifact.Metadata["sourceLine"] = block.FenceLine.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        result.Artifacts.Add(artifact);
+    }
+
+    private static void ParseFlow(VisualMarkupParseResult result, VisualMarkupBlock block) {
+        var flowResult = new MarkupFlowParser().ParseBlock(block);
+        foreach (var diagnostic in flowResult.Diagnostics) result.Diagnostics.Add(diagnostic);
+
+        if (flowResult.HasErrors || flowResult.Document == null) return;
+        var artifact = flowResult.Document.ToVisualArtifact(VisualArtifactSourceLanguage.ChartForgeX);
+        artifact.Metadata["fence"] = block.FenceName;
+        artifact.Metadata["schemaVersion"] = block.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
         artifact.Metadata["sourceLine"] = block.FenceLine.ToString(System.Globalization.CultureInfo.InvariantCulture);
         result.Artifacts.Add(artifact);
     }
 
     private static void ParseTable(VisualMarkupParseResult result, VisualMarkupBlock block) {
-        var tableResult = new MarkupTableParser().Parse(block.Payload);
-        foreach (var diagnostic in tableResult.Diagnostics) {
-            result.Diagnostics.Add(new MarkupDiagnostic {
-                Line = diagnostic.Line <= 0 ? block.FenceLine : block.StartLine + diagnostic.Line - 1,
-                Severity = diagnostic.Severity,
-                Message = diagnostic.Message
-            });
-        }
+        var tableResult = new MarkupTableParser().ParseBlock(block);
+        foreach (var diagnostic in tableResult.Diagnostics) result.Diagnostics.Add(diagnostic);
 
         if (tableResult.HasErrors || tableResult.Document == null) return;
         var table = tableResult.Document;
         var artifact = table.ToVisualArtifact();
         artifact.SourceLanguage = VisualArtifactSourceLanguage.ChartForgeX;
         artifact.Metadata["fence"] = block.FenceName;
+        artifact.Metadata["schemaVersion"] = block.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        artifact.Metadata["sourceLine"] = block.FenceLine.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        result.Artifacts.Add(artifact);
+    }
+
+    private static void ParseTimeline(VisualMarkupParseResult result, VisualMarkupBlock block) {
+        var timelineResult = new MarkupTimelineParser().ParseBlock(block);
+        foreach (var diagnostic in timelineResult.Diagnostics) result.Diagnostics.Add(diagnostic);
+
+        if (timelineResult.HasErrors || timelineResult.Document == null) return;
+        var document = timelineResult.Document;
+        var artifact = document.Chart.ToVisualArtifact(document.Id, VisualArtifactKind.Timeline, VisualArtifactSourceLanguage.ChartForgeX);
+        artifact.Metadata["fence"] = block.FenceName;
+        artifact.Metadata["schemaVersion"] = block.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
         artifact.Metadata["sourceLine"] = block.FenceLine.ToString(System.Globalization.CultureInfo.InvariantCulture);
         result.Artifacts.Add(artifact);
     }
 
     private static void ParseChart(VisualMarkupParseResult result, VisualMarkupBlock block) {
-        var chartResult = new MarkupChartParser().Parse(block.Payload);
-        foreach (var diagnostic in chartResult.Diagnostics) {
-            result.Diagnostics.Add(new MarkupDiagnostic {
-                Line = diagnostic.Line <= 0 ? block.FenceLine : block.StartLine + diagnostic.Line - 1,
-                Severity = diagnostic.Severity,
-                Message = diagnostic.Message
-            });
-        }
+        var chartResult = new MarkupChartParser().ParseBlock(block);
+        foreach (var diagnostic in chartResult.Diagnostics) result.Diagnostics.Add(diagnostic);
 
         if (chartResult.HasErrors || chartResult.Document == null) return;
         var document = chartResult.Document;
         var artifact = document.Chart.ToVisualArtifact(document.Id, VisualArtifactKind.Chart, VisualArtifactSourceLanguage.ChartForgeX);
         artifact.Metadata["fence"] = block.FenceName;
+        artifact.Metadata["schemaVersion"] = block.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        artifact.Metadata["sourceLine"] = block.FenceLine.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        result.Artifacts.Add(artifact);
+    }
+
+    private static void ParseSequence(VisualMarkupParseResult result, VisualMarkupBlock block) {
+        var sequenceResult = new MarkupSequenceParser().ParseBlock(block);
+        foreach (var diagnostic in sequenceResult.Diagnostics) result.Diagnostics.Add(diagnostic);
+
+        if (sequenceResult.HasErrors || sequenceResult.Document == null) return;
+        var artifact = sequenceResult.Document.ToVisualArtifact(VisualArtifactSourceLanguage.ChartForgeX);
+        artifact.Metadata["fence"] = block.FenceName;
+        artifact.Metadata["schemaVersion"] = block.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
         artifact.Metadata["sourceLine"] = block.FenceLine.ToString(System.Globalization.CultureInfo.InvariantCulture);
         result.Artifacts.Add(artifact);
     }

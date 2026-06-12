@@ -1,10 +1,10 @@
 # ChartForgeX Markup for VS Code
 
-Author ChartForgeX topology diagrams from Markdown-friendly markup, preview them while you write, and export SVG, PNG, HTML, or generated C# builder code.
+Author ChartForgeX visual blocks from Markdown-friendly markup, preview them while you write, export SVG, PNG, or HTML, and generate C# builder code for topology diagrams.
 
 ## What You Get
 
-- Syntax highlighting for `chartforgex topology` fenced blocks.
+- Syntax highlighting for `chartforgex <kind> v1` fenced blocks.
 - Markdown diagnostics that point back to the original source line.
 - Live preview backed by `ChartForgeX.Markup.Cli`.
 - Export commands for SVG, PNG, and standalone HTML.
@@ -12,19 +12,20 @@ Author ChartForgeX topology diagrams from Markdown-friendly markup, preview them
 
 ## Quick Start
 
-Create a fenced topology block in Markdown:
+Create a native visual block in Markdown:
 
 ````markdown
-```chartforgex topology
-title "Service Dependency Map"
-layout layered lr
-node api "API" kind:service status:healthy icon:service
-node db "Database" kind:database status:warning icon:database
-edge api -> db "32 ms" status:warning direction:forward
+```chartforgex chart v1 {#trend title="Trend" type="line"}
+labels Jan Feb Mar
+values 12 18 16
 ```
 ````
 
 Run `ChartForgeX Markup: Open Preview` from the command palette.
+
+Native v1 snippets are available for topology, flow, sequence diagrams, table-backed topology, charts, multi-series charts, timelines, and Gantt plans. Mermaid fences are scanned by the language, while semantic Mermaid parsing is provided by the optional ChartForgeX Mermaid adapter used by the packaged CLI.
+
+The extension package includes `schemas/chartforgex-markup-v1.schema.json`, the same machine-readable v1 grammar schema packed by `ChartForgeX.Markup`, so editor tooling can discover supported fence families and table sections without scraping docs.
 
 ## Commands
 
@@ -43,7 +44,7 @@ The extension activates for:
 
 - `.cfx.md`
 - `.chartforgex.md`
-- Markdown files that contain fenced `chartforgex topology` blocks
+- Markdown files that contain fenced `chartforgex <kind> v1` blocks
 
 ## Requirements
 

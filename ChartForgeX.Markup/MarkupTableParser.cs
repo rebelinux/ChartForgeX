@@ -18,8 +18,36 @@ public sealed class MarkupTableParser {
     /// <returns>The parse result.</returns>
     public MarkupParseResult<TableArtifact> Parse(string text) {
         if (text == null) throw new ArgumentNullException(nameof(text));
-        var block = ExtractFirstTableBlock(text);
-        var result = new MarkupParseResult<TableArtifact> { Document = TableArtifact.Create("table") };
+        var scan = VisualMarkupScanner.Scan(text);
+        var result = new MarkupParseResult<TableArtifact>();
+        foreach (var diagnostic in scan.Diagnostics) result.Diagnostics.Add(diagnostic);
+        foreach (var scannedBlock in scan.Blocks) {
+            if (scannedBlock.Kind == VisualMarkupKind.Table) return ParseBlockCore(scannedBlock, result);
+        }
+
+        if (result.Diagnostics.Count > 0) return result;
+        return ParseBlockCore(CreateRawBlock(text), result);
+    }
+
+    /// <summary>
+    /// Parses a pre-scanned ChartForgeX table block while preserving fence attributes and source lines.
+    /// </summary>
+    /// <param name="block">The table visual block.</param>
+    /// <returns>The parse result.</returns>
+    public MarkupParseResult<TableArtifact> ParseBlock(VisualMarkupBlock block) {
+        if (block == null) throw new ArgumentNullException(nameof(block));
+        var result = new MarkupParseResult<TableArtifact>();
+        if (block.Kind != VisualMarkupKind.Table) {
+            Add(result, block.FenceLine, MarkupDiagnosticSeverity.Error, "Expected a ChartForgeX table visual block.");
+            return result;
+        }
+
+        return ParseBlockCore(block, result);
+    }
+
+    private static MarkupParseResult<TableArtifact> ParseBlockCore(VisualMarkupBlock block, MarkupParseResult<TableArtifact> result) {
+        result.Document = TableArtifact.Create("table");
+        if (block.SchemaVersion != 1) Add(result, block.FenceLine, MarkupDiagnosticSeverity.Error, "ChartForgeX table markup requires schema version v1.");
         ApplyFenceAttributes(result, result.Document, block);
         var lines = block.Payload.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         var lineOffset = block.StartLine - 1;
@@ -55,44 +83,20 @@ public sealed class MarkupTableParser {
         return result;
     }
 
-    private static VisualMarkupBlock ExtractFirstTableBlock(string text) {
-        var scan = VisualMarkupScanner.Scan(text);
-        foreach (var block in scan.Blocks) {
-            if (block.Kind == VisualMarkupKind.Table) return block;
-        }
-
-        return new VisualMarkupBlock(VisualMarkupKind.Table, "chartforgex table", string.Empty, text, 1, 1, Math.Max(1, text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Length), EmptyAttributes.Value);
-    }
+    private static VisualMarkupBlock CreateRawBlock(string text) =>
+        new VisualMarkupBlock(VisualMarkupKind.Table, "chartforgex table", string.Empty, 1, text, 1, 1, Math.Max(1, text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Length), EmptyAttributes.Value);
 
     private static void ApplyFenceAttributes(MarkupParseResult<TableArtifact> result, TableArtifact table, VisualMarkupBlock block) {
         if (block.Attributes.Count == 0) return;
         try {
-            if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) table.Id = id;
-            if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) table.Title = title;
-            if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) table.Subtitle = subtitle;
-            if (TryGetAttribute(block, "capabilities", out var capabilities) && !string.IsNullOrWhiteSpace(capabilities)) table.Capabilities = ParseCapabilities(Tokenize("capabilities " + capabilities.Replace(',', ' ')), 1);
-            if (TryGetAttribute(block, "totalRows", out var totalRows) && !string.IsNullOrWhiteSpace(totalRows)) table.TotalRowCount = long.Parse(totalRows, CultureInfo.InvariantCulture);
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) table.Id = id;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) table.Title = title;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) table.Subtitle = subtitle;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "capabilities", out var capabilities) && !string.IsNullOrWhiteSpace(capabilities)) table.Capabilities = ParseCapabilities(Tokenize("capabilities " + capabilities.Replace(',', ' ')), 1);
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "totalRows", out var totalRows) && !string.IsNullOrWhiteSpace(totalRows)) table.TotalRowCount = long.Parse(totalRows, CultureInfo.InvariantCulture);
         } catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is FormatException || ex is OverflowException) {
             Add(result, block.FenceLine, MarkupDiagnosticSeverity.Error, ex.Message);
         }
-    }
-
-    private static bool TryGetAttribute(VisualMarkupBlock block, string key, out string value) {
-        if (block.Attributes.TryGetValue(key, out var exact)) {
-            value = exact;
-            return true;
-        }
-
-        var normalized = NormalizeKey(key);
-        foreach (var item in block.Attributes) {
-            if (NormalizeKey(item.Key) == normalized) {
-                value = item.Value;
-                return true;
-            }
-        }
-
-        value = string.Empty;
-        return false;
     }
 
     private static void ParseCommand(MarkupParseResult<TableArtifact> result, TableArtifact table, string line, int lineNumber) {

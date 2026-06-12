@@ -1298,6 +1298,102 @@
       }
     },
     {
+      "name": "markup-chart-release-trend",
+      "width": 920,
+      "height": 520,
+      "svg": {
+        "minVisualNodes": 37,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 223391,
+        "minDistinctColors": 1451,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "markup-flow-approval",
+      "width": 1120,
+      "height": 712,
+      "svg": {
+        "minVisualNodes": 40,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 398720,
+        "minDistinctColors": 1012,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "markup-sequence-incident",
+      "width": 960,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 13,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 268800,
+        "minDistinctColors": 893,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "markup-table-release-gates",
+      "width": 760,
+      "height": 360,
+      "svg": {
+        "minVisualNodes": 13,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 26360,
+        "minDistinctColors": 927,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "markup-timeline-release-plan",
+      "width": 980,
+      "height": 560,
+      "svg": {
+        "minVisualNodes": 38,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 257471,
+        "minDistinctColors": 934,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
+      "name": "markup-topology-service-map",
+      "width": 1144,
+      "height": 689,
+      "svg": {
+        "minVisualNodes": 42,
+        "maxClippedTextNodes": 0,
+        "maxNearEdgeTextNodes": 0
+      },
+      "png": {
+        "outputScale": 1,
+        "minVisiblePixels": 394108,
+        "minDistinctColors": 977,
+        "maxEdgeInkPixels": 0
+      }
+    },
+    {
       "name": "monthly-posture-dark",
       "width": 760,
       "height": 540,
@@ -1910,7 +2006,7 @@
       "width": 1280,
       "height": 814,
       "svg": {
-        "minVisualNodes": 150,
+        "minVisualNodes": 151,
         "maxClippedTextNodes": 0,
         "maxNearEdgeTextNodes": 0
       },
