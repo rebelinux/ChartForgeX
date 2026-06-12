@@ -280,7 +280,9 @@ function isChartForgeXMarkup(document: vscode.TextDocument): boolean {
   }
 
   return /```+\s*chartforgex\s+(topology|table|chart|flow|timeline|sequence)\s+v1\b/i.test(document.getText()) ||
-    /~~~+\s*chartforgex\s+(topology|table|chart|flow|timeline|sequence)\s+v1\b/i.test(document.getText());
+    /~~~+\s*chartforgex\s+(topology|table|chart|flow|timeline|sequence)\s+v1\b/i.test(document.getText()) ||
+    /```+\s*mermaid\b/i.test(document.getText()) ||
+    /~~~+\s*mermaid\b/i.test(document.getText());
 }
 
 async function runCli(context: vscode.ExtensionContext, document: vscode.TextDocument, command: string, extraArgs: string[] = []): Promise<CliResult> {

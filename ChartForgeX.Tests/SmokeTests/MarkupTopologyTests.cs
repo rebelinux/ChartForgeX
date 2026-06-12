@@ -62,6 +62,25 @@ edges:
         Assert(Diagnostics(result).Contains("at least one node", System.StringComparison.Ordinal), "Missing-node diagnostic should be actionable.");
     }
 
+    private static void MarkupTopologyReportsInvalidViewportAttributes() {
+        const string fenceSource = @"```chartforgex topology v1 {#bad width=-1 padding=NaN}
+node api ""API"" kind:service status:healthy
+```";
+        var fenceResult = new MarkupTopologyParser().Parse(fenceSource);
+
+        Assert(fenceResult.HasErrors, "Invalid topology fence viewport attributes should produce parse diagnostics.");
+        Assert(Diagnostics(fenceResult).Contains("finite", System.StringComparison.Ordinal), "Invalid topology fence viewport diagnostics should explain finite/positive validation.");
+
+        const string commandSource = @"```chartforgex topology v1
+viewport 1200x0 NaN
+node api ""API"" kind:service status:healthy
+```";
+        var commandResult = new MarkupTopologyParser().Parse(commandSource);
+
+        Assert(commandResult.HasErrors, "Invalid topology viewport commands should produce parse diagnostics.");
+        Assert(Diagnostics(commandResult).Contains("finite", System.StringComparison.Ordinal), "Invalid topology viewport command diagnostics should explain finite/positive validation.");
+    }
+
     private static void MarkupTopologyExtractsTildeFenceWithMetadata() {
         const string source = @"# Diagram
 
@@ -583,6 +602,7 @@ options:
 
         Assert(result.HasErrors, "Invalid ChartForgeX chart option values should produce parser errors.");
         Assert(Diagnostics(result).Contains("legend", StringComparison.Ordinal), "Invalid option diagnostics should name the option.");
+
     }
 
     private static void VisualMarkupParserMapsChartFencesToArtifacts() {

@@ -65,6 +65,28 @@ annotation hLine 1 ""Target"" color:nope
 
         Assert(invalidColorResult.HasErrors, "Invalid series or annotation colors should produce parse diagnostics.");
         Assert(Diagnostics(invalidColorResult).Contains("valid hex color", StringComparison.Ordinal), "Invalid chart colors should be reported as markup diagnostics.");
+
+        const string unknownTypes = @"```chartforgex chart v1
+type spline
+series Revenue type ribbon values 1 2
+```";
+        var unknownTypesResult = new MarkupChartParser().Parse(unknownTypes);
+
+        Assert(unknownTypesResult.HasErrors, "Unknown chart and series types should produce parse diagnostics.");
+        Assert(Diagnostics(unknownTypesResult).Contains("Unknown chart type", StringComparison.Ordinal), "Unknown chart type diagnostics should be reported during parsing.");
+
+        const string invalidTickCount = @"```chartforgex chart v1
+labels Jan Feb
+values 1 2
+options:
+| option | value |
+| ------ | ----- |
+| tickCount | 1 |
+```";
+        var tickCountResult = new MarkupChartParser().Parse(invalidTickCount);
+
+        Assert(tickCountResult.HasErrors, "Invalid chart tick counts should produce parser errors.");
+        Assert(Diagnostics(tickCountResult).Contains("tickCount", StringComparison.Ordinal), "Invalid tick count diagnostics should name the option.");
     }
 
     private static void MarkupFlowParserParsesTopologyCompatibleFlow() {
@@ -195,7 +217,20 @@ milestone ""Ship"" 2026-01-14 color:#16A34A
         Assert(!ganttResult.HasErrors, "Timeline markup should parse Gantt table rows without errors: " + Diagnostics(ganttResult));
         var ganttChart = ganttResult.Document!.Chart;
         Assert(ganttChart.Series.Count == 2 && ganttChart.Series[0].Kind == ChartSeriesKind.Gantt, "Gantt timeline markup should build native Gantt series.");
+        Assert(IsClose(ganttChart.Series[0].Points[1].X, 0.5) && IsClose(ganttChart.Series[0].Points[1].Y, -1), "Gantt table rows should preserve progress and default dependencies.");
         Assert(ganttChart.ToSvg().Contains("data-cfx-role=\"gantt-task\"", StringComparison.Ordinal), "Gantt timeline markup should render through native Gantt SVG output.");
+
+        const string commandGanttSource = @"```chartforgex timeline v1 {#launch type=""gantt""}
+task Design 1 5 progress=1 color=#2563EB
+task Build 5 10 progress=0.72 dependsOn=0 color=#14B8A6
+milestone Release 11 dependsOn=1 color=#059669
+```";
+        var commandGanttResult = new MarkupTimelineParser().Parse(commandGanttSource);
+
+        Assert(!commandGanttResult.HasErrors, "Timeline command attributes using '=' should parse without errors: " + Diagnostics(commandGanttResult));
+        var commandGanttChart = commandGanttResult.Document!.Chart;
+        Assert(IsClose(commandGanttChart.Series[1].Points[1].X, 0.72) && IsClose(commandGanttChart.Series[1].Points[1].Y, 0), "Timeline command '=' attributes should preserve task progress and dependencies.");
+        Assert(commandGanttChart.Series[1].Color.HasValue, "Timeline command color= attributes should preserve task colors.");
     }
 
     private static void MarkupTimelineParserReportsInvalidColors() {

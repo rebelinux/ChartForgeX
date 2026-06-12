@@ -17,7 +17,7 @@ public sealed partial class MarkupChartParser {
                 var key = NormalizeKey(tokens[i].TrimEnd(':'));
                 if (key == "type" || key == "kind") {
                     if (i + 1 >= tokens.Count) throw new ArgumentException("Series type requires a value.");
-                    series.Type = tokens[++i];
+                    series.Type = ValidateChartType(tokens[++i]);
                     readingValues = false;
                     continue;
                 }

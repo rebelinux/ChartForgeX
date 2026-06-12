@@ -219,7 +219,15 @@
           "start",
           "process",
           "decision",
-          "end"
+          "end",
+          "input",
+          "output",
+          "data",
+          "external",
+          "document",
+          "manual",
+          "delay",
+          "event"
         ],
         "direction": [
           "left-to-right",

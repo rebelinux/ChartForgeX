@@ -98,7 +98,7 @@ public sealed partial class MarkupChartParser {
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) state.Id = id;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) state.Title = title;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) state.Subtitle = subtitle;
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "type", out var type) && !string.IsNullOrWhiteSpace(type)) state.Type = type;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "type", out var type) && !string.IsNullOrWhiteSpace(type)) state.Type = ValidateChartType(type);
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "series", out var series) && !string.IsNullOrWhiteSpace(series)) state.SeriesName = series;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "size", out var size) && !string.IsNullOrWhiteSpace(size)) ParseSize(state, size);
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "width", out var width) && !string.IsNullOrWhiteSpace(width)) state.Width = VisualMarkupFenceOptions.ParseInt32(width, "width");
@@ -220,7 +220,7 @@ public sealed partial class MarkupChartParser {
                 case "type":
                 case "kind":
                     RequireTokenCount(tokens, 2, tokens[0]);
-                    state.Type = tokens[1];
+                    state.Type = ValidateChartType(tokens[1]);
                     break;
                 case "series":
                     if (tokens.Count == 2) state.SeriesName = tokens[1];
@@ -295,7 +295,7 @@ public sealed partial class MarkupChartParser {
                     break;
                 case "tickcount":
                     RequireTokenCount(tokens, 2, tokens[0]);
-                    state.TickCount = VisualMarkupFenceOptions.ParseInt32(tokens[1], tokens[0]);
+                    state.TickCount = ParseTickCount(tokens[1], tokens[0]);
                     break;
                 case "xaxis":
                 case "xtitle":
@@ -458,7 +458,7 @@ public sealed partial class MarkupChartParser {
                     state.LegendPosition = VisualMarkupFenceOptions.ParseEnum<ChartLegendPosition>(value, key);
                     break;
                 case "tickcount":
-                    state.TickCount = VisualMarkupFenceOptions.ParseInt32(value, key);
+                    state.TickCount = ParseTickCount(value, key);
                     break;
                 case "xaxistitle":
                 case "xtitle":
@@ -558,6 +558,41 @@ public sealed partial class MarkupChartParser {
     }
 
     private static double ParseDouble(string value) => double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+
+    private static int ParseTickCount(string value, string name) {
+        var count = VisualMarkupFenceOptions.ParseInt32(value, name);
+        if (count < 2) throw new ArgumentException("Chart tickCount must be at least 2.");
+        return count;
+    }
+
+    private static string ValidateChartType(string type) {
+        switch (NormalizeKey(type)) {
+            case "line":
+            case "smoothline":
+            case "stepline":
+            case "area":
+            case "smootharea":
+            case "steparea":
+            case "stackedarea":
+            case "smoothstackedarea":
+            case "scatter":
+            case "lollipop":
+            case "radar":
+            case "funnel":
+            case "polararea":
+            case "polar":
+            case "donut":
+            case "pie":
+            case "horizontalbar":
+            case "hbar":
+            case "waterfall":
+            case "bar":
+            case "column":
+                return type;
+            default:
+                throw new ArgumentException("Unknown chart type '" + type + "'.");
+        }
+    }
 
     private static void ApplyChartOptions(Chart chart, ChartState state) {
         if (!string.IsNullOrWhiteSpace(state.XAxisTitle)) chart.WithXAxis(state.XAxisTitle!);

@@ -143,6 +143,7 @@ public sealed class MarkupTimelineParser {
                     break;
                 case "item":
                 case "range":
+                case "event":
                     state.Items.Add(ParseCommandItem(tokens, TimelineItemKind.Item));
                     break;
                 case "task":
@@ -215,6 +216,7 @@ public sealed class MarkupTimelineParser {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         for (var i = start; i < tokens.Count; i++) {
             var split = tokens[i].IndexOf(':');
+            if (split <= 0) split = tokens[i].IndexOf('=');
             if (split <= 0) continue;
             attributes[NormalizeKey(tokens[i].Substring(0, split))] = tokens[i].Substring(split + 1);
         }

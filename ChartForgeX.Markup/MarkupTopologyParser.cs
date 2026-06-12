@@ -92,9 +92,9 @@ public sealed class MarkupTopologyParser {
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) document.Id = id;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) document.Title = title;
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) document.Subtitle = subtitle;
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "width", out var width) && !string.IsNullOrWhiteSpace(width)) document.Width = VisualMarkupFenceOptions.ParseDouble(width, "width");
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "height", out var height) && !string.IsNullOrWhiteSpace(height)) document.Height = VisualMarkupFenceOptions.ParseDouble(height, "height");
-            if (VisualMarkupFenceOptions.TryGetAttribute(block, "padding", out var padding) && !string.IsNullOrWhiteSpace(padding)) document.Padding = VisualMarkupFenceOptions.ParseDouble(padding, "padding");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "width", out var width) && !string.IsNullOrWhiteSpace(width)) document.Width = ParsePositiveFinite(width, "viewport width");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "height", out var height) && !string.IsNullOrWhiteSpace(height)) document.Height = ParsePositiveFinite(height, "viewport height");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "padding", out var padding) && !string.IsNullOrWhiteSpace(padding)) document.Padding = ParseNonNegativeFinite(padding, "viewport padding");
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "layout", out var layout) && !string.IsNullOrWhiteSpace(layout)) document.LayoutMode = ParseEnum<TopologyLayoutMode>(layout);
             if (VisualMarkupFenceOptions.TryGetAttribute(block, "direction", out var direction) && !string.IsNullOrWhiteSpace(direction)) document.LayoutDirection = ParseDirection(direction);
         } catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is FormatException || ex is OverflowException) {
@@ -218,9 +218,9 @@ public sealed class MarkupTopologyParser {
         if (tokens.Count < 2) throw new ArgumentException("Viewport requires a value like 1200x700.");
         var parts = tokens[1].Split('x', 'X');
         if (parts.Length != 2) throw new ArgumentException("Viewport requires a value like 1200x700.");
-        document.Width = double.Parse(parts[0], CultureInfo.InvariantCulture);
-        document.Height = double.Parse(parts[1], CultureInfo.InvariantCulture);
-        if (tokens.Count > 2) document.Padding = double.Parse(tokens[2], CultureInfo.InvariantCulture);
+        document.Width = ParsePositiveFinite(parts[0], "viewport width");
+        document.Height = ParsePositiveFinite(parts[1], "viewport height");
+        if (tokens.Count > 2) document.Padding = ParseNonNegativeFinite(tokens[2], "viewport padding");
     }
 
     private static void ParseLayout(MarkupTopologyDocument document, List<string> tokens) {
@@ -514,6 +514,18 @@ public sealed class MarkupTopologyParser {
     private static bool IsKnownTopologyCommand(string command) => command == "id" || command == "title" || command == "subtitle" || command == "viewport" || command == "layout" || IsTopologyEntryCommand(command);
     private static string JoinTail(List<string> tokens, int start) => start >= tokens.Count ? string.Empty : string.Join(" ", tokens.Skip(start));
     private static string NormalizeKey(string value) => new string((value ?? string.Empty).Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+    private static double ParsePositiveFinite(string value, string name) {
+        var parsed = VisualMarkupFenceOptions.ParseDouble(value, name);
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed) || parsed <= 0) throw new ArgumentException("Topology " + name + " must be a positive finite number.");
+        return parsed;
+    }
+
+    private static double ParseNonNegativeFinite(string value, string name) {
+        var parsed = VisualMarkupFenceOptions.ParseDouble(value, name);
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed) || parsed < 0) throw new ArgumentException("Topology " + name + " must be a non-negative finite number.");
+        return parsed;
+    }
+
     private static string? Optional(Dictionary<string, string> row, string key) => row.TryGetValue(NormalizeKey(key), out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
     private static string Value(Dictionary<string, string> row, string key, string fallback) => row.TryGetValue(NormalizeKey(key), out var value) && !string.IsNullOrWhiteSpace(value) ? value : fallback;
     private static string Required(Dictionary<string, string> row, string key) => Optional(row, key) ?? throw new ArgumentException("Missing required '" + key + "' column.");
