@@ -11,6 +11,7 @@ public sealed partial class MarkupChartParser {
         try {
             RequireTokenCount(tokens, 4, "series");
             var series = GetOrAddSeries(state, tokens[1]);
+            var valueCountBefore = series.Values.Count;
             var readingValues = false;
             for (var i = 2; i < tokens.Count; i++) {
                 var key = NormalizeKey(tokens[i].TrimEnd(':'));
@@ -24,6 +25,7 @@ public sealed partial class MarkupChartParser {
                 if (key == "color") {
                     if (i + 1 >= tokens.Count) throw new ArgumentException("Series color requires a value.");
                     series.Color = tokens[++i];
+                    ValidateColor(series.Color, "Series color");
                     readingValues = false;
                     continue;
                 }
@@ -46,6 +48,8 @@ public sealed partial class MarkupChartParser {
 
                 Add(result, lineNumber, MarkupDiagnosticSeverity.Warning, "Unknown chart series token '" + tokens[i] + "'.");
             }
+
+            if (series.Values.Count == valueCountBefore) Add(result, lineNumber, MarkupDiagnosticSeverity.Error, "Chart series '" + series.Name + "' must declare at least one numeric value.");
         } catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException) {
             Add(result, lineNumber, MarkupDiagnosticSeverity.Error, ex.Message);
         }
@@ -72,7 +76,11 @@ public sealed partial class MarkupChartParser {
         var attributes = Attributes(tokens, next);
         if (attributes.TryGetValue("end", out var end)) annotation.End = ParseDouble(end);
         if (attributes.TryGetValue("label", out var label)) annotation.Label = label;
-        if (attributes.TryGetValue("color", out var color)) annotation.Color = color;
+        if (attributes.TryGetValue("color", out var color)) {
+            ValidateColor(color, "Annotation color");
+            annotation.Color = color;
+        }
+
         if (attributes.TryGetValue("opacity", out var opacity)) annotation.Opacity = ParseDouble(opacity);
         state.Annotations.Add(annotation);
     }
@@ -115,4 +123,13 @@ public sealed partial class MarkupChartParser {
 
     private static ChartColor? ParseColor(string? value) =>
         string.IsNullOrWhiteSpace(value) ? (ChartColor?)null : ChartColor.FromHex(value!);
+
+    private static void ValidateColor(string? value, string name) {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        try {
+            ChartColor.FromHex(value!);
+        } catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException) {
+            throw new ArgumentException(name + " must be a valid hex color.", ex);
+        }
+    }
 }

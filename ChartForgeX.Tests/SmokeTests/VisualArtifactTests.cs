@@ -45,6 +45,7 @@ internal static partial class SmokeTests {
         Assert(artifact.Kind == VisualArtifactKind.Table, "TableArtifact should wrap into a product-neutral visual artifact envelope.");
         Assert(artifact.Model == table, "VisualArtifact should keep the typed table model for native hosts.");
         Assert(artifact.SupportsExport(VisualArtifactExportFormat.Png), "VisualArtifact should expose table preview export capabilities.");
+        Assert(artifact.SupportsExport(VisualArtifactExportFormat.Html), "VisualArtifact should expose table HTML preview export support.");
         Assert(artifact.Metadata["table.capabilities"].Contains("Virtualization", StringComparison.Ordinal), "VisualArtifact metadata should expose declared table capabilities.");
     }
 
@@ -133,7 +134,7 @@ internal static partial class SmokeTests {
             .AddLane("ops", "Operations")
             .AddStep("start", "Start", FlowArtifactStepKind.Start, "ops", VisualStatus.Positive)
             .AddStep("review", "Review", FlowArtifactStepKind.Decision, "ops", VisualStatus.Warning)
-            .AddConnector("start", "review", "handoff", FlowArtifactConnectorKind.Flow, FlowArtifactConnectorDirection.Forward, VisualStatus.Positive);
+            .AddConnector("start", "review", "handoff", FlowArtifactConnectorKind.Flow, FlowArtifactConnectorDirection.Forward, VisualStatus.Positive, "#EF4444");
 
         var artifact = flow.ToVisualArtifact();
         var svg = flow.ToSvg();
@@ -145,6 +146,7 @@ internal static partial class SmokeTests {
         Assert(artifact.Metadata["render.previewModel"] == nameof(TopologyChart), "FlowArtifact envelope should identify the static preview projection.");
         Assert(artifact.Metadata["flow.steps"] == "2" && artifact.Metadata["flow.connectors"] == "1", "FlowArtifact envelope should expose flow counts.");
         Assert(svg.Contains("data-cfx-role=\"topology\"", StringComparison.Ordinal), "FlowArtifact static preview should reuse deterministic topology SVG rendering.");
+        Assert(svg.Contains("#EF4444", StringComparison.OrdinalIgnoreCase), "FlowArtifact static preview should preserve explicit connector colors.");
         Assert(flow.ToHtmlPage().Contains("<!doctype html>", StringComparison.OrdinalIgnoreCase), "FlowArtifact HTML preview should reuse deterministic topology HTML rendering.");
         Assert(png.Length > 64 && png[0] == 0x89 && png[1] == 0x50 && png[2] == 0x4E && png[3] == 0x47, "FlowArtifact PNG preview should emit a valid PNG.");
     }

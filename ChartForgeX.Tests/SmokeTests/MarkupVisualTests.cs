@@ -46,6 +46,27 @@ series Incidents type bar color #EF4444 values 3 4 2
         Assert(chart.Series[0].Points.Count == 3 && chart.Series[1].Points.Count == 3, "Command-style series should preserve all numeric values.");
     }
 
+    private static void MarkupChartParserReportsInvalidSeriesContracts() {
+        const string missingValues = @"```chartforgex chart v1
+labels Jan Feb
+series Revenue type line
+```";
+        var missingValuesResult = new MarkupChartParser().Parse(missingValues);
+
+        Assert(missingValuesResult.HasErrors, "Command-style series without values should produce a parse diagnostic.");
+        Assert(Diagnostics(missingValuesResult).Contains("must declare at least one numeric value", StringComparison.Ordinal), "Missing series values diagnostic should explain the contract.");
+
+        const string invalidColor = @"```chartforgex chart v1
+labels Jan Feb
+series Revenue color nope values 1 2
+annotation hLine 1 ""Target"" color:nope
+```";
+        var invalidColorResult = new MarkupChartParser().Parse(invalidColor);
+
+        Assert(invalidColorResult.HasErrors, "Invalid series or annotation colors should produce parse diagnostics.");
+        Assert(Diagnostics(invalidColorResult).Contains("valid hex color", StringComparison.Ordinal), "Invalid chart colors should be reported as markup diagnostics.");
+    }
+
     private static void MarkupFlowParserParsesTopologyCompatibleFlow() {
         const string source = @"```chartforgex flow v1 {#pipeline}
 id pipeline
@@ -88,6 +109,17 @@ connect intake -> review ""handoff"" status:healthy
         Assert(result.Artifacts[0].Metadata["render.model"] == nameof(FlowArtifact), "Flow visual artifacts should expose the flow render model.");
         Assert(result.Artifacts[0].Metadata["render.previewModel"] == nameof(TopologyChart), "Flow visual artifacts should document the static preview projection.");
         Assert(result.Artifacts[0].ToSvg().Contains("data-cfx-role=\"topology\"", StringComparison.Ordinal), "Flow visual artifacts should render through deterministic topology SVG output.");
+    }
+
+    private static void MarkupFlowParserReportsInvalidViewportDimensions() {
+        const string source = @"```chartforgex flow v1 {#bad width=-1 padding=NaN}
+start intake ""Intake""
+```";
+
+        var result = new VisualMarkupParser().Parse(source);
+
+        Assert(result.HasErrors, "Invalid flow viewport dimensions should produce parse diagnostics instead of throwing during artifact conversion.");
+        Assert(Diagnostics(result).Contains("finite", StringComparison.Ordinal), "Invalid flow dimensions should report finite/positive validation.");
     }
 
     private static void MarkupSequenceParserParsesSequenceMarkup() {
@@ -164,6 +196,17 @@ milestone ""Ship"" 2026-01-14 color:#16A34A
         var ganttChart = ganttResult.Document!.Chart;
         Assert(ganttChart.Series.Count == 2 && ganttChart.Series[0].Kind == ChartSeriesKind.Gantt, "Gantt timeline markup should build native Gantt series.");
         Assert(ganttChart.ToSvg().Contains("data-cfx-role=\"gantt-task\"", StringComparison.Ordinal), "Gantt timeline markup should render through native Gantt SVG output.");
+    }
+
+    private static void MarkupTimelineParserReportsInvalidColors() {
+        const string source = @"```chartforgex timeline v1
+item ""Design"" 2026-01-01 2026-01-07 color:nope
+```";
+
+        var result = new MarkupTimelineParser().Parse(source);
+
+        Assert(result.HasErrors, "Invalid timeline item colors should produce parse diagnostics.");
+        Assert(Diagnostics(result).Contains("valid hex color", StringComparison.Ordinal), "Invalid timeline colors should be reported as markup diagnostics.");
     }
 
     private static void VisualMarkupParserMapsTimelineFencesToArtifacts() {

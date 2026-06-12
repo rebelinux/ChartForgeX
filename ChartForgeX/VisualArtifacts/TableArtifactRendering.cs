@@ -54,7 +54,7 @@ public static class TableArtifactRendering {
         var artifact = VisualArtifact.Create(table.Id, VisualArtifactKind.Table, table);
         artifact.Title = table.Title;
         artifact.Subtitle = table.Subtitle;
-        artifact.ExportFormats = table.ExportFormats;
+        artifact.ExportFormats = table.ExportFormats | VisualArtifactExportFormat.Html;
         artifact.Metadata["table.capabilities"] = table.Capabilities.ToString();
         artifact.Metadata["table.columns"] = table.Columns.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
         artifact.Metadata["table.rows"] = table.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);

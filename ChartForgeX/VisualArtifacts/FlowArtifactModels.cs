@@ -106,6 +106,9 @@ public sealed class FlowArtifact {
     private readonly List<FlowArtifactLane> _lanes = new();
     private readonly List<FlowArtifactStep> _steps = new();
     private readonly List<FlowArtifactConnector> _connectors = new();
+    private double _width = 1200;
+    private double _height = 700;
+    private double _padding = 24;
     private VisualArtifactExportFormat _exportFormats = VisualArtifactExportFormat.Svg | VisualArtifactExportFormat.Png | VisualArtifactExportFormat.Html | VisualArtifactExportFormat.Json;
 
     /// <summary>Gets or sets a stable flow identifier.</summary>
@@ -124,13 +127,13 @@ public sealed class FlowArtifact {
     public FlowArtifactDirection Direction { get; set; } = FlowArtifactDirection.LeftToRight;
 
     /// <summary>Gets or sets the static preview width.</summary>
-    public double Width { get; set; } = 1200;
+    public double Width { get => _width; set { ValidatePositive(value, nameof(value)); _width = value; } }
 
     /// <summary>Gets or sets the static preview height.</summary>
-    public double Height { get; set; } = 700;
+    public double Height { get => _height; set { ValidatePositive(value, nameof(value)); _height = value; } }
 
     /// <summary>Gets or sets the static preview padding.</summary>
-    public double Padding { get; set; } = 24;
+    public double Padding { get => _padding; set { ValidateNonNegative(value, nameof(value)); _padding = value; } }
 
     /// <summary>Gets declared flow lanes.</summary>
     public IReadOnlyList<FlowArtifactLane> Lanes => _lanes;

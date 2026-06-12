@@ -37,7 +37,7 @@ public static class FlowArtifactRendering {
 
         for (var i = 0; i < flow.Connectors.Count; i++) {
             var connector = flow.Connectors[i];
-            chart.AddEdge(connector.Id, connector.SourceId, connector.TargetId, connector.Label, ToTopologyKind(connector.Kind), ToTopologyStatus(connector.Status), ToTopologyDirection(connector.Direction), TopologyEdgeRouting.Orthogonal);
+            chart.AddEdge(connector.Id, connector.SourceId, connector.TargetId, connector.Label, ToTopologyKind(connector.Kind), ToTopologyStatus(connector.Status), ToTopologyDirection(connector.Direction), TopologyEdgeRouting.Orthogonal, color: connector.Color);
         }
 
         return chart;

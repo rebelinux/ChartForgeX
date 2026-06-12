@@ -172,7 +172,11 @@ public sealed class MarkupTimelineParser {
         var attributes = Attributes(tokens, minimum);
         if (attributes.TryGetValue("progress", out var progress)) item.Progress = VisualMarkupFenceOptions.ParseDouble(progress, "progress");
         if (attributes.TryGetValue("dependson", out var dependsOn)) item.DependsOn = VisualMarkupFenceOptions.ParseInt32(dependsOn, "dependsOn");
-        if (attributes.TryGetValue("color", out var color)) item.Color = color;
+        if (attributes.TryGetValue("color", out var color)) {
+            ValidateColor(color, "Timeline item color");
+            item.Color = color;
+        }
+
         return item;
     }
 
@@ -189,6 +193,8 @@ public sealed class MarkupTimelineParser {
             if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Timeline table rows require a label, name, item, or task column.");
             var start = Required(row, "start");
             var end = kind == TimelineItemKind.Milestone ? start : Value(row, "end", start);
+            var color = Value(row, "color", null!);
+            ValidateColor(color, "Timeline item color");
             state.Items.Add(new TimelineItem {
                 Kind = kind,
                 Label = label,
@@ -196,7 +202,7 @@ public sealed class MarkupTimelineParser {
                 End = ParseTimelineValue(end),
                 Progress = row.TryGetValue("progress", out var progress) && !string.IsNullOrWhiteSpace(progress) ? VisualMarkupFenceOptions.ParseDouble(progress, "progress") : 0,
                 DependsOn = row.TryGetValue("dependson", out var dependsOn) && !string.IsNullOrWhiteSpace(dependsOn) ? VisualMarkupFenceOptions.ParseInt32(dependsOn, "dependsOn") : -1,
-                Color = Value(row, "color", null!)
+                Color = color
             });
         } catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException) {
             Add(result, lineNumber, MarkupDiagnosticSeverity.Error, ex.Message);
@@ -252,6 +258,15 @@ public sealed class MarkupTimelineParser {
         if (parts.Length != 2) throw new ArgumentException("Timeline size must use WIDTHxHEIGHT syntax.");
         state.Width = int.Parse(parts[0], CultureInfo.InvariantCulture);
         state.Height = int.Parse(parts[1], CultureInfo.InvariantCulture);
+    }
+
+    private static void ValidateColor(string? value, string name) {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        try {
+            ChartColor.FromHex(value!);
+        } catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException) {
+            throw new ArgumentException(name + " must be a valid hex color.", ex);
+        }
     }
 
     private static List<string> Tokenize(string line) {
