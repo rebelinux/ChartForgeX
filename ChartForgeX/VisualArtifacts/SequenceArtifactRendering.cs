@@ -15,11 +15,13 @@ public static class SequenceArtifactRendering {
     /// Wraps a sequence artifact in a product-neutral visual artifact envelope.
     /// </summary>
     /// <param name="sequence">The sequence artifact.</param>
+    /// <param name="sourceLanguage">The source language that produced the artifact.</param>
     /// <returns>A visual artifact envelope.</returns>
-    public static VisualArtifact ToVisualArtifact(this SequenceArtifact sequence) {
+    public static VisualArtifact ToVisualArtifact(this SequenceArtifact sequence, VisualArtifactSourceLanguage sourceLanguage = VisualArtifactSourceLanguage.Native) {
         if (sequence == null) throw new ArgumentNullException(nameof(sequence));
         var layout = SequenceLayout.Calculate(sequence);
         var artifact = VisualArtifact.Create(sequence.Id, VisualArtifactKind.Sequence, sequence);
+        artifact.SourceLanguage = sourceLanguage;
         artifact.Title = sequence.Title;
         artifact.Subtitle = sequence.Subtitle;
         artifact.NaturalSize = new VisualArtifactSize(layout.Width, layout.Height);
@@ -99,7 +101,9 @@ public static class SequenceArtifactRendering {
         var canvas = new RgbaCanvas((int)Math.Ceiling(layout.Width), (int)Math.Ceiling(layout.Height), 2, null);
         canvas.Clear(ChartColor.White);
         var border = Color("#cbd5e1");
-        canvas.StrokeRoundedRect(0.5, 0.5, layout.Width - 1, layout.Height - 1, 8, border, 1);
+        const double surfaceInset = 8;
+        canvas.FillRoundedRect(surfaceInset, surfaceInset, layout.Width - surfaceInset * 2, layout.Height - surfaceInset * 2, 8, ChartColor.White);
+        canvas.StrokeRoundedRect(surfaceInset + 0.5, surfaceInset + 0.5, layout.Width - surfaceInset * 2 - 1, layout.Height - surfaceInset * 2 - 1, 8, border, 1);
         var titleY = sequence.Padding - 17;
         if (sequence.Title.Length > 0) {
             canvas.DrawTextEmphasized(sequence.Padding, titleY, Fit(sequence.Title, 20, layout.Width - sequence.Padding * 2), Color("#0f172a"), 20);
@@ -201,10 +205,13 @@ public static class SequenceArtifactRendering {
             var totalSteps = Math.Max(sequence.Messages.Count, sequence.Notes.Count);
             for (var index = 0; index < sequence.Notes.Count; index++) totalSteps = Math.Max(totalSteps, sequence.Notes[index].StepIndex + 1);
             layout.Height = Math.Max(sequence.Height, laneTop + 52 + Math.Max(1, totalSteps) * stepGap + sequence.Padding);
-            var left = sequence.Padding + 24;
-            var right = layout.Width - sequence.Padding - 24;
+            var laneAreaLeft = sequence.Padding + 24;
+            var laneAreaRight = layout.Width - sequence.Padding - 24;
+            var laneGapBase = participantCount == 1 ? 0 : (laneAreaRight - laneAreaLeft) / (participantCount - 1);
+            var boxWidth = Math.Min(150, Math.Max(96, participantCount == 1 ? 130 : laneGapBase * 0.72));
+            var left = laneAreaLeft + boxWidth / 2;
+            var right = laneAreaRight - boxWidth / 2;
             var laneGap = participantCount == 1 ? 0 : (right - left) / (participantCount - 1);
-            var boxWidth = Math.Min(150, Math.Max(96, participantCount == 1 ? 130 : laneGap * 0.72));
             if (sequence.Participants.Count == 0) layout.Participants.Add(new ParticipantLayout(new SequenceArtifactParticipant("participant", "Participant"), (left + right) / 2, boxWidth));
             else for (var index = 0; index < sequence.Participants.Count; index++) layout.Participants.Add(new ParticipantLayout(sequence.Participants[index], left + laneGap * index, boxWidth));
             for (var index = 0; index < sequence.Messages.Count; index++) {

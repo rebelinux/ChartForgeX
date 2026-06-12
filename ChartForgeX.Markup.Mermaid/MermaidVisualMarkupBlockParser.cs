@@ -11,7 +11,7 @@ namespace ChartForgeX.Markup.Mermaid;
 /// <summary>
 /// Parses Mermaid Markdown fences into ChartForgeX visual artifacts.
 /// </summary>
-public sealed class MermaidVisualMarkupBlockParser : IVisualMarkupBlockParser {
+public sealed partial class MermaidVisualMarkupBlockParser : IVisualMarkupBlockParser {
     private readonly MermaidFlowchartRenderOptions _renderOptions;
     private readonly MermaidSequenceRenderOptions _sequenceRenderOptions;
     private readonly MermaidPieRenderOptions _pieRenderOptions;
@@ -380,404 +380,246 @@ public sealed class MermaidVisualMarkupBlockParser : IVisualMarkupBlockParser {
 
     private MermaidFlowchartRenderOptions BuildOptions(VisualMarkupBlock block) {
         var options = Clone(_renderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && double.TryParse(width, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && double.TryParse(height, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadDoubleAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadDoubleAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
         return options;
     }
 
     private MermaidSequenceRenderOptions BuildSequenceOptions(VisualMarkupBlock block) {
         var options = Clone(_sequenceRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && double.TryParse(width, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && double.TryParse(height, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadDoubleAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadDoubleAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
         return options;
     }
 
     private MermaidPieRenderOptions BuildPieOptions(VisualMarkupBlock block) {
         var options = Clone(_pieRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryGetAttribute(block, "series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidTimelineRenderOptions BuildTimelineOptions(VisualMarkupBlock block) {
         var options = Clone(_timelineRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidJourneyRenderOptions BuildJourneyOptions(VisualMarkupBlock block) {
         var options = Clone(_journeyRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryGetAttribute(block, "series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidGitGraphRenderOptions BuildGitGraphOptions(VisualMarkupBlock block) {
         var options = Clone(_gitGraphRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
-        if (block.Attributes.TryGetValue("branchLabels", out var branchLabels) && TryParseBoolean(branchLabels, out var showBranchLabels)) options.ShowBranchLabels = showBranchLabels;
-        if (block.Attributes.TryGetValue("commitLabels", out var commitLabels) && TryParseBoolean(commitLabels, out var showCommitLabels)) options.ShowCommitLabels = showCommitLabels;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryReadBooleanAttribute(block, "branchLabels", out var showBranchLabels)) options.ShowBranchLabels = showBranchLabels;
+        if (TryReadBooleanAttribute(block, "commitLabels", out var showCommitLabels)) options.ShowCommitLabels = showCommitLabels;
         return options;
     }
 
     private MermaidXYChartRenderOptions BuildXYChartOptions(VisualMarkupBlock block) {
         var options = Clone(_xyChartRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("dataLabels", out var dataLabels) && TryParseBoolean(dataLabels, out var showDataLabels)) options.ShowDataLabels = showDataLabels;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadBooleanAttribute(block, "dataLabels", out var showDataLabels)) options.ShowDataLabels = showDataLabels;
         return options;
     }
 
     private MermaidQuadrantRenderOptions BuildQuadrantOptions(VisualMarkupBlock block) {
         var options = Clone(_quadrantRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryGetAttribute(block, "series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidSankeyRenderOptions BuildSankeyOptions(VisualMarkupBlock block) {
         var options = Clone(_sankeyRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryGetAttribute(block, "series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidRadarRenderOptions BuildRadarOptions(VisualMarkupBlock block) {
         var options = Clone(_radarRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidTreemapRenderOptions BuildTreemapOptions(VisualMarkupBlock block) {
         var options = Clone(_treemapRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryGetAttribute(block, "series", out var series) && !string.IsNullOrWhiteSpace(series)) options.SeriesName = series;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
         return options;
     }
 
     private MermaidGanttRenderOptions BuildGanttOptions(VisualMarkupBlock block) {
         var options = Clone(_ganttRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("today", out var today) && DateTime.TryParse(today, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsedToday)) options.Today = parsedToday;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDateAttribute(block, "today", out var parsedToday)) options.Today = parsedToday;
         return options;
     }
 
     private MermaidPacketRenderOptions BuildPacketOptions(VisualMarkupBlock block) {
         var options = Clone(_packetRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
-        if (block.Attributes.TryGetValue("bitsPerRow", out var bitsPerRow) && int.TryParse(bitsPerRow, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedBitsPerRow)) options.BitsPerRow = parsedBitsPerRow;
-        if (block.Attributes.TryGetValue("bitNumbers", out var bitNumbers) && TryParseBoolean(bitNumbers, out var showBitNumbers)) options.ShowBitNumbers = showBitNumbers;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryReadIntAttribute(block, "bitsPerRow", out var parsedBitsPerRow)) options.BitsPerRow = parsedBitsPerRow;
+        if (TryReadBooleanAttribute(block, "bitNumbers", out var showBitNumbers)) options.ShowBitNumbers = showBitNumbers;
         return options;
     }
 
     private MermaidBlockRenderOptions BuildBlockOptions(VisualMarkupBlock block) {
         var options = Clone(_blockRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
-        if (block.Attributes.TryGetValue("columns", out var columns) && int.TryParse(columns, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedColumns)) options.Columns = parsedColumns;
-        if (block.Attributes.TryGetValue("edges", out var edges) && TryParseBoolean(edges, out var showEdges)) options.ShowEdges = showEdges;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryReadIntAttribute(block, "columns", out var parsedColumns)) options.Columns = parsedColumns;
+        if (TryReadBooleanAttribute(block, "edges", out var showEdges)) options.ShowEdges = showEdges;
         return options;
     }
 
     private MermaidVennRenderOptions BuildVennOptions(VisualMarkupBlock block) {
         var options = Clone(_vennRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
         return options;
     }
 
     private MermaidIshikawaRenderOptions BuildIshikawaOptions(VisualMarkupBlock block) {
         var options = Clone(_ishikawaRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
         return options;
     }
 
     private MermaidWardleyRenderOptions BuildWardleyOptions(VisualMarkupBlock block) {
         var options = Clone(_wardleyRenderOptions);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && int.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadIntAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadIntAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
         return options;
     }
 
     private MermaidTopologyRenderOptions BuildTopologyOptions(VisualMarkupBlock block, MermaidTopologyRenderOptions defaults) {
         var options = Clone(defaults);
-        if (block.Attributes.TryGetValue("id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
-        if (block.Attributes.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
-        if (block.Attributes.TryGetValue("subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
-        if (block.Attributes.TryGetValue("width", out var width) && double.TryParse(width, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWidth)) options.Width = parsedWidth;
-        if (block.Attributes.TryGetValue("height", out var height) && double.TryParse(height, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedHeight)) options.Height = parsedHeight;
-        if (block.Attributes.TryGetValue("padding", out var padding) && double.TryParse(padding, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedPadding)) options.Padding = parsedPadding;
+        if (TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) options.Id = id;
+        if (TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) options.Title = title;
+        if (TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) options.Subtitle = subtitle;
+        if (TryReadDoubleAttribute(block, "width", out var parsedWidth)) options.Width = parsedWidth;
+        if (TryReadDoubleAttribute(block, "height", out var parsedHeight)) options.Height = parsedHeight;
+        if (TryReadDoubleAttribute(block, "padding", out var parsedPadding)) options.Padding = parsedPadding;
         return options;
     }
 
-    private static MermaidFlowchartRenderOptions Clone(MermaidFlowchartRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding
-        };
+    private static bool TryGetAttribute(VisualMarkupBlock block, string key, out string value) =>
+        VisualMarkupFenceOptions.TryGetAttribute(block, key, out value);
 
-    private static MermaidSequenceRenderOptions Clone(MermaidSequenceRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding
-        };
-
-    private static MermaidPieRenderOptions Clone(MermaidPieRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            SeriesName = options.SeriesName,
-            Width = options.Width,
-            Height = options.Height
-        };
-
-    private static MermaidJourneyRenderOptions Clone(MermaidJourneyRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            SeriesName = options.SeriesName,
-            Width = options.Width,
-            Height = options.Height
-        };
-
-    private static MermaidGitGraphRenderOptions Clone(MermaidGitGraphRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding,
-            ShowBranchLabels = options.ShowBranchLabels,
-            ShowCommitLabels = options.ShowCommitLabels
-        };
-
-    private static MermaidTimelineRenderOptions Clone(MermaidTimelineRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            ShowEventDurations = options.ShowEventDurations
-        };
-
-    private static MermaidQuadrantRenderOptions Clone(MermaidQuadrantRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            SeriesName = options.SeriesName,
-            Width = options.Width,
-            Height = options.Height
-        };
-
-    private static MermaidXYChartRenderOptions Clone(MermaidXYChartRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            ShowDataLabels = options.ShowDataLabels
-        };
-
-    private static MermaidSankeyRenderOptions Clone(MermaidSankeyRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            SeriesName = options.SeriesName,
-            Width = options.Width,
-            Height = options.Height
-        };
-
-    private static MermaidRadarRenderOptions Clone(MermaidRadarRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height
-        };
-
-    private static MermaidTreemapRenderOptions Clone(MermaidTreemapRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            SeriesName = options.SeriesName,
-            Width = options.Width,
-            Height = options.Height
-        };
-
-    private static MermaidGanttRenderOptions Clone(MermaidGanttRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Today = options.Today
-        };
-
-    private static MermaidPacketRenderOptions Clone(MermaidPacketRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding,
-            BitsPerRow = options.BitsPerRow,
-            ShowBitNumbers = options.ShowBitNumbers
-        };
-
-    private static MermaidBlockRenderOptions Clone(MermaidBlockRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding,
-            Columns = options.Columns,
-            ShowEdges = options.ShowEdges
-        };
-
-    private static MermaidVennRenderOptions Clone(MermaidVennRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding
-        };
-
-    private static MermaidIshikawaRenderOptions Clone(MermaidIshikawaRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding
-        };
-
-    private static MermaidWardleyRenderOptions Clone(MermaidWardleyRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding
-        };
-
-    private static MermaidTopologyRenderOptions Clone(MermaidTopologyRenderOptions options) =>
-        new() {
-            Id = options.Id,
-            Title = options.Title,
-            Subtitle = options.Subtitle,
-            Width = options.Width,
-            Height = options.Height,
-            Padding = options.Padding
-        };
-
-    private static bool TryParseBoolean(string value, out bool result) {
-        if (bool.TryParse(value, out result)) return true;
-        if (string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) {
-            result = true;
-            return true;
+    private static bool TryReadIntAttribute(VisualMarkupBlock block, string key, out int value) {
+        if (!TryGetAttribute(block, key, out var text) || string.IsNullOrWhiteSpace(text)) {
+            value = 0;
+            return false;
         }
 
-        if (string.Equals(value, "0", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "no", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) {
-            result = false;
-            return true;
+        value = VisualMarkupFenceOptions.ParseInt32(text, key);
+        return true;
+    }
+
+    private static bool TryReadDoubleAttribute(VisualMarkupBlock block, string key, out double value) {
+        if (!TryGetAttribute(block, key, out var text) || string.IsNullOrWhiteSpace(text)) {
+            value = 0;
+            return false;
         }
 
-        result = false;
-        return false;
+        value = VisualMarkupFenceOptions.ParseDouble(text, key);
+        return true;
+    }
+
+    private static bool TryReadBooleanAttribute(VisualMarkupBlock block, string key, out bool value) {
+        if (!TryGetAttribute(block, key, out var text) || string.IsNullOrWhiteSpace(text)) {
+            value = false;
+            return false;
+        }
+
+        value = VisualMarkupFenceOptions.ParseBoolean(text, key);
+        return true;
+    }
+
+    private static bool TryReadDateAttribute(VisualMarkupBlock block, string key, out DateTime value) {
+        if (!TryGetAttribute(block, key, out var text) || string.IsNullOrWhiteSpace(text)) {
+            value = default;
+            return false;
+        }
+
+        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out value)) return true;
+        throw new ArgumentException("Option '" + key + "' requires a date value.");
     }
 }

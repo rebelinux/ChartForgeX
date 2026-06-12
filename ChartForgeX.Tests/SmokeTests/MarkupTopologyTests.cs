@@ -27,7 +27,7 @@ internal static partial class SmokeTests {
     }
 
     private static void MarkupTopologyParsesTableDiagramAndEmitsCSharp() {
-        const string source = @"```chartforgex topology
+        const string source = @"```chartforgex topology v1
 title: ""Regional Directory Topology""
 layout: densegrouped tb
 groups:
@@ -65,7 +65,7 @@ edges:
     private static void MarkupTopologyExtractsTildeFenceWithMetadata() {
         const string source = @"# Diagram
 
-~~~chartforgex topology {#service-map}
+~~~chartforgex topology v1 {#service-map}
 title ""Tilde Fence""
 node api ""API"" kind:service status:healthy
 ~~~
@@ -76,13 +76,14 @@ node api ""API"" kind:service status:healthy
         var result = new MarkupTopologyParser().Parse(source);
         Assert(!result.HasErrors, "Tilde-fenced topology markup should parse without errors: " + Diagnostics(result));
         Assert(result.Document != null && result.Document.Title == "Tilde Fence", "Tilde-fenced topology markup should produce a document.");
+        Assert(result.Document!.Id == "service-map", "Topology fence id metadata should seed the topology document id.");
         Assert(result.Document!.Nodes.Count == 1, "Tilde-fenced topology markup should parse nodes.");
     }
 
     private static void MarkupTopologyDiagnosticsUseMarkdownSourceLines() {
         const string source = @"# Diagram
 
-```chartforgex topology
+```chartforgex topology v1
 title ""Source Line Check""
 unknownThing yes
 node api ""API"" kind:service status:healthy
@@ -96,7 +97,7 @@ node api ""API"" kind:service status:healthy
     }
 
     private static void MarkupTopologyPreservesMarkdownTableAuthoringDetails() {
-        const string source = @"```chartforgex topology
+        const string source = @"```chartforgex topology v1
 nodes:
 id | label | kind | status | display | width | height | subtitle
 :-- | :---- | :--- | ---: | :------ | ----: | -----: | :-------
@@ -163,14 +164,14 @@ layout layered lr
     private static void MarkupTopologyHandlesEditingFriendlyMarkdownFences() {
         const string unterminated = @"# Draft
 
-```chartforgex topology
+```chartforgex topology v1
 node api ""API"" kind:service status:healthy";
 
         var blocks = ChartForgeXMarkdown.ExtractTopologyBlocks(unterminated);
         Assert(blocks.Count == 1, "Unterminated topology fences should remain open through EOF.");
         Assert(blocks[0].StartLine == 4, "Unterminated fence payload should preserve source line.");
 
-        const string indented = @"    ```chartforgex topology
+        const string indented = @"    ```chartforgex topology v1
     node api ""API""
     ```
 node raw ""Raw"" kind:service status:healthy";
@@ -178,11 +179,11 @@ node raw ""Raw"" kind:service status:healthy";
         var result = new MarkupTopologyParser().Parse(indented);
         Assert(result.Diagnostics.Exists(diagnostic => diagnostic.Message.Contains("Unknown topology command", StringComparison.Ordinal)), "Four-space indented fences should stay as code block text, not live topology fences.");
 
-        var tabIndented = "\t```chartforgex topology\n\tnode api \"API\"\n\t```\nnode raw \"Raw\" kind:service status:healthy";
+        var tabIndented = "\t```chartforgex topology v1\n\tnode api \"API\"\n\t```\nnode raw \"Raw\" kind:service status:healthy";
         var tabResult = new MarkupTopologyParser().Parse(tabIndented);
         Assert(tabResult.Diagnostics.Exists(diagnostic => diagnostic.Message.Contains("Unknown topology command", StringComparison.Ordinal)), "Tab-indented fences should stay as code block text, not live topology fences.");
 
-        const string closingSuffix = @"```chartforgex topology
+        const string closingSuffix = @"```chartforgex topology v1
 node api ""API"" kind:service status:healthy
 ```not-a-close
 node db ""Database"" kind:database status:warning
@@ -200,37 +201,45 @@ flowchart LR
   a --> b
 ```
 
-~~~chartforgex table {#users .compact mode=""native""}
+~~~chartforgex table v1 {#users .compact mode=""native""}
 | Name | State |
 | ---- | ----- |
 | Ada | Enabled |
 ~~~
 
-```cfx flow
+```chartforgex flow v1
 layout LR
 node a ""A""
 ```
 
-```chartforgex chart
+```chartforgex chart v1
 type bar
 ```
 
-```cfx timeline
+```chartforgex timeline v1
 event started
+```
+
+```chartforgex sequence v1
+participant user ""User""
+participant api ""API""
+message user -> api ""Request""
 ```";
 
         var result = VisualMarkupScanner.Scan(source);
 
         Assert(result.Diagnostics.Count == 0, "Supported visual fences should not produce scanner diagnostics.");
-        Assert(result.Blocks.Count == 5, "Visual markup scanner should extract all supported visual fence families.");
+        Assert(result.Blocks.Count == 6, "Visual markup scanner should extract all supported visual fence families.");
         Assert(result.Blocks[0].Kind == VisualMarkupKind.Mermaid && result.Blocks[0].StartLine == 4, "Mermaid fences should preserve kind and payload source line.");
         Assert(result.Blocks[1].Kind == VisualMarkupKind.Table, "ChartForgeX table fences should be recognized.");
         Assert(result.Blocks[1].Attributes["id"] == "users", "Visual fence attributes should parse id shorthand.");
         Assert(result.Blocks[1].Attributes["class"] == "compact", "Visual fence attributes should parse class shorthand.");
         Assert(result.Blocks[1].Attributes["mode"] == "native", "Visual fence attributes should parse key/value attributes.");
-        Assert(result.Blocks[2].Kind == VisualMarkupKind.Flow && result.Blocks[2].FenceName == "cfx flow", "CFX flow fences should preserve normalized fence names.");
+        Assert(result.Blocks[2].Kind == VisualMarkupKind.Flow && result.Blocks[2].FenceName == "chartforgex flow", "ChartForgeX flow fences should preserve normalized fence names.");
         Assert(result.Blocks[3].Kind == VisualMarkupKind.Chart, "ChartForgeX chart fences should be recognized.");
-        Assert(result.Blocks[4].Kind == VisualMarkupKind.Timeline, "CFX timeline fences should be recognized.");
+        Assert(result.Blocks[4].Kind == VisualMarkupKind.Timeline, "ChartForgeX timeline fences should be recognized.");
+        Assert(result.Blocks[5].Kind == VisualMarkupKind.Sequence, "ChartForgeX sequence fences should be recognized.");
+        Assert(result.Blocks[1].SchemaVersion == 1 && result.Blocks[3].SchemaVersion == 1, "Native ChartForgeX fences should expose schema version v1.");
     }
 
     private static void VisualMarkupScannerReportsUnsupportedChartForgeXFences() {
@@ -249,17 +258,33 @@ Get-Process
         Assert(result.Blocks.Count == 0, "Unsupported ChartForgeX visual fences should not become parseable blocks.");
         Assert(result.Diagnostics.Count == 1, "Unsupported ChartForgeX visual fences should produce one line-aware diagnostic.");
         Assert(result.Diagnostics[0].Line == 3, "Unsupported fence diagnostics should point at the opening fence line.");
-        Assert(result.Diagnostics[0].Message.Contains("chartforgex swimlane", StringComparison.Ordinal), "Unsupported fence diagnostics should name the unsupported fence.");
+        Assert(result.Diagnostics[0].Message.Contains("swimlane", StringComparison.Ordinal), "Unsupported fence diagnostics should name the unsupported kind.");
+    }
+
+    private static void VisualMarkupScannerRequiresChartForgeXSchemaVersion() {
+        const string source = @"# Visuals
+
+```chartforgex chart
+labels Jan
+values 10
+```";
+
+        var result = VisualMarkupScanner.Scan(source);
+
+        Assert(result.Blocks.Count == 0, "Unversioned native ChartForgeX fences should not become parseable blocks.");
+        Assert(result.Diagnostics.Count == 1, "Unversioned native ChartForgeX fences should produce one diagnostic.");
+        Assert(result.Diagnostics[0].Severity == MarkupDiagnosticSeverity.Error, "Unversioned native ChartForgeX fences should fail as contract errors.");
+        Assert(result.Diagnostics[0].Message.Contains("schema version v1", StringComparison.Ordinal), "Unversioned fence diagnostics should explain the required v1 contract.");
     }
 
     private static void VisualMarkupScannerKeepsTopologyCompatibility() {
         const string source = @"# Mixed
 
-```chartforgex table
+```chartforgex table v1
 | A |
 ```
 
-```chartforgex topology
+```chartforgex topology v1
 node api ""API"" kind:service status:healthy
 ```
 
@@ -278,11 +303,11 @@ flowchart LR
     }
 
     private static void VisualMarkupScannerKeepsIndentedFencesLiteral() {
-        const string source = @"    ```chartforgex table
+        const string source = @"    ```chartforgex table v1
     | A |
     ```
 
-```chartforgex table
+```chartforgex table v1
 | B |
 ```";
 
@@ -296,7 +321,7 @@ flowchart LR
     private static void VisualMarkupParserMapsTopologyFencesToArtifacts() {
         const string source = @"# Visual
 
-```chartforgex topology {#services}
+```chartforgex topology v1 {#services}
 id service-map
 title ""Service Map""
 subtitle ""Generated from Markdown""
@@ -320,7 +345,8 @@ node api ""API"" kind:service status:healthy
             new VisualMarkupBlock(
                 VisualMarkupKind.Topology,
                 "chartforgex topology",
-                "chartforgex topology {#services}",
+                "chartforgex topology v1 {#services}",
+                1,
                 "id service-map\nnode api \"API\" kind:service status:healthy",
                 25,
                 26,
@@ -329,7 +355,8 @@ node api ""API"" kind:service status:healthy
             new VisualMarkupBlock(
                 VisualMarkupKind.Table,
                 "chartforgex table",
-                "chartforgex table",
+                "chartforgex table v1",
+                1,
                 "id people\n| Name | State |\n| ---- | ----- |\n| Ada | Enabled |",
                 40,
                 41,
@@ -338,28 +365,40 @@ node api ""API"" kind:service status:healthy
             new VisualMarkupBlock(
                 VisualMarkupKind.Chart,
                 "chartforgex chart",
-                "chartforgex chart",
+                "chartforgex chart v1",
+                1,
                 "id trend\ntype line\nlabels Jan Feb Mar\nvalues 12 18 16",
                 55,
                 56,
                 59,
+                new Dictionary<string, string>()),
+            new VisualMarkupBlock(
+                VisualMarkupKind.Sequence,
+                "chartforgex sequence",
+                "chartforgex sequence v1",
+                1,
+                "participant user \"User\"\nparticipant api \"API\"\nmessage user -> api \"Request\"",
+                65,
+                66,
+                68,
                 new Dictionary<string, string>())
         };
 
         var result = new VisualMarkupParser().ParseBlocks(blocks);
 
         Assert(!result.HasErrors, "Visual markup parser should parse host-supplied visual blocks without errors: " + Diagnostics(result));
-        Assert(result.Artifacts.Count == 3, "Pre-scanned visual blocks should emit the same artifacts as Markdown-scanned blocks.");
+        Assert(result.Artifacts.Count == 4, "Pre-scanned visual blocks should emit the same artifacts as Markdown-scanned blocks.");
         Assert(result.Artifacts[0].Kind == VisualArtifactKind.Topology, "Pre-scanned topology blocks should map to topology visual artifacts.");
         Assert(result.Artifacts[0].Metadata["sourceLine"] == "25", "Pre-scanned topology blocks should preserve host-provided opening fence lines.");
         Assert(result.Artifacts[1].Kind == VisualArtifactKind.Table, "Pre-scanned table blocks should map to table visual artifacts.");
         Assert(result.Artifacts[1].Metadata["sourceLine"] == "40", "Pre-scanned table blocks should preserve host-provided opening fence lines.");
         Assert(result.Artifacts[2].Kind == VisualArtifactKind.Chart, "Pre-scanned chart blocks should map to chart visual artifacts.");
+        Assert(result.Artifacts[3].Kind == VisualArtifactKind.Sequence, "Pre-scanned sequence blocks should map to sequence visual artifacts.");
         Assert(result.Artifacts[2].Metadata["sourceLine"] == "55", "Pre-scanned chart blocks should preserve host-provided opening fence lines.");
     }
 
     private static void MarkupTableParserParsesSimpleMarkdownTable() {
-        const string source = @"```chartforgex table
+        const string source = @"```chartforgex table v1
 title ""People""
 capabilities search sort filter copy export
 | Name | State |
@@ -382,7 +421,7 @@ capabilities search sort filter copy export
     }
 
     private static void MarkupTableParserUsesFenceAttributesAsDefaults() {
-        const string source = @"```chartforgex table {#alerts title=""Open Alerts"" subtitle=""Native table"" capabilities=""search sort export"" totalrows=""12""}
+        const string source = @"```chartforgex table v1 {#alerts title=""Open Alerts"" subtitle=""Native table"" capabilities=""search sort export"" totalrows=""12""}
 | Name | State |
 | ---- | ----- |
 | Mail | Warning |
@@ -400,7 +439,7 @@ capabilities search sort filter copy export
     }
 
     private static void MarkupTableParserParsesTypedColumnsAndRows() {
-        const string source = @"```chartforgex table
+        const string source = @"```chartforgex table v1
 id services
 title ""Services""
 subtitle ""Typed native table""
@@ -438,7 +477,7 @@ rows:
     private static void VisualMarkupParserMapsTableFencesToArtifacts() {
         const string source = @"# Visual
 
-```chartforgex table
+```chartforgex table v1
 id people
 title ""People""
 | Name | State |
@@ -458,7 +497,7 @@ title ""People""
     }
 
     private static void MarkupChartParserParsesSimpleChart() {
-        const string source = @"```chartforgex chart
+        const string source = @"```chartforgex chart v1
 id result-mix
 title ""Result Mix""
 type pie
@@ -482,7 +521,7 @@ series ""Checks""
     }
 
     private static void MarkupChartParserUsesFenceAttributesAsDefaults() {
-        const string source = @"```chartforgex chart {#result-mix title=""Result Mix"" type=""pie"" series=""Checks"" width=""640"" height=""360""}
+        const string source = @"```chartforgex chart v1 {#result-mix title=""Result Mix"" type=""pie"" series=""Checks"" width=""640"" height=""360""}
 | Label | Value |
 | ----- | ----- |
 | Passed | 1260 |
@@ -499,10 +538,57 @@ series ""Checks""
         Assert(result.Document.Chart.Options.Size.Width == 640 && result.Document.Chart.Options.Size.Height == 360, "Chart fence width and height attributes should seed chart size.");
     }
 
+    private static void MarkupChartParserMapsChartForgeXOptions() {
+        const string source = @"```chartforgex chart v1 {#trend title=""Trend"" type=""smoothLine"" width=""720"" height=""420""}
+labels Jan Feb Mar
+values 12 18 16
+
+options:
+| option | value |
+| ------ | ----- |
+| legend | false |
+| dataLabels | true |
+| legendPosition | topRight |
+| xAxisTitle | Month |
+| yAxisTitle | Count |
+| yAxisMinimum | 0 |
+| yAxisMaximum | 20 |
+| grid | false |
+```";
+
+        var result = new MarkupChartParser().Parse(source);
+
+        Assert(!result.HasErrors, "ChartForgeX chart options should parse without errors: " + Diagnostics(result));
+        var chart = result.Document!.Chart;
+        Assert(chart.Series[0].Kind == ChartSeriesKind.Line && chart.Series[0].Smooth, "Chart markup should map richer ChartForgeX chart type aliases.");
+        Assert(!chart.Options.ShowLegend, "Chart markup options should map ShowLegend.");
+        Assert(chart.Options.ShowDataLabels, "Chart markup options should map ShowDataLabels.");
+        Assert(chart.Options.LegendPosition == ChartLegendPosition.TopRight, "Chart markup options should map enum values.");
+        Assert(chart.XAxisTitle == "Month" && chart.YAxisTitle == "Count", "Chart markup options should map axis titles.");
+        Assert(chart.Options.YAxisMinimum == 0 && chart.Options.YAxisMaximum == 20, "Chart markup options should map axis bounds.");
+        Assert(!chart.Options.ShowGrid, "Chart markup options should map grid visibility.");
+    }
+
+    private static void MarkupChartParserReportsInvalidChartForgeXOptions() {
+        const string source = @"```chartforgex chart v1
+labels Jan
+values 12
+options:
+| option | value |
+| ------ | ----- |
+| legend | maybe |
+```";
+
+        var result = new MarkupChartParser().Parse(source);
+
+        Assert(result.HasErrors, "Invalid ChartForgeX chart option values should produce parser errors.");
+        Assert(Diagnostics(result).Contains("legend", StringComparison.Ordinal), "Invalid option diagnostics should name the option.");
+    }
+
     private static void VisualMarkupParserMapsChartFencesToArtifacts() {
         const string source = @"# Visual
 
-```chartforgex chart
+```chartforgex chart v1
 id trend
 title ""Trend""
 type line
@@ -521,42 +607,37 @@ values 12 18 16
         Assert(result.Artifacts[0].Metadata["sourceLine"] == "3", "Chart visual artifacts should preserve source fence metadata.");
     }
 
-    private static void VisualMarkupParserReportsUnimplementedVisualDispatch() {
+    private static void VisualMarkupParserReportsMissingOptionalMermaidDispatch() {
         const string source = @"# Visual
 
 ```mermaid
 flowchart LR
   a --> b
-```
-
-```chartforgex timeline
-event started
 ```";
 
         var result = new VisualMarkupParser().Parse(source);
 
-        Assert(!result.HasErrors, "Unimplemented visual dispatch should be a warning, not a parser error.");
-        Assert(result.Artifacts.Count == 0, "Unimplemented visual dispatch should not emit partial artifacts.");
-        Assert(result.Diagnostics.Count == 2, "Parser should report each recognized but unimplemented visual fence.");
+        Assert(!result.HasErrors, "Missing optional parser dispatch should be a warning, not a parser error.");
+        Assert(result.Artifacts.Count == 0, "Missing optional parser dispatch should not emit partial artifacts.");
+        Assert(result.Diagnostics.Count == 1, "Core parser should report Mermaid fences when the optional Mermaid adapter is not registered.");
         Assert(result.Diagnostics[0].Line == 3 && result.Diagnostics[0].Message.Contains("mermaid", StringComparison.Ordinal), "Parser should report Mermaid dispatch with the opening fence line.");
-        Assert(result.Diagnostics[1].Line == 8 && result.Diagnostics[1].Message.Contains("chartforgex timeline", StringComparison.Ordinal), "Parser should report timeline dispatch with the opening fence line.");
     }
 
     private static void MarkupTopologyCliKeepsWarningsOffGeneratedStreams() {
         var fixture = Path.Combine(Path.GetTempPath(), "chartforgex-markup-warning-" + Guid.NewGuid().ToString("N") + ".md");
-        File.WriteAllText(fixture, "title \"Warning Stream Check\"\nunknownThing yes\nnode api \"API\" kind:service status:healthy\n");
+        File.WriteAllText(fixture, "```chartforgex topology v1\ntitle \"Warning Stream Check\"\nunknownThing yes\nnode api \"API\" kind:service status:healthy\n```\n");
         try {
             var preview = RunMarkupCli("preview", fixture);
             Assert(preview.ExitCode == 0, "CLI preview should succeed for warning-only markup: " + preview.StandardError);
             Assert(preview.StandardOutput.TrimStart().StartsWith("<!doctype html>", StringComparison.Ordinal), "CLI preview stdout should start with HTML.");
             Assert(!preview.StandardOutput.Contains("warning(", StringComparison.OrdinalIgnoreCase), "CLI preview stdout should not be contaminated by diagnostics.");
-            Assert(preview.StandardError.Contains("warning(2): Unknown topology command 'unknownThing'.", StringComparison.Ordinal), "CLI preview should write parser warnings to stderr.");
+            Assert(preview.StandardError.Contains("warning(3): Unknown topology command 'unknownThing'.", StringComparison.Ordinal), "CLI preview should write parser warnings to stderr.");
 
             var emit = RunMarkupCli("emit", fixture, "--target", "csharp");
             Assert(emit.ExitCode == 0, "CLI emit should succeed for warning-only markup: " + emit.StandardError);
             Assert(emit.StandardOutput.TrimStart().StartsWith("using ChartForgeX.Topology;", StringComparison.Ordinal), "CLI emit stdout should start with generated C#.");
             Assert(!emit.StandardOutput.Contains("warning(", StringComparison.OrdinalIgnoreCase), "CLI emit stdout should not be contaminated by diagnostics.");
-            Assert(emit.StandardError.Contains("warning(2): Unknown topology command 'unknownThing'.", StringComparison.Ordinal), "CLI emit should write parser warnings to stderr.");
+            Assert(emit.StandardError.Contains("warning(3): Unknown topology command 'unknownThing'.", StringComparison.Ordinal), "CLI emit should write parser warnings to stderr.");
         } finally {
             try {
                 File.Delete(fixture);
@@ -594,7 +675,7 @@ event started
     private static void MarkupTopologyCliReportsRenderValidationErrors() {
         var fixture = Path.Combine(Path.GetTempPath(), "chartforgex-markup-invalid-" + Guid.NewGuid().ToString("N") + ".md");
         var output = Path.Combine(Path.GetTempPath(), "chartforgex-markup-invalid-" + Guid.NewGuid().ToString("N") + ".svg");
-        File.WriteAllText(fixture, "node api \"API\" kind:service status:healthy\nedge api -> missing \"broken\"\n");
+        File.WriteAllText(fixture, "```chartforgex topology v1\nnode api \"API\" kind:service status:healthy\nedge api -> missing \"broken\"\n```\n");
         try {
             var preview = RunMarkupCli("preview", fixture);
             Assert(preview.ExitCode == 2, "CLI preview should return a stable validation error exit code.");
@@ -607,6 +688,37 @@ event started
             try {
                 File.Delete(fixture);
                 File.Delete(output);
+            } catch (IOException) {
+            } catch (UnauthorizedAccessException) {
+            }
+        }
+    }
+
+    private static void MarkupCliValidatesAndPreviewsGenericVisualArtifacts() {
+        var fixture = Path.Combine(Path.GetTempPath(), "chartforgex-markup-generic-" + Guid.NewGuid().ToString("N") + ".md");
+        File.WriteAllText(fixture, @"# Visuals
+
+```chartforgex chart v1 {#trend title=""Trend"" type=""line""}
+labels Jan Feb Mar
+values 12 18 16
+```
+
+```mermaid {#flow title=""Flow""}
+flowchart LR
+  A --> B
+```");
+        try {
+            var validate = RunMarkupCli("validate", fixture);
+            Assert(validate.ExitCode == 0, "CLI validate should support non-topology visual artifacts: " + validate.StandardError);
+            Assert(validate.StandardOutput.Contains("Artifacts: 2", StringComparison.Ordinal), "CLI validate should report parsed artifact count.");
+
+            var preview = RunMarkupCli("preview", fixture);
+            Assert(preview.ExitCode == 0, "CLI preview should support mixed visual artifacts: " + preview.StandardError);
+            Assert(preview.StandardOutput.Contains("<!doctype html>", StringComparison.Ordinal), "CLI preview should emit an HTML page.");
+            Assert(preview.StandardOutput.Contains("data-cfx-role=", StringComparison.Ordinal), "CLI preview should render artifact SVG content.");
+        } finally {
+            try {
+                File.Delete(fixture);
             } catch (IOException) {
             } catch (UnauthorizedAccessException) {
             }

@@ -1,7 +1,7 @@
 {
   "name": "chartforgex-markup",
   "displayName": "ChartForgeX Markup",
-  "description": "Author and preview ChartForgeX topology diagrams from Markdown-friendly markup.",
+  "description": "Author and preview ChartForgeX visual blocks from Markdown-friendly markup.",
   "version": "0.1.0",
   "publisher": "EvotecServices",
   "author": "Evotec Services sp. z o.o.",
@@ -58,6 +58,7 @@
     "scripts/package-vsix.cjs",
     "syntaxes/**",
     "snippets/**",
+    "schemas/**",
     "tools/**",
     "CHANGELOG.md",
     "language-configuration.json",

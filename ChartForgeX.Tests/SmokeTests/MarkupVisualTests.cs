@@ -1,0 +1,186 @@
+using System;
+using ChartForgeX.Core;
+using ChartForgeX.Markup;
+using ChartForgeX.Topology;
+using ChartForgeX.VisualArtifacts;
+
+namespace ChartForgeX.Tests;
+
+internal static partial class SmokeTests {
+    private static void MarkupChartParserParsesMultiSeriesTablesAndAnnotations() {
+        const string source = @"```chartforgex chart v1 {#quarterly title=""Quarterly Trend"" type=""line""}
+| Month | Revenue | Cost |
+| ----- | ------- | ---- |
+| Jan | 12 | 7 |
+| Feb | 18 | 9 |
+| Mar | 16 | 8 |
+annotation hLine 15 ""Target"" color:#16A34A
+```";
+
+        var result = new MarkupChartParser().Parse(source);
+
+        Assert(!result.HasErrors, "Multi-series chart markup should parse without errors: " + Diagnostics(result));
+        var chart = result.Document!.Chart;
+        Assert(chart.Series.Count == 2, "Multi-series chart tables should create one series per numeric value column.");
+        Assert(chart.Series[0].Name == "Revenue" && chart.Series[1].Name == "Cost", "Multi-series chart tables should preserve value column names as series names.");
+        Assert(chart.Series[0].Kind == ChartSeriesKind.Line && chart.Series[1].Kind == ChartSeriesKind.Line, "Multi-series chart tables should inherit the requested chart kind.");
+        Assert(chart.Options.XAxisLabels.Count == 3 && chart.Options.XAxisLabels[2].Text == "Mar", "Multi-series chart tables should use the label column as x-axis labels.");
+        Assert(chart.Annotations.Count == 1 && chart.Annotations[0].Kind == ChartAnnotationKind.HorizontalLine, "Chart markup should parse reusable annotation commands.");
+        Assert(chart.ToSvg().Contains("data-cfx-role=\"annotation-line\"", StringComparison.Ordinal), "Chart markup annotations should render through the shared SVG annotation layer.");
+    }
+
+    private static void MarkupChartParserParsesCommandSeries() {
+        const string source = @"```chartforgex chart v1 {#mixed title=""Mixed Series""}
+labels Jan Feb Mar
+series Revenue type smoothLine color #2563EB values 12 18 16
+series Incidents type bar color #EF4444 values 3 4 2
+```";
+
+        var result = new MarkupChartParser().Parse(source);
+
+        Assert(!result.HasErrors, "Command-style chart series should parse without errors: " + Diagnostics(result));
+        var chart = result.Document!.Chart;
+        Assert(chart.Series.Count == 2, "Command-style series should create distinct named series.");
+        Assert(chart.Series[0].Name == "Revenue" && chart.Series[0].Kind == ChartSeriesKind.Line && chart.Series[0].Smooth, "Command-style series should map smooth line aliases.");
+        Assert(chart.Series[1].Name == "Incidents" && chart.Series[1].Kind == ChartSeriesKind.Bar, "Command-style series should map per-series chart kinds.");
+        Assert(chart.Series[0].Points.Count == 3 && chart.Series[1].Points.Count == 3, "Command-style series should preserve all numeric values.");
+    }
+
+    private static void MarkupFlowParserParsesTopologyCompatibleFlow() {
+        const string source = @"```chartforgex flow v1 {#pipeline}
+id pipeline
+title ""Processing Flow""
+layout layered lr
+lane ops ""Operations""
+start intake ""Intake"" lane:ops status:healthy
+decision review ""Review"" lane:ops status:warning
+connect intake -> review ""handoff"" status:healthy
+```";
+
+        var result = new MarkupFlowParser().Parse(source);
+
+        Assert(!result.HasErrors, "Flow markup should parse native flow syntax without errors: " + Diagnostics(result));
+        Assert(result.Document != null, "Flow markup should produce a flow artifact.");
+        Assert(result.Document!.Id == "pipeline" && result.Document.Title == "Processing Flow", "Flow markup should preserve id and title.");
+        Assert(result.Document.Lanes.Count == 1, "Flow markup should preserve lanes.");
+        Assert(result.Document.Steps.Count == 2 && result.Document.Connectors.Count == 1, "Flow markup should preserve steps and connectors.");
+        Assert(result.Document.Steps[1].Kind == FlowArtifactStepKind.Decision, "Flow markup should preserve flow-specific step kinds.");
+    }
+
+    private static void VisualMarkupParserMapsFlowFencesToArtifacts() {
+        const string source = @"# Visual
+
+```chartforgex flow v1 {#pipeline}
+id pipeline
+title ""Processing Flow""
+start intake ""Intake"" status:healthy
+decision review ""Review"" status:warning
+connect intake -> review ""handoff"" status:healthy
+```";
+
+        var result = new VisualMarkupParser().Parse(source);
+
+        Assert(!result.HasErrors, "Visual markup parser should parse supported flow fences without errors: " + Diagnostics(result));
+        Assert(result.Artifacts.Count == 1, "Visual markup parser should emit one artifact for one flow fence.");
+        Assert(result.Artifacts[0].Kind == VisualArtifactKind.Flow, "Flow fences should map to flow visual artifacts.");
+        Assert(result.Artifacts[0].Id == "pipeline", "Flow visual artifact ids should come from flow markup.");
+        Assert(result.Artifacts[0].Model is FlowArtifact, "Flow visual artifacts should keep the typed flow model.");
+        Assert(result.Artifacts[0].Metadata["render.model"] == nameof(FlowArtifact), "Flow visual artifacts should expose the flow render model.");
+        Assert(result.Artifacts[0].Metadata["render.previewModel"] == nameof(TopologyChart), "Flow visual artifacts should document the static preview projection.");
+        Assert(result.Artifacts[0].ToSvg().Contains("data-cfx-role=\"topology\"", StringComparison.Ordinal), "Flow visual artifacts should render through deterministic topology SVG output.");
+    }
+
+    private static void MarkupSequenceParserParsesSequenceMarkup() {
+        const string source = @"```chartforgex sequence v1 {#incident title=""Incident Sequence"" width=900 height=520}
+actor user ""User""
+participant api ""API""
+database db ""Database""
+message user -> api ""Submit request""
+message api -> db ""Store event"" style:dashed activate:true
+note rightOf api ""Processing""
+block loop ""Retry"" 0 1
+```";
+
+        var result = new MarkupSequenceParser().Parse(source);
+
+        Assert(!result.HasErrors, "Sequence markup should parse native sequence syntax without errors: " + Diagnostics(result));
+        Assert(result.Document != null, "Sequence markup should produce a sequence artifact.");
+        Assert(result.Document!.Id == "incident" && result.Document.Title == "Incident Sequence", "Sequence fence attributes should seed id and title.");
+        Assert(result.Document.Participants.Count == 3, "Sequence markup should preserve participants.");
+        Assert(result.Document.Messages.Count == 2 && result.Document.Notes.Count == 1 && result.Document.Blocks.Count == 1, "Sequence markup should preserve messages, notes, and blocks.");
+        Assert(result.Document.Messages[1].LineStyle == SequenceArtifactMessageLineStyle.Dashed, "Sequence message attributes should preserve dashed line style.");
+        Assert(result.Document.ToVisualArtifact(VisualArtifactSourceLanguage.ChartForgeX).ToSvg().Contains("data-cfx-role=\"sequence-message\"", StringComparison.Ordinal), "Sequence markup should render through deterministic sequence SVG output.");
+    }
+
+    private static void VisualMarkupParserMapsSequenceFencesToArtifacts() {
+        const string source = @"# Visual
+
+```chartforgex sequence v1 {#incident}
+actor user ""User""
+participant api ""API""
+message user -> api ""Submit request""
+note rightOf api ""Accepted""
+```";
+
+        var result = new VisualMarkupParser().Parse(source);
+
+        Assert(!result.HasErrors, "Visual markup parser should parse supported sequence fences without errors: " + Diagnostics(result));
+        Assert(result.Artifacts.Count == 1, "Visual markup parser should emit one artifact for one sequence fence.");
+        Assert(result.Artifacts[0].Kind == VisualArtifactKind.Sequence, "Sequence fences should map to sequence visual artifacts.");
+        Assert(result.Artifacts[0].Id == "incident", "Sequence visual artifact ids should come from sequence markup.");
+        Assert(result.Artifacts[0].Model is SequenceArtifact, "Sequence visual artifacts should keep the typed sequence model.");
+        Assert(result.Artifacts[0].SourceLanguage == VisualArtifactSourceLanguage.ChartForgeX, "Native sequence markup should preserve ChartForgeX as the artifact source language.");
+        Assert(result.Artifacts[0].SupportsExport(VisualArtifactExportFormat.Html), "Sequence visual artifacts should support standalone HTML export.");
+        Assert(result.Artifacts[0].Metadata["render.model"] == nameof(SequenceArtifact), "Sequence visual artifacts should expose the sequence render model.");
+        Assert(result.Artifacts[0].ToHtmlPage().Contains("<!doctype html>", StringComparison.OrdinalIgnoreCase), "Sequence visual artifacts should render through deterministic standalone HTML output.");
+        Assert(result.Artifacts[0].ToSvg().Contains("data-cfx-role=\"sequence-message\"", StringComparison.Ordinal), "Sequence visual artifacts should render through deterministic sequence SVG output.");
+    }
+
+    private static void MarkupTimelineParserParsesTimelineAndGanttMarkup() {
+        const string timelineSource = @"```chartforgex timeline v1 {#release title=""Release Plan"" type=""timeline"" width=720 height=360}
+item ""Design"" 2026-01-01 2026-01-07 color:#2563EB
+milestone ""Ship"" 2026-01-14 color:#16A34A
+```";
+
+        var timelineResult = new MarkupTimelineParser().Parse(timelineSource);
+
+        Assert(!timelineResult.HasErrors, "Timeline markup should parse item and milestone commands without errors: " + Diagnostics(timelineResult));
+        var timelineChart = timelineResult.Document!.Chart;
+        Assert(timelineResult.Document.Id == "release", "Timeline fence id attributes should seed artifact ids.");
+        Assert(timelineChart.Title == "Release Plan" && timelineChart.Options.Size.Width == 720 && timelineChart.Options.Size.Height == 360, "Timeline fence attributes should seed chart options.");
+        Assert(timelineChart.Series.Count == 2 && timelineChart.Series[0].Kind == ChartSeriesKind.Timeline, "Timeline markup should build native timeline series.");
+        Assert(timelineChart.ToSvg().Contains("data-cfx-role=\"timeline-item\"", StringComparison.Ordinal), "Timeline markup should render through native timeline SVG output.");
+
+        const string ganttSource = @"```chartforgex timeline v1 {#launch type=""gantt"" today=""2026-01-10""}
+| kind | label | start | end | progress | dependsOn |
+| ---- | ----- | ----- | --- | -------- | --------- |
+| task | Build | 2026-01-01 | 2026-01-12 | 0.5 | |
+| milestone | Launch | 2026-01-14 | | | 0 |
+```";
+
+        var ganttResult = new MarkupTimelineParser().Parse(ganttSource);
+
+        Assert(!ganttResult.HasErrors, "Timeline markup should parse Gantt table rows without errors: " + Diagnostics(ganttResult));
+        var ganttChart = ganttResult.Document!.Chart;
+        Assert(ganttChart.Series.Count == 2 && ganttChart.Series[0].Kind == ChartSeriesKind.Gantt, "Gantt timeline markup should build native Gantt series.");
+        Assert(ganttChart.ToSvg().Contains("data-cfx-role=\"gantt-task\"", StringComparison.Ordinal), "Gantt timeline markup should render through native Gantt SVG output.");
+    }
+
+    private static void VisualMarkupParserMapsTimelineFencesToArtifacts() {
+        const string source = @"# Visual
+
+```chartforgex timeline v1 {#release title=""Release Plan"" type=""timeline""}
+item ""Design"" 1 4
+item ""Build"" 5 9
+```";
+
+        var result = new VisualMarkupParser().Parse(source);
+
+        Assert(!result.HasErrors, "Visual markup parser should parse supported timeline fences without errors: " + Diagnostics(result));
+        Assert(result.Artifacts.Count == 1, "Visual markup parser should emit one artifact for one timeline fence.");
+        Assert(result.Artifacts[0].Kind == VisualArtifactKind.Timeline, "Timeline fences should map to timeline visual artifacts.");
+        Assert(result.Artifacts[0].Id == "release", "Timeline visual artifact ids should come from timeline markup.");
+        Assert(result.Artifacts[0].Model is Chart, "Timeline visual artifacts should keep a typed Chart model.");
+        Assert(result.Artifacts[0].ToSvg().Contains("data-cfx-role=\"timeline\"", StringComparison.Ordinal), "Timeline visual artifacts should render through deterministic chart SVG output.");
+    }
+}

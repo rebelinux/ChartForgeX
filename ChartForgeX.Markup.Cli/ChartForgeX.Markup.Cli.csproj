@@ -23,5 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ChartForgeX\ChartForgeX.csproj" />
     <ProjectReference Include="..\ChartForgeX.Markup\ChartForgeX.Markup.csproj" />
+    <ProjectReference Include="..\ChartForgeX.Markup.Mermaid\ChartForgeX.Markup.Mermaid.csproj" />
   </ItemGroup>
 </Project>

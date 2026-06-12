@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using ChartForgeX.Topology;
 using ChartForgeX.VisualArtifacts;
 using ChartForgeX.VisualBlocks;
 
@@ -67,6 +69,16 @@ internal static partial class SmokeTests {
         Assert(svg.Contains("data-cfx-role=\"table-header\"", StringComparison.Ordinal), "TableArtifact static preview should reuse ChartTable SVG rendering.");
         Assert(svg.Contains("data-cfx-role=\"table-status\"", StringComparison.Ordinal), "TableArtifact static preview should surface row and cell status.");
         Assert(png.Length > 64, "TableArtifact static preview should render PNG output.");
+
+        var artifact = table.ToVisualArtifact();
+        Assert(artifact.ToSvg().Contains("data-cfx-role=\"table-header\"", StringComparison.Ordinal), "VisualArtifact SVG rendering should reuse the shared artifact renderer.");
+        Assert(artifact.ToHtmlPage().Contains("<!doctype html>", StringComparison.OrdinalIgnoreCase), "VisualArtifact HTML rendering should emit a standalone table preview page.");
+        Assert(artifact.ToPng().Length > 64, "VisualArtifact PNG rendering should reuse the shared artifact renderer.");
+        using var temp = new TemporaryDirectory();
+        artifact.SaveSvg(Path.Combine(temp.Path, "table.svg"));
+        artifact.SaveHtml(Path.Combine(temp.Path, "table.html"));
+        artifact.SavePng(Path.Combine(temp.Path, "table.png"));
+        Assert(File.Exists(Path.Combine(temp.Path, "table.svg")) && File.Exists(Path.Combine(temp.Path, "table.html")) && File.Exists(Path.Combine(temp.Path, "table.png")), "VisualArtifact save helpers should write static output files.");
     }
 
     private static void TableArtifactRejectsInvalidContractShapes() {
@@ -114,6 +126,29 @@ internal static partial class SmokeTests {
         Assert(result.Rows.Count == 1 && result.TotalRowCount == 125, "TableArtifactQueryResult should carry a virtualized row window and total count.");
     }
 
+    private static void FlowArtifactRendersStaticPreviewAndEnvelope() {
+        var flow = FlowArtifact.Create("approval")
+            .WithTitle("Approval Flow")
+            .WithSize(720, 420)
+            .AddLane("ops", "Operations")
+            .AddStep("start", "Start", FlowArtifactStepKind.Start, "ops", VisualStatus.Positive)
+            .AddStep("review", "Review", FlowArtifactStepKind.Decision, "ops", VisualStatus.Warning)
+            .AddConnector("start", "review", "handoff", FlowArtifactConnectorKind.Flow, FlowArtifactConnectorDirection.Forward, VisualStatus.Positive);
+
+        var artifact = flow.ToVisualArtifact();
+        var svg = flow.ToSvg();
+        var png = flow.ToPng();
+
+        Assert(artifact.Kind == VisualArtifactKind.Flow, "FlowArtifact should wrap into a product-neutral flow artifact envelope.");
+        Assert(artifact.Model == flow, "FlowArtifact envelope should keep the typed flow model.");
+        Assert(artifact.Metadata["render.model"] == nameof(FlowArtifact), "FlowArtifact envelope should expose the flow model.");
+        Assert(artifact.Metadata["render.previewModel"] == nameof(TopologyChart), "FlowArtifact envelope should identify the static preview projection.");
+        Assert(artifact.Metadata["flow.steps"] == "2" && artifact.Metadata["flow.connectors"] == "1", "FlowArtifact envelope should expose flow counts.");
+        Assert(svg.Contains("data-cfx-role=\"topology\"", StringComparison.Ordinal), "FlowArtifact static preview should reuse deterministic topology SVG rendering.");
+        Assert(flow.ToHtmlPage().Contains("<!doctype html>", StringComparison.OrdinalIgnoreCase), "FlowArtifact HTML preview should reuse deterministic topology HTML rendering.");
+        Assert(png.Length > 64 && png[0] == 0x89 && png[1] == 0x50 && png[2] == 0x4E && png[3] == 0x47, "FlowArtifact PNG preview should emit a valid PNG.");
+    }
+
     private static void SequenceArtifactRendersStaticPreviewAndEnvelope() {
         var sequence = SequenceArtifact.Create("incident")
             .WithTitle("Incident Flow")
@@ -137,6 +172,20 @@ internal static partial class SmokeTests {
         Assert(artifact.SupportsExport(VisualArtifactExportFormat.Svg), "SequenceArtifact should declare SVG export support.");
         Assert(svg.Contains("data-cfx-role=\"sequence-message\"", StringComparison.Ordinal), "SequenceArtifact SVG should expose message regions.");
         Assert(svg.Contains("data-cfx-role=\"sequence-note\"", StringComparison.Ordinal), "SequenceArtifact SVG should expose note regions.");
+        Assert(artifact.ToHtmlPage().Contains("chartforgex-visual-artifact", StringComparison.Ordinal), "VisualArtifact HTML rendering should wrap sequence previews in a standalone artifact page.");
         Assert(png.Length > 64 && png[0] == 0x89 && png[1] == 0x50 && png[2] == 0x4E && png[3] == 0x47, "SequenceArtifact PNG should emit a valid PNG.");
+    }
+
+    private sealed class TemporaryDirectory : IDisposable {
+        public TemporaryDirectory() {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ChartForgeX-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose() {
+            if (Directory.Exists(Path)) Directory.Delete(Path, recursive: true);
+        }
     }
 }

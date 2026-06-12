@@ -2,7 +2,7 @@
   "Topology fence": {
     "prefix": "cfx-topology",
     "body": [
-      "```chartforgex topology",
+      "```chartforgex topology v1",
       "title \"${1:Service Dependency Map}\"",
       "layout layered lr",
       "",
@@ -16,7 +16,7 @@
   "Topology table": {
     "prefix": "cfx-topology-table",
     "body": [
-      "```chartforgex topology",
+      "```chartforgex topology v1",
       "title: \"${1:Regional Topology}\"",
       "layout: densegrouped tb",
       "",
@@ -37,5 +37,80 @@
       "```"
     ],
     "description": "Insert a table-driven ChartForgeX topology fenced block"
+  },
+  "Flow fence": {
+    "prefix": "cfx-flow",
+    "body": [
+      "```chartforgex flow v1",
+      "title \"${1:Processing Flow}\"",
+      "layout layered lr",
+      "",
+      "lane ${2:ops} \"${3:Operations}\"",
+      "start ${4:intake} \"${5:Intake}\" lane:${2:ops} status:healthy",
+      "decision ${6:review} \"${7:Review}\" lane:${2:ops} status:warning",
+      "connect ${4:intake} -> ${6:review} \"${8:handoff}\" status:healthy",
+      "```"
+    ],
+    "description": "Insert a ChartForgeX flow fenced block"
+  },
+  "Sequence fence": {
+    "prefix": "cfx-sequence",
+    "body": [
+      "```chartforgex sequence v1 {#${1:incident} title=\"${2:Incident Sequence}\"}",
+      "actor ${3:user} \"${4:User}\"",
+      "participant ${5:api} \"${6:API}\"",
+      "database ${7:db} \"${8:Database}\"",
+      "message ${3:user} -> ${5:api} \"${9:Submit request}\"",
+      "message ${5:api} -> ${7:db} \"${10:Store event}\" style:dashed",
+      "note rightOf ${5:api} \"${11:Processing}\"",
+      "```"
+    ],
+    "description": "Insert a ChartForgeX sequence fenced block"
+  },
+  "Chart fence": {
+    "prefix": "cfx-chart",
+    "body": [
+      "```chartforgex chart v1 {#${1:trend} title=\"${2:Trend}\" type=\"${3:line}\"}",
+      "labels ${4:Jan} ${5:Feb} ${6:Mar}",
+      "values ${7:12} ${8:18} ${9:16}",
+      "```"
+    ],
+    "description": "Insert a compact ChartForgeX chart fenced block"
+  },
+  "Chart multi-series table": {
+    "prefix": "cfx-chart-table",
+    "body": [
+      "```chartforgex chart v1 {#${1:quarterly} title=\"${2:Quarterly Trend}\" type=\"line\"}",
+      "| ${3:Month} | ${4:Revenue} | ${5:Cost} |",
+      "| ----- | ------- | ---- |",
+      "| Jan | 12 | 7 |",
+      "| Feb | 18 | 9 |",
+      "| Mar | 16 | 8 |",
+      "annotation hLine ${6:15} \"${7:Target}\" color:#16A34A",
+      "```"
+    ],
+    "description": "Insert a table-driven multi-series ChartForgeX chart fenced block"
+  },
+  "Timeline fence": {
+    "prefix": "cfx-timeline",
+    "body": [
+      "```chartforgex timeline v1 {#${1:release} title=\"${2:Release Plan}\" type=\"timeline\"}",
+      "item \"${3:Design}\" ${4:2026-01-01} ${5:2026-01-07} color:#2563EB",
+      "milestone \"${6:Ship}\" ${7:2026-01-14} color:#16A34A",
+      "```"
+    ],
+    "description": "Insert a ChartForgeX timeline fenced block"
+  },
+  "Gantt fence": {
+    "prefix": "cfx-gantt",
+    "body": [
+      "```chartforgex timeline v1 {#${1:launch} title=\"${2:Launch Plan}\" type=\"gantt\" today=\"${3:2026-01-10}\"}",
+      "| kind | label | start | end | progress | dependsOn |",
+      "| ---- | ----- | ----- | --- | -------- | --------- |",
+      "| task | ${4:Build} | ${5:2026-01-01} | ${6:2026-01-12} | ${7:0.5} | |",
+      "| milestone | ${8:Launch} | ${9:2026-01-14} | | | 0 |",
+      "```"
+    ],
+    "description": "Insert a ChartForgeX Gantt fenced block"
   }
 }

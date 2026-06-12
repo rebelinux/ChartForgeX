@@ -17,10 +17,39 @@ public sealed class MarkupTopologyParser {
     /// <returns>The parse result.</returns>
     public MarkupParseResult<MarkupTopologyDocument> Parse(string text) {
         if (text == null) throw new ArgumentNullException(nameof(text));
-        var block = ChartForgeXMarkdown.ExtractFirstTopologyBlock(text);
+        var scan = VisualMarkupScanner.Scan(text);
+        var result = new MarkupParseResult<MarkupTopologyDocument>();
+        foreach (var diagnostic in scan.Diagnostics) result.Diagnostics.Add(diagnostic);
+        foreach (var scannedBlock in scan.Blocks) {
+            if (scannedBlock.Kind == VisualMarkupKind.Topology) return ParseBlockCore(scannedBlock, result);
+        }
+
+        if (result.Diagnostics.Count > 0) return result;
+        return ParseBlockCore(CreateRawBlock(text), result);
+    }
+
+    /// <summary>
+    /// Parses a pre-scanned ChartForgeX topology block while preserving fence attributes and source lines.
+    /// </summary>
+    /// <param name="block">The topology visual block.</param>
+    /// <returns>The parse result.</returns>
+    public MarkupParseResult<MarkupTopologyDocument> ParseBlock(VisualMarkupBlock block) {
+        if (block == null) throw new ArgumentNullException(nameof(block));
+        var result = new MarkupParseResult<MarkupTopologyDocument>();
+        if (block.Kind != VisualMarkupKind.Topology) {
+            Add(result, block.FenceLine, MarkupDiagnosticSeverity.Error, "Expected a ChartForgeX topology visual block.");
+            return result;
+        }
+
+        return ParseBlockCore(block, result);
+    }
+
+    private static MarkupParseResult<MarkupTopologyDocument> ParseBlockCore(VisualMarkupBlock block, MarkupParseResult<MarkupTopologyDocument> result) {
         var payload = block.Payload;
         var lineOffset = block.StartLine - 1;
-        var result = new MarkupParseResult<MarkupTopologyDocument> { Document = new MarkupTopologyDocument() };
+        result.Document = new MarkupTopologyDocument();
+        if (block.SchemaVersion != 1) Add(result, block.FenceLine, MarkupDiagnosticSeverity.Error, "ChartForgeX topology markup requires schema version v1.");
+        ApplyFenceAttributes(result, result.Document, block);
         var lines = payload.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         var section = string.Empty;
         List<string>? tableHeaders = null;
@@ -52,6 +81,25 @@ public sealed class MarkupTopologyParser {
 
         if (result.Document!.Nodes.Count == 0) Add(result, 0, MarkupDiagnosticSeverity.Error, "Topology markup must declare at least one node.");
         return result;
+    }
+
+    private static VisualMarkupBlock CreateRawBlock(string text) =>
+        new VisualMarkupBlock(VisualMarkupKind.Topology, "chartforgex topology", string.Empty, 1, text, 1, 1, Math.Max(1, text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Length), EmptyAttributes.Value);
+
+    private static void ApplyFenceAttributes(MarkupParseResult<MarkupTopologyDocument> result, MarkupTopologyDocument document, VisualMarkupBlock block) {
+        if (block.Attributes.Count == 0) return;
+        try {
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "id", out var id) && !string.IsNullOrWhiteSpace(id)) document.Id = id;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "title", out var title) && !string.IsNullOrWhiteSpace(title)) document.Title = title;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "subtitle", out var subtitle) && !string.IsNullOrWhiteSpace(subtitle)) document.Subtitle = subtitle;
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "width", out var width) && !string.IsNullOrWhiteSpace(width)) document.Width = VisualMarkupFenceOptions.ParseDouble(width, "width");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "height", out var height) && !string.IsNullOrWhiteSpace(height)) document.Height = VisualMarkupFenceOptions.ParseDouble(height, "height");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "padding", out var padding) && !string.IsNullOrWhiteSpace(padding)) document.Padding = VisualMarkupFenceOptions.ParseDouble(padding, "padding");
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "layout", out var layout) && !string.IsNullOrWhiteSpace(layout)) document.LayoutMode = ParseEnum<TopologyLayoutMode>(layout);
+            if (VisualMarkupFenceOptions.TryGetAttribute(block, "direction", out var direction) && !string.IsNullOrWhiteSpace(direction)) document.LayoutDirection = ParseDirection(direction);
+        } catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is FormatException || ex is OverflowException) {
+            Add(result, block.FenceLine, MarkupDiagnosticSeverity.Error, ex.Message);
+        }
     }
 
     private static void ParseCommand(MarkupParseResult<MarkupTopologyDocument> result, MarkupTopologyDocument document, string line, int lineNumber, string section) {
@@ -521,5 +569,9 @@ public sealed class MarkupTopologyParser {
     private static string NormalizeId(string value) {
         var chars = value.Select(ch => char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : '-').ToArray();
         return new string(chars).Trim('-');
+    }
+
+    private static class EmptyAttributes {
+        public static readonly IReadOnlyDictionary<string, string> Value = new Dictionary<string, string>(StringComparer.Ordinal);
     }
 }

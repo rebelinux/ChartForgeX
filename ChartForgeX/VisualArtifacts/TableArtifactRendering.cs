@@ -16,7 +16,10 @@ public static class TableArtifactRendering {
         if (table == null) throw new ArgumentNullException(nameof(table));
         var preview = ChartTable.Create()
             .WithTitle(table.Title)
-            .WithSubtitle(table.Subtitle);
+            .WithSubtitle(table.Subtitle)
+            .WithSize(760, 360)
+            .WithTransparentBackground()
+            .WithCard(false);
 
         int? statusColumnIndex = null;
         for (var columnIndex = 0; columnIndex < table.Columns.Count; columnIndex++) {
@@ -65,6 +68,13 @@ public static class TableArtifactRendering {
     /// <param name="table">The table artifact.</param>
     /// <returns>SVG markup.</returns>
     public static string ToSvg(this TableArtifact table) => table.ToPreviewBlock().ToSvg();
+
+    /// <summary>
+    /// Renders a table artifact static preview to a standalone HTML page.
+    /// </summary>
+    /// <param name="table">The table artifact.</param>
+    /// <returns>HTML markup.</returns>
+    public static string ToHtmlPage(this TableArtifact table) => table.ToPreviewBlock().ToHtmlPage();
 
     /// <summary>
     /// Renders a table artifact static preview to PNG.

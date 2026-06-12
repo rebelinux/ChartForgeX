@@ -1157,6 +1157,8 @@ var parser = new MermaidVisualMarkupParser(new MermaidVisualMarkupRenderOptions 
 var result = parser.ParseBlocks(blocks);
 ```
 
+Fence attributes such as `id`, `title`, `subtitle`, `width`, `height`, and family-specific render knobs use the same normalized option parsing as native ChartForgeX markup. Malformed numeric, boolean, or date values produce line-aware diagnostics instead of being silently ignored.
+
 ## Mermaid.js Conformance Fixtures
 
 The repository includes a test-time Mermaid.js fixture harness under `tests/mermaid-conformance`. It validates representative Mermaid sources with the official Mermaid parser while keeping ChartForgeX packages dependency-free at runtime.
