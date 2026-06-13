@@ -17,6 +17,8 @@ public enum VisualMarkupKind {
     Chart,
     /// <summary>The fence declares a timeline artifact.</summary>
     Timeline,
+    /// <summary>The fence declares a sequence artifact.</summary>
+    Sequence,
     /// <summary>The fence declares a Mermaid diagram.</summary>
     Mermaid
 }
@@ -26,10 +28,11 @@ public enum VisualMarkupKind {
 /// </summary>
 public sealed class VisualMarkupBlock {
     /// <summary>Initializes a visual markup block.</summary>
-    public VisualMarkupBlock(VisualMarkupKind kind, string fenceName, string fenceInfo, string payload, int fenceLine, int startLine, int endLine, IReadOnlyDictionary<string, string> attributes) {
+    public VisualMarkupBlock(VisualMarkupKind kind, string fenceName, string fenceInfo, int schemaVersion, string payload, int fenceLine, int startLine, int endLine, IReadOnlyDictionary<string, string> attributes) {
         Kind = kind;
         FenceName = fenceName ?? throw new ArgumentNullException(nameof(fenceName));
         FenceInfo = fenceInfo ?? throw new ArgumentNullException(nameof(fenceInfo));
+        SchemaVersion = schemaVersion < 0 ? 0 : schemaVersion;
         Payload = payload ?? throw new ArgumentNullException(nameof(payload));
         FenceLine = fenceLine < 1 ? 1 : fenceLine;
         StartLine = startLine < 1 ? 1 : startLine;
@@ -45,6 +48,9 @@ public sealed class VisualMarkupBlock {
 
     /// <summary>Gets the full fence info string after the opening fence marker.</summary>
     public string FenceInfo { get; }
+
+    /// <summary>Gets the ChartForgeX markup schema version, or zero for external languages such as Mermaid.</summary>
+    public int SchemaVersion { get; }
 
     /// <summary>Gets the extracted fence payload.</summary>
     public string Payload { get; }

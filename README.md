@@ -154,12 +154,12 @@ Optional visual artifact, markup, Mermaid, and interaction support is split into
 | --- | --- |
 | `ChartForgeX` | Static SVG, HTML, PNG, GIF, JPEG, BMP, PPM, and TIFF rendering. |
 | `ChartForgeX.Mermaid` | Source-preserving Mermaid parser with first-class flowchart, sequence, class, state, ER, requirement, architecture, C4, git graph, block, packet, Venn, Ishikawa, Wardley, mindmap, tree view, event modeling, kanban, pie, journey, timeline, quadrant, Gantt, XY chart, Sankey, radar, and treemap rendering. |
-| `ChartForgeX.Markup` | Markdown-friendly ChartForgeX visual fences for topology, chart, and table artifacts. |
+| `ChartForgeX.Markup` | Markdown-friendly v1 ChartForgeX visual fences for chart, timeline, topology, flow, sequence, and table artifacts. |
 | `ChartForgeX.Markup.Mermaid` | Thin optional bridge that lets `ChartForgeX.Markup` parse Mermaid fences through `ChartForgeX.Mermaid`. |
 | `ChartForgeX.Interactivity` | Host-neutral interaction contracts. |
 | `ChartForgeX.Interactivity.Html` | Self-contained HTML/SVG interaction adapter. |
 
-The core package also includes product-neutral visual artifact models for reusable visuals. `Chart` models can be wrapped as artifacts, `TableArtifact` declares capabilities such as search, sort, filter, selection, copy, export, and virtualization, and static previews render deterministically from the core package. Rich table interaction belongs in native hosts and adapter packages. See `docs/visual-artifacts.md`, `docs/markup.md`, and `docs/mermaid.md` for the current contracts.
+The core package also includes product-neutral visual artifact models for reusable visuals. `Chart` models can be wrapped as artifacts, `FlowArtifact` keeps authored process flows distinct from topology previews, `SequenceArtifact` models interaction diagrams, `TableArtifact` declares capabilities such as search, sort, filter, selection, copy, export, and virtualization, and static previews render deterministically from the core package. Rich interaction belongs in native hosts and adapter packages. See `docs/visual-artifacts.md`, `docs/markup.md`, `docs/markup-v1-reference.md`, and `docs/mermaid.md` for the current contracts.
 
 ## Native AOT and Trimming
 

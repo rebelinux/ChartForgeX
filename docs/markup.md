@@ -2,20 +2,23 @@
 
 ChartForgeX markup is a Markdown-friendly authoring layer for deterministic ChartForgeX visuals. It scans ordinary Markdown for known visual fences, keeps line-aware diagnostics, and converts supported blocks into reusable ChartForgeX models instead of browser-only script output.
 
-Supported fences may use backticks or tildes. Fence attributes use Markdown-style metadata such as `{#id title="Service Map" width=1280 height=760}` and are preserved on the `VisualMarkupBlock` for parsers that need host metadata.
+Supported fences may use backticks or tildes. Native ChartForgeX fences are versioned with the canonical form `chartforgex <kind> v1`; the version is part of the public authoring contract so future grammar changes can be introduced intentionally. Fence attributes use Markdown-style metadata such as `{#id title="Service Map" width=1280 height=760}` and are preserved on the `VisualMarkupBlock` for parsers that need host metadata.
+
+For the strict grammar and API contract, see `markup-v1-reference.md`. The machine-readable editor schema is packed as `schemas/chartforgex-markup-v1.schema.json` in `ChartForgeX.Markup` and mirrored in the VS Code extension. This file is the authoring guide; the reference file and schema are the compatibility contract for v1 parsers and host integrations.
 
 The generic `ChartForgeX.Markup` package recognizes:
 
 | Fence | Purpose |
 | --- | --- |
-| `chartforgex topology`, `chartforgex-topology`, `cfx topology`, `cfx-topology` | Product-neutral topology diagrams. |
-| `chartforgex table`, `cfx table` | Reusable `TableArtifact` definitions with static preview rendering. |
-| `chartforgex flow`, `cfx flow` | Reserved ChartForgeX flow artifact fence. |
-| `chartforgex chart`, `cfx chart` | Native ChartForgeX chart artifact fence. |
-| `chartforgex timeline`, `cfx timeline` | Reserved ChartForgeX timeline artifact fence. |
+| `chartforgex topology v1` | Product-neutral topology diagrams. |
+| `chartforgex table v1` | Reusable `TableArtifact` definitions with static preview rendering. |
+| `chartforgex flow v1` | Process and dependency flows backed by `FlowArtifact`. |
+| `chartforgex chart v1` | Native ChartForgeX chart artifact fence. |
+| `chartforgex timeline v1` | Native timeline and Gantt chart artifact fence. |
+| `chartforgex sequence v1` | Interaction diagrams backed by `SequenceArtifact`. |
 | `mermaid` | Recognized as a visual block. Parsing requires `ChartForgeX.Markup.Mermaid`. |
 
-Unsupported `chartforgex` or `cfx` family fences produce diagnostics instead of being silently ignored. The parser also accepts custom block parsers through `IVisualMarkupBlockParser`, so optional packages can add real behavior without making the core markup package depend on them.
+Unsupported or unversioned `chartforgex` family fences produce diagnostics instead of being silently ignored. The parser also accepts custom block parsers through `IVisualMarkupBlockParser`, so optional packages can add real behavior without making the core markup package depend on them.
 
 Standalone tools can call `VisualMarkupParser.Parse(markdown)` and let ChartForgeX scan Markdown itself. Hosts that already parse Markdown, such as OfficeIMO-backed IX pipelines, should pass their discovered visual fences through `VisualMarkupParser.ParseBlocks(blocks)` instead. That keeps one Markdown source of truth while preserving ChartForgeX's line-aware diagnostics, artifact conversion, and static rendering.
 
@@ -28,7 +31,8 @@ var blocks = new[] {
     new VisualMarkupBlock(
         VisualMarkupKind.Chart,
         "chartforgex chart",
-        "chartforgex chart {#trend title=\"Trend\"}",
+        "chartforgex chart v1 {#trend title=\"Trend\"}",
+        schemaVersion: 1,
         "type line\nlabels Jan Feb Mar\nvalues 12 18 16",
         fenceLine: 24,
         startLine: 25,
@@ -49,7 +53,7 @@ OfficeIMO or another Markdown-native host owns Markdown parsing, fence discovery
 Use command-style lines for small diagrams:
 
 ````markdown
-```chartforgex topology
+```chartforgex topology v1
 id service-map
 title "Service Dependency Map"
 subtitle "Production dependencies and latency"
@@ -71,7 +75,7 @@ edge worker -> sql "84 ms" kind:dependency status:warning direction:forward
 Use sections and pipe tables for larger diagrams that need to stay readable in code review:
 
 ````markdown
-```chartforgex topology
+```chartforgex topology v1
 title: "Regional Directory Topology"
 layout: densegrouped tb
 
@@ -96,12 +100,50 @@ edges:
 
 This layer intentionally describes the topology model rather than raw drawing instructions. ChartForgeX owns deterministic layout, validation, SVG/HTML/PNG rendering, and generated fluent builder code.
 
-## Tables
+## Flow
 
-`chartforgex table` fences create reusable `TableArtifact` models. The core package renders a static preview through `TableArtifact.ToPreviewBlock()`, `ToSvg()`, and `ToPng()`. Capabilities describe what a rich host may offer; they do not force JavaScript into static ChartForgeX output.
+`chartforgex flow v1` emits a typed `FlowArtifact` wrapped as `VisualArtifactKind.Flow`. Use it when the authored visual is a process, routing, approval, handoff, or dependency flow. Static SVG/PNG previews currently project the flow model through the deterministic topology renderer, but API consumers receive flow-specific lanes, steps, and connectors rather than topology groups, nodes, and edges.
 
 ````markdown
-```chartforgex table {#alerts title="Open Alerts"}
+```chartforgex flow v1 {#pipeline title="Processing Flow"}
+layout layered lr
+lane ops "Operations"
+start intake "Intake" lane:ops status:healthy
+decision review "Review" lane:ops status:warning
+data archive "Archive" lane:ops status:healthy
+connect intake -> review "handoff" status:healthy
+connect review -> archive "store" kind:data status:warning
+```
+````
+
+Flow markup stays product-neutral. Hosts map their own business concepts into lanes, steps, and connectors, then use the artifact kind to decide where flow visuals belong in their own UI or document pipeline. Supported step commands include `step`, `process`, `decision`, `start`, `end`, `input`, `output`, `data`, `external`, `document`, `manual`, `delay`, and `event`. Connectors use `connect source -> target "label"` with optional `kind`, `direction`, `status`, and `color` attributes. Table sections are available as `lanes:`, `steps:`, and `connectors:` for larger flows.
+
+## Sequence
+
+`chartforgex sequence v1` emits a typed `SequenceArtifact` wrapped as `VisualArtifactKind.Sequence`. Use it when the authored visual is an interaction, request/response flow, protocol exchange, or ordered collaboration. Native sequence markup uses the same artifact model as Mermaid sequence conversion, but keeps ChartForgeX-owned commands and table sections for editor tooling and host APIs.
+
+````markdown
+```chartforgex sequence v1 {#incident title="Incident Sequence"}
+actor user "User"
+participant api "API"
+database db "Database"
+message user -> api "Submit request"
+message api -> db "Store event" style:dashed
+note rightOf api "Processing"
+block loop "Retry" 0 1
+```
+````
+
+Large sequence diagrams may use `participants:`, `messages:`, `notes:`, and `blocks:` sections. Participant kinds include `participant`, `actor`, `boundary`, `control`, `entity`, `database`, `collections`, and `queue`. Message styles are `solid` and `dashed`; note placements are `leftOf`, `rightOf`, and `over`; block kinds include `loop`, `alt`, `opt`, `par`, `critical`, `rect`, and `break`.
+
+Sequence fences render through deterministic SVG/PNG/HTML export and preserve the typed `SequenceArtifact` model for host inspection. Rich behavior such as step playback, selection, zoom, or synchronized UI state belongs in adapters or consuming applications.
+
+## Tables
+
+`chartforgex table v1` fences create reusable `TableArtifact` models. The core package renders a static preview through `TableArtifact.ToPreviewBlock()`, `ToSvg()`, and `ToPng()`. Capabilities describe what a rich host may offer; they do not force JavaScript into static ChartForgeX output.
+
+````markdown
+```chartforgex table v1 {#alerts title="Open Alerts"}
 capabilities search sort filter multiselect copy export virtualization
 totalRows 1280
 
@@ -131,10 +173,10 @@ See `visual-artifacts.md` for the reusable artifact model.
 
 ## Charts
 
-`chartforgex chart` fences create native ChartForgeX `Chart` models. The initial fence is intentionally compact and useful for report/dashboard slices: `bar`, `line`, `area`, `horizontalbar`, and `pie` chart types can be authored with commands, values, or a simple Markdown table.
+`chartforgex chart v1` fences create native ChartForgeX `Chart` models. The fence is intentionally compact, but it is not just a demo shortcut: common ChartForgeX chart types and render options can be authored with commands, `option key value` lines, or an `options:` table.
 
 ````markdown
-```chartforgex chart {#result-mix title="Result Mix"}
+```chartforgex chart v1 {#result-mix title="Result Mix"}
 type pie
 series "Checks"
 | Label    | Value |
@@ -148,7 +190,7 @@ series "Checks"
 For small trend charts, command form stays concise:
 
 ````markdown
-```chartforgex chart
+```chartforgex chart v1
 id trend
 title "Trend"
 type line
@@ -157,7 +199,77 @@ values 12 18 16
 ```
 ````
 
+Multi-series charts can be authored with explicit `series` commands:
+
+````markdown
+```chartforgex chart v1 {#mixed title="Mixed Series"}
+labels Jan Feb Mar
+series Revenue type smoothLine color #2563EB values 12 18 16
+series Incidents type bar color #EF4444 values 3 4 2
+```
+````
+
+Or with a review-friendly table. The first label/category column becomes the x-axis; each numeric column becomes a named series:
+
+````markdown
+```chartforgex chart v1 {#quarterly title="Quarterly Trend" type="line"}
+| Month | Revenue | Cost |
+| ----- | ------- | ---- |
+| Jan   | 12      | 7    |
+| Feb   | 18      | 9    |
+| Mar   | 16      | 8    |
+annotation hLine 15 "Target" color:#16A34A
+```
+````
+
+ChartForgeX render options can live in a table when authors need review-friendly configuration:
+
+````markdown
+```chartforgex chart v1 {#trend title="Trend" type="smoothLine" width=720 height=420}
+labels Jan Feb Mar
+values 12 18 16
+
+options:
+| option | value |
+| ------ | ----- |
+| legend | false |
+| dataLabels | true |
+| legendPosition | topRight |
+| xAxisTitle | Month |
+| yAxisTitle | Count |
+| yAxisMinimum | 0 |
+| yAxisMaximum | 20 |
+| grid | false |
+```
+````
+
+Supported compact chart types include `bar`, `line`, `smoothLine`, `stepLine`, `area`, `smoothArea`, `stepArea`, `stackedArea`, `smoothStackedArea`, `scatter`, `lollipop`, `horizontalBar`, `waterfall`, `pie`, `donut`, `polarArea`, `radar`, and `funnel`. Series commands can choose their own `type`, `kind`, `color`, and `values`. Annotation commands support horizontal and vertical lines or bands through `annotation hLine`, `annotation vLine`, `annotation hBand`, and `annotation vBand`, with optional label, color, and opacity values. Supported options include legend, point legend, data labels, header/card/plot background, transparent background, axes, axis lines, grid, legend position, tick count, axis titles, axis bounds, padding, sparkline, and overlay mode. Invalid option values produce line-aware diagnostics.
+
 The parser maps the fence to a `VisualArtifact` with `VisualArtifactKind.Chart` and a typed `Chart` model. Static SVG/PNG/HTML export remains deterministic and script-free.
+
+## Timeline And Gantt
+
+`chartforgex timeline v1` creates native ChartForgeX timeline or Gantt charts. Set `type` or `mode` to `timeline` or `gantt` in the fence attributes or inside the block. Dates use invariant date parsing; numeric positions are accepted for abstract schedules.
+
+````markdown
+```chartforgex timeline v1 {#release title="Release Plan" type="timeline" width=720 height=360}
+item "Design" 2026-01-01 2026-01-07 color:#2563EB
+milestone "Ship" 2026-01-14 color:#16A34A
+```
+````
+
+Gantt authoring supports command rows and tables. Table columns can use `kind` or `type`, `label`/`name`/`item`/`task`, `start`, `end`, `progress`, `dependsOn`, and `color`.
+
+````markdown
+```chartforgex timeline v1 {#launch title="Launch Plan" type="gantt" today="2026-01-10"}
+| kind      | label  | start      | end        | progress | dependsOn |
+| --------- | ------ | ---------- | ---------- | -------- | --------- |
+| task      | Build  | 2026-01-01 | 2026-01-12 | 0.5      |           |
+| milestone | Launch | 2026-01-14 |            |          | 0         |
+```
+````
+
+Timeline fences map to `VisualArtifactKind.Timeline` with a typed `Chart` model. They render through the same static SVG/PNG/HTML export path as code-created ChartForgeX timelines and Gantt charts.
 
 ## Mermaid
 
@@ -201,7 +313,7 @@ line [25, 50, 80]
 ```
 ````
 
-Use `chartforgex chart` when authors want ChartForgeX-native chart types or IX-specific visual artifact behavior that Mermaid does not define.
+Use `chartforgex chart v1` when authors want ChartForgeX-native chart types or IX-specific visual artifact behavior that Mermaid does not define.
 
 Sankey fences use Mermaid's CSV-like syntax and render through native ChartForgeX Sankey charts:
 
@@ -406,7 +518,7 @@ done[Done]
 
 ## CLI
 
-The CLI can validate, export, and generate C# builder code:
+The CLI validates, previews, and exports the same visual artifact surface as the markup parser. It supports topology, table, chart, and Mermaid-backed artifacts when the Mermaid bridge package is included in the CLI build. C# generation is currently topology-specific because only topology has a builder emitter today:
 
 ```powershell
 dotnet run --project .\ChartForgeX.Markup.Cli\ChartForgeX.Markup.Cli.csproj -c Release -- validate .\diagram.md
@@ -419,4 +531,4 @@ dotnet run --project .\ChartForgeX.Markup.Cli\ChartForgeX.Markup.Cli.csproj -c R
 
 `ChartForgeX.Markup.VSCode` follows the same CLI-backed packaging model as `OfficeIMO.Markup.VSCode`. The extension shell stays thin: VS Code handles activation, commands, diagnostics, preview panels, and save dialogs, while `ChartForgeX.Markup.Cli` owns parsing, validation, rendering, export, and C# code generation.
 
-The extension contributes a `chartforgex-markup` language for `.cfx.md` and `.chartforgex.md`, snippets for fenced topology blocks, and commands for preview, validate, SVG/PNG/HTML export, C# generation, and opening the generated output folder. Packaging publishes the CLI into `tools/ChartForgeX.Markup.Cli` as a portable fallback plus self-contained runtime builds for Windows, Linux, and macOS.
+The extension contributes a `chartforgex-markup` language for `.cfx.md` and `.chartforgex.md`, snippets for the native v1 fences, and commands for preview, validate, SVG/PNG/HTML export, C# generation, and opening the generated output folder. Packaging publishes the CLI into `tools/ChartForgeX.Markup.Cli` as a portable fallback plus self-contained runtime builds for Windows, Linux, and macOS.

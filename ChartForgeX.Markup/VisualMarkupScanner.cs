@@ -37,11 +37,8 @@ public static class VisualMarkupScanner {
                 fenceLine = index + 1;
                 payloadStartLine = index + 2;
                 payload.Clear();
-                descriptor = ResolveFence(fenceInfo);
+                descriptor = ResolveFence(result, fenceInfo, fenceLine);
                 include = descriptor.HasValue;
-                if (!include && IsChartForgeXFamilyFence(fenceInfo)) {
-                    Add(result, fenceLine, MarkupDiagnosticSeverity.Warning, "Unsupported ChartForgeX visual fence '" + FirstFenceToken(fenceInfo) + "'.");
-                }
 
                 inFence = true;
                 continue;
@@ -74,7 +71,7 @@ public static class VisualMarkupScanner {
     public static List<VisualMarkupBlock> ExtractBlocks(string text) => Scan(text).Blocks;
 
     internal static bool TryResolveFence(string info, out VisualMarkupKind kind, out string fenceName) {
-        var descriptor = ResolveFence(info);
+        var descriptor = ResolveFence(null, info, 1);
         if (descriptor.HasValue) {
             kind = descriptor.Value.Kind;
             fenceName = descriptor.Value.Name;
@@ -91,6 +88,7 @@ public static class VisualMarkupScanner {
             descriptor.Kind,
             descriptor.Name,
             fenceInfo.Trim(),
+            descriptor.SchemaVersion,
             string.Join("\n", payload),
             fenceLine,
             payloadStartLine,
@@ -109,26 +107,54 @@ public static class VisualMarkupScanner {
         return true;
     }
 
-    private static VisualMarkupFenceDescriptor? ResolveFence(string info) {
+    private static VisualMarkupFenceDescriptor? ResolveFence(VisualMarkupScanResult? result, string info, int fenceLine) {
         if (string.IsNullOrWhiteSpace(info)) return null;
-        var normalized = NormalizeFenceInfo(info);
-        if (IsFenceName(normalized, "chartforgex topology")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Topology, "chartforgex topology");
-        if (IsFenceName(normalized, "chartforgex-topology")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Topology, "chartforgex-topology");
-        if (IsFenceName(normalized, "cfx topology")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Topology, "cfx topology");
-        if (IsFenceName(normalized, "cfx-topology")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Topology, "cfx-topology");
-        if (IsFenceName(normalized, "chartforgex flow")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Flow, "chartforgex flow");
-        if (IsFenceName(normalized, "cfx flow")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Flow, "cfx flow");
-        if (IsFenceName(normalized, "chartforgex table")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Table, "chartforgex table");
-        if (IsFenceName(normalized, "cfx table")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Table, "cfx table");
-        if (IsFenceName(normalized, "chartforgex chart")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Chart, "chartforgex chart");
-        if (IsFenceName(normalized, "cfx chart")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Chart, "cfx chart");
-        if (IsFenceName(normalized, "chartforgex timeline")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Timeline, "chartforgex timeline");
-        if (IsFenceName(normalized, "cfx timeline")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Timeline, "cfx timeline");
-        if (IsFenceName(normalized, "mermaid")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Mermaid, "mermaid");
-        return null;
+        var normalized = NormalizeFenceInfo(WithoutAttributes(info));
+        if (IsFenceName(normalized, "mermaid")) return new VisualMarkupFenceDescriptor(VisualMarkupKind.Mermaid, "mermaid", 0);
+        if (!IsChartForgeXFamilyFence(normalized)) return null;
+
+        var tokens = SplitFenceTokens(normalized);
+        if (tokens.Count < 2 || tokens[0] != "chartforgex") {
+            if (result != null) Add(result, fenceLine, MarkupDiagnosticSeverity.Error, "ChartForgeX visual fences must use 'chartforgex <kind> v1'.");
+            return null;
+        }
+
+        var kindToken = tokens[1];
+        if (!TryParseChartForgeXKind(kindToken, out var kind)) {
+            if (result != null) Add(result, fenceLine, MarkupDiagnosticSeverity.Warning, "Unsupported ChartForgeX visual kind '" + kindToken + "'.");
+            return null;
+        }
+
+        if (tokens.Count < 3) {
+            if (result != null) Add(result, fenceLine, MarkupDiagnosticSeverity.Error, "ChartForgeX visual fence '" + "chartforgex " + kindToken + "' must declare schema version v1.");
+            return null;
+        }
+
+        if (tokens[2] != "v1") {
+            if (result != null) Add(result, fenceLine, MarkupDiagnosticSeverity.Error, "Unsupported ChartForgeX markup schema version '" + tokens[2] + "'. Supported version is v1.");
+            return null;
+        }
+
+        if (tokens.Count > 3) {
+            if (result != null) Add(result, fenceLine, MarkupDiagnosticSeverity.Error, "Unexpected token '" + tokens[3] + "' in ChartForgeX visual fence. Use attributes in braces after v1.");
+            return null;
+        }
+
+        return new VisualMarkupFenceDescriptor(kind, "chartforgex " + kindToken, 1);
     }
 
     private static string NormalizeFenceInfo(string info) => info.Trim().ToLowerInvariant();
+
+    private static string WithoutAttributes(string info) {
+        var brace = info.IndexOf('{');
+        return (brace >= 0 ? info.Substring(0, brace) : info).Trim();
+    }
+
+    private static List<string> SplitFenceTokens(string info) {
+        var tokens = new List<string>();
+        foreach (var token in info.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)) tokens.Add(token);
+        return tokens;
+    }
 
     private static bool IsFenceName(string info, string name) {
         if (info == name) return true;
@@ -137,21 +163,32 @@ public static class VisualMarkupScanner {
         return char.IsWhiteSpace(next) || next == '{';
     }
 
-    private static bool IsChartForgeXFamilyFence(string info) {
-        var normalized = NormalizeFenceInfo(info);
-        return normalized == "chartforgex" ||
-            normalized == "cfx" ||
-            normalized.StartsWith("chartforgex ", StringComparison.Ordinal) ||
-            normalized.StartsWith("chartforgex-", StringComparison.Ordinal) ||
-            normalized.StartsWith("cfx ", StringComparison.Ordinal) ||
-            normalized.StartsWith("cfx-", StringComparison.Ordinal);
-    }
+    private static bool IsChartForgeXFamilyFence(string normalizedInfo) => normalizedInfo == "chartforgex" || normalizedInfo.StartsWith("chartforgex ", StringComparison.Ordinal);
 
-    private static string FirstFenceToken(string info) {
-        var trimmed = info.Trim();
-        var brace = trimmed.IndexOf('{');
-        if (brace >= 0) trimmed = trimmed.Substring(0, brace).Trim();
-        return trimmed;
+    private static bool TryParseChartForgeXKind(string value, out VisualMarkupKind kind) {
+        switch (value) {
+            case "topology":
+                kind = VisualMarkupKind.Topology;
+                return true;
+            case "flow":
+                kind = VisualMarkupKind.Flow;
+                return true;
+            case "table":
+                kind = VisualMarkupKind.Table;
+                return true;
+            case "chart":
+                kind = VisualMarkupKind.Chart;
+                return true;
+            case "timeline":
+                kind = VisualMarkupKind.Timeline;
+                return true;
+            case "sequence":
+                kind = VisualMarkupKind.Sequence;
+                return true;
+            default:
+                kind = default;
+                return false;
+        }
     }
 
     private static IReadOnlyDictionary<string, string> ParseAttributes(string info) {
@@ -266,14 +303,17 @@ public static class VisualMarkupScanner {
     }
 
     private readonly struct VisualMarkupFenceDescriptor {
-        public VisualMarkupFenceDescriptor(VisualMarkupKind kind, string name) {
+        public VisualMarkupFenceDescriptor(VisualMarkupKind kind, string name, int schemaVersion) {
             Kind = kind;
             Name = name;
+            SchemaVersion = schemaVersion;
         }
 
         public VisualMarkupKind Kind { get; }
 
         public string Name { get; }
+
+        public int SchemaVersion { get; }
     }
 
     private static class EmptyAttributes {

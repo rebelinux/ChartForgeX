@@ -20,7 +20,7 @@ flowchart LR
   app -.-> cfx{ChartForgeX}
 ```
 
-```chartforgex table
+```chartforgex table v1
 id people
 title ""People""
 | Name | State |
@@ -178,7 +178,7 @@ union API,UI [""Shared UX""] : 18
     private static void MermaidVisualMarkupParserReportsInvalidFenceSizeAttributes() {
         const string source = @"# Visual
 
-```mermaid {#flow width=""0""}
+```mermaid {#flow width=""wide""}
 flowchart LR
   A --> B
 ```";
@@ -610,6 +610,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#flow title=\"Host Flow\" width=640 height=360}",
+                0,
                 "flowchart LR\n  office[OfficeIMO] --> ix[IX]\n  ix --> cfx[ChartForgeX]",
                 12,
                 13,
@@ -624,6 +625,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#pie title=\"Host Pie\"}",
+                0,
                 "pie showData\n\"Passed\" : 10\n\"Failed\" : 1",
                 30,
                 31,
@@ -636,6 +638,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#xy title=\"Host XY\"}",
+                0,
                 "xychart-beta\nx-axis [A, B]\nbar [1, 2]",
                 40,
                 41,
@@ -648,6 +651,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#sankey title=\"Host Sankey\"}",
+                0,
                 "sankey-beta\nA,B,10\nB,C,7",
                 50,
                 51,
@@ -660,6 +664,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#radar title=\"Host Radar\"}",
+                0,
                 "radar-beta\naxis A, B, C\ncurve current{1, 2, 3}",
                 60,
                 61,
@@ -672,6 +677,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#treemap title=\"Host Treemap\"}",
+                0,
                 "treemap-beta\n\"Root\"\n    \"Leaf A\": 10\n    \"Leaf B\": 7",
                 70,
                 71,
@@ -684,6 +690,7 @@ Task A : a, 2026-01-01, 2d
                 VisualMarkupKind.Mermaid,
                 "mermaid",
                 "mermaid {#gantt title=\"Host Gantt\"}",
+                0,
                 "gantt\ndateFormat YYYY-MM-DD\nTask A : a, 2026-01-01, 2d\nTask B : b, after a, 2d",
                 80,
                 81,

@@ -119,6 +119,38 @@ internal static partial class SmokeTests {
         Assert(exampleSyncScript.Contains("'(^|-)line($|-)|trend|sparkline|step-line' = 'Line'", StringComparison.Ordinal), "Example sync script should not infer Line from timeline slugs.");
         Assert(!exampleSyncScript.Contains("'line|trend|sparkline|step-line' = 'Line'", StringComparison.Ordinal), "Example sync script should boundary-scope Line tag inference.");
         Assert(!exampleSyncScript.Contains("regional|region|travel", StringComparison.Ordinal), "Example sync script should not infer Map tags from generic regional wording.");
+
+        var exampleProject = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "ChartForgeX.Examples.csproj"));
+        var exampleProgram = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "Program.cs"));
+        var markupExamples = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "MarkupExamples.cs"));
+        var galleryCatalog = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Examples", "GalleryWriter.Catalog.cs"));
+        var markupProject = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Markup", "ChartForgeX.Markup.csproj"));
+        var markupSchemaPath = Path.Combine(FindRepositoryRoot(), "ChartForgeX.Markup", "Schemas", "chartforgex-markup-v1.schema.json");
+        var vscodePackage = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ChartForgeX.Markup.VSCode", "package.json"));
+        var vscodeSchemaPath = Path.Combine(FindRepositoryRoot(), "ChartForgeX.Markup.VSCode", "schemas", "chartforgex-markup-v1.schema.json");
+        Assert(exampleProject.Contains("ChartForgeX.Markup.csproj", StringComparison.Ordinal), "Examples should reference ChartForgeX.Markup so generated markup examples use the public parser path.");
+        Assert(exampleProgram.Contains("MarkupExamples.Write(output)", StringComparison.Ordinal), "Example app should generate native markup gallery artifacts.");
+        Assert(markupExamples.Contains("new VisualMarkupParser().Parse", StringComparison.Ordinal), "Markup examples should exercise the generic VisualMarkupParser pipeline.");
+        Assert(markupExamples.Contains("chartforgex flow v1", StringComparison.Ordinal) && markupExamples.Contains("chartforgex timeline v1", StringComparison.Ordinal) && markupExamples.Contains("chartforgex sequence v1", StringComparison.Ordinal), "Markup examples should cover native v1 flow, timeline, and sequence fences.");
+        Assert(galleryCatalog.Contains("\"Native Markup\"", StringComparison.Ordinal), "Example catalog should group generated native markup artifacts intentionally.");
+        Assert(markupProject.Contains("chartforgex-markup-v1.schema.json", StringComparison.Ordinal) && markupProject.Contains("PackagePath=\"schemas\\\"", StringComparison.Ordinal), "ChartForgeX.Markup should pack the machine-readable v1 grammar schema.");
+        Assert(vscodePackage.Contains("\"schemas/**\"", StringComparison.Ordinal), "VS Code extension package should include the machine-readable v1 grammar schema.");
+        var markupSchema = File.ReadAllText(markupSchemaPath);
+        var vscodeSchema = File.ReadAllText(vscodeSchemaPath);
+        Assert(string.Equals(markupSchema, vscodeSchema, StringComparison.Ordinal), "Core and VS Code copies of the markup v1 schema should stay identical.");
+        Assert(markupSchema.Contains("chartforgex sequence v1", StringComparison.Ordinal) && markupSchema.Contains("SequenceArtifact", StringComparison.Ordinal), "Markup v1 schema should document native sequence artifacts.");
+        Assert(markupSchema.Contains("interactionBoundary", StringComparison.Ordinal) && markupSchema.Contains("future host or adapter package", StringComparison.Ordinal), "Markup v1 schema should keep rich table interaction as a future adapter boundary.");
+        Assert(markupSchema.Contains("\"multiselect\"", StringComparison.Ordinal) && markupSchema.Contains("\"cellselect\"", StringComparison.Ordinal) && markupSchema.Contains("\"virtualization\"", StringComparison.Ordinal) && !markupSchema.Contains("\"paginate\"", StringComparison.Ordinal), "Markup v1 schema should mirror parser-supported table capabilities.");
+        Assert(markupSchema.Contains("\"totalRows\"", StringComparison.Ordinal) && !markupSchema.Contains("\"column\",\r\n        \"row\"", StringComparison.Ordinal) && !markupSchema.Contains("\"column\",\n        \"row\"", StringComparison.Ordinal), "Markup v1 schema should advertise table commands that the parser actually supports.");
+
+        var markupReference = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "markup-v1-reference.md"));
+        Assert(markupReference.Contains("chartforgex <kind> v1", StringComparison.Ordinal), "Markup v1 reference should document the required native fence shape.");
+        Assert(markupReference.Contains("VisualArtifact", StringComparison.Ordinal) && markupReference.Contains("FlowArtifact", StringComparison.Ordinal) && markupReference.Contains("SequenceArtifact", StringComparison.Ordinal), "Markup v1 reference should document artifact API models.");
+
+        var visualArtifacts = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "visual-artifacts.md"));
+        var todo = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "TODO.md"));
+        Assert(visualArtifacts.Contains("Examples that show the wiring belong in `ChartForgeX.Examples` or docs, not inside library packages.", StringComparison.Ordinal), "Visual artifact docs should keep rich table examples out of library packages.");
+        Assert(todo.Contains("Design a production table-interaction adapter only when there is a real host requirement", StringComparison.Ordinal), "TODO should track rich table interaction as a production adapter or host feature, not a library demo.");
     }
 
     private static void VisualBaselineIsStructuredAndActionable() {

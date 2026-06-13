@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EvotecIT/ChartForgeX/schemas/chartforgex-markup-v1.schema.json",
+  "name": "ChartForgeX Markup v1",
+  "version": 1,
+  "description": "Machine-readable contract for versioned ChartForgeX visual fenced blocks. This file describes the v1 grammar surface for editor tooling; parsers remain the source of runtime validation.",
+  "canonicalFence": "chartforgex <kind> v1",
+  "fenceMarkers": [
+    "```",
+    "~~~"
+  ],
+  "fenceAttributes": {
+    "id": "Optional shorthand id, written as {#id}.",
+    "class": "Optional class shorthand, written as {.class}.",
+    "keyValue": "Optional key/value attributes inside the opening fence, such as title=\"Trend\" width=720 height=420."
+  },
+  "commonCommands": {
+    "id": {
+      "args": [
+        "id"
+      ]
+    },
+    "title": {
+      "args": [
+        "text"
+      ]
+    },
+    "subtitle": {
+      "args": [
+        "text"
+      ]
+    },
+    "size": {
+      "args": [
+        "WIDTHxHEIGHT"
+      ]
+    },
+    "viewport": {
+      "args": [
+        "WIDTHxHEIGHT",
+        "padding?"
+      ]
+    }
+  },
+  "supportedFences": [
+    {
+      "kind": "chart",
+      "fence": "chartforgex chart v1",
+      "artifactKind": "Chart",
+      "model": "Chart",
+      "commands": [
+        "id",
+        "title",
+        "subtitle",
+        "type",
+        "size",
+        "labels",
+        "values",
+        "series",
+        "annotation",
+        "option"
+      ],
+      "sections": [
+        {
+          "name": "options",
+          "columns": [
+            "key",
+            "value"
+          ]
+        }
+      ],
+      "tableMode": "A top-level Markdown table creates one or more chart series. The first column is labels; numeric columns become series."
+    },
+    {
+      "kind": "timeline",
+      "fence": "chartforgex timeline v1",
+      "artifactKind": "Timeline",
+      "model": "Chart",
+      "commands": [
+        "id",
+        "title",
+        "subtitle",
+        "type",
+        "mode",
+        "size",
+        "today",
+        "item",
+        "event",
+        "task",
+        "milestone"
+      ],
+      "sections": [
+        {
+          "name": "items",
+          "columns": [
+            "kind",
+            "label",
+            "start",
+            "end",
+            "progress",
+            "dependsOn",
+            "color"
+          ]
+        }
+      ],
+      "enumValues": {
+        "type": [
+          "timeline",
+          "gantt"
+        ]
+      }
+    },
+    {
+      "kind": "topology",
+      "fence": "chartforgex topology v1",
+      "artifactKind": "Topology",
+      "model": "TopologyChart",
+      "commands": [
+        "id",
+        "title",
+        "subtitle",
+        "viewport",
+        "layout",
+        "group",
+        "node",
+        "edge"
+      ],
+      "sections": [
+        {
+          "name": "groups",
+          "columns": [
+            "id",
+            "label",
+            "status",
+            "icon"
+          ]
+        },
+        {
+          "name": "nodes",
+          "columns": [
+            "id",
+            "label",
+            "kind",
+            "status",
+            "group",
+            "subtitle",
+            "badge",
+            "icon"
+          ]
+        },
+        {
+          "name": "edges",
+          "columns": [
+            "from",
+            "to",
+            "label",
+            "kind",
+            "status",
+            "direction"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "flow",
+      "fence": "chartforgex flow v1",
+      "artifactKind": "Flow",
+      "model": "FlowArtifact",
+      "commands": [
+        "id",
+        "title",
+        "subtitle",
+        "size",
+        "layout",
+        "direction",
+        "lane",
+        "step",
+        "start",
+        "process",
+        "decision",
+        "end",
+        "connector",
+        "connect"
+      ],
+      "sections": [
+        {
+          "name": "lanes",
+          "columns": [
+            "id",
+            "label",
+            "status"
+          ]
+        },
+        {
+          "name": "steps",
+          "columns": [
+            "id",
+            "label",
+            "kind",
+            "lane",
+            "status",
+            "subtitle",
+            "badge"
+          ]
+        },
+        {
+          "name": "connectors",
+          "columns": [
+            "from",
+            "to",
+            "label",
+            "kind",
+            "status"
+          ]
+        }
+      ],
+      "enumValues": {
+        "stepKind": [
+          "start",
+          "process",
+          "decision",
+          "end",
+          "input",
+          "output",
+          "data",
+          "external",
+          "document",
+          "manual",
+          "delay",
+          "event"
+        ],
+        "direction": [
+          "left-to-right",
+          "right-to-left",
+          "top-to-bottom",
+          "bottom-to-top"
+        ]
+      }
+    },
+    {
+      "kind": "sequence",
+      "fence": "chartforgex sequence v1",
+      "artifactKind": "Sequence",
+      "model": "SequenceArtifact",
+      "commands": [
+        "id",
+        "title",
+        "subtitle",
+        "size",
+        "viewport",
+        "participant",
+        "actor",
+        "boundary",
+        "control",
+        "entity",
+        "database",
+        "collections",
+        "queue",
+        "message",
+        "msg",
+        "note",
+        "block"
+      ],
+      "sections": [
+        {
+          "name": "participants",
+          "columns": [
+            "id",
+            "label",
+            "kind"
+          ]
+        },
+        {
+          "name": "messages",
+          "columns": [
+            "from",
+            "to",
+            "text",
+            "style",
+            "activate",
+            "deactivate"
+          ]
+        },
+        {
+          "name": "notes",
+          "columns": [
+            "placement",
+            "participant",
+            "participants",
+            "text",
+            "step"
+          ]
+        },
+        {
+          "name": "blocks",
+          "columns": [
+            "kind",
+            "text",
+            "start",
+            "end"
+          ]
+        }
+      ],
+      "enumValues": {
+        "participantKind": [
+          "participant",
+          "actor",
+          "boundary",
+          "control",
+          "entity",
+          "database",
+          "collections",
+          "queue"
+        ],
+        "messageStyle": [
+          "solid",
+          "dashed"
+        ],
+        "notePlacement": [
+          "leftOf",
+          "rightOf",
+          "over"
+        ],
+        "blockKind": [
+          "loop",
+          "alt",
+          "opt",
+          "par",
+          "critical",
+          "rect",
+          "break"
+        ]
+      }
+    },
+    {
+      "kind": "table",
+      "fence": "chartforgex table v1",
+      "artifactKind": "Table",
+      "model": "TableArtifact",
+      "commands": [
+        "id",
+        "title",
+        "subtitle",
+        "capabilities",
+        "totalRows"
+      ],
+      "sections": [
+        {
+          "name": "columns",
+          "columns": [
+            "id",
+            "label",
+            "type",
+            "alignment"
+          ]
+        },
+        {
+          "name": "rows",
+          "columns": [
+            "column ids declared in columns"
+          ]
+        }
+      ],
+      "enumValues": {
+        "capability": [
+          "sort",
+          "filter",
+          "search",
+          "select",
+          "singleSelection",
+          "multiselect",
+          "multiSelection",
+          "cellselect",
+          "cellSelection",
+          "copy",
+          "export",
+          "virtualization"
+        ]
+      },
+      "interactionBoundary": "Static ChartForgeX output renders a deterministic table preview. Production rich table interaction belongs in a future host or adapter package driven by real application requirements."
+    }
+  ]
+}

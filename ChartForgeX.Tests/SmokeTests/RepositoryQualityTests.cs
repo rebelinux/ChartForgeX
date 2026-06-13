@@ -131,6 +131,7 @@ internal static partial class SmokeTests {
         var extensionSource = File.ReadAllText(Path.Combine(extensionRoot, "src", "extension.ts"));
         Assert(extensionSource.Contains("spawnError", StringComparison.Ordinal) && extensionSource.Contains("fallbacks", StringComparison.Ordinal), "VS Code markup extension should fall back from unusable RID executables to portable CLI assets.");
         Assert(extensionSource.Contains("document.getText()", StringComparison.Ordinal) && extensionSource.Contains("mkdtempSync", StringComparison.Ordinal), "VS Code markup extension should run CLI commands against current buffer text without force-saving user files.");
+        Assert(extensionSource.Contains("mermaid", StringComparison.Ordinal), "VS Code markup extension should let the CLI preview and validate Markdown documents that contain supported Mermaid fences.");
 
         var powerShellPackageScript = File.ReadAllText(Path.Combine(extensionRoot, "scripts", "package-vsix.ps1"));
         Assert(powerShellPackageScript.Contains("ChartForgeX.Markup.Cli", StringComparison.Ordinal), "VS Code markup extension PowerShell packager should publish the ChartForgeX.Markup.Cli.");

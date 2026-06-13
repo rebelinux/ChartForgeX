@@ -14,7 +14,7 @@ The envelope is not a renderer. It is the host-facing contract that lets native 
 
 ## Chart Artifacts
 
-Native ChartForgeX `Chart` models can be wrapped as visual artifacts with `Chart.ToVisualArtifact(...)`. This is the common artifact surface for code-created charts, `chartforgex chart` fences, Mermaid pie charts, and Mermaid timelines when they naturally map to existing ChartForgeX chart renderers.
+Native ChartForgeX `Chart` models can be wrapped as visual artifacts with `Chart.ToVisualArtifact(...)`. This is the common artifact surface for code-created charts, `chartforgex chart v1` fences, `chartforgex timeline v1` fences, Mermaid pie charts, and Mermaid timelines when they naturally map to existing ChartForgeX chart renderers.
 
 ```csharp
 using ChartForgeX.Core;
@@ -35,6 +35,20 @@ var png = chart.ToPng();
 ```
 
 The artifact envelope declares SVG, PNG, and HTML export support and keeps the strongly typed `Chart` in `VisualArtifact.Model`. Hosts should inspect the `Chart` model when they need data-aware behavior rather than scraping rendered markup.
+
+## Flow And Topology Artifacts
+
+Topology and flow are intentionally separate artifact contracts. `chartforgex topology v1` emits `VisualArtifactKind.Topology` with a typed `TopologyChart` model. `chartforgex flow v1` emits `VisualArtifactKind.Flow` with a typed `FlowArtifact` model containing lanes, steps, and connectors. Static flow previews currently project into `TopologyChart` for SVG/PNG rendering, but host APIs should inspect `FlowArtifact` rather than treating process flows as infrastructure topology.
+
+```csharp
+using ChartForgeX.Markup;
+using ChartForgeX.VisualArtifacts;
+
+var result = new VisualMarkupParser().Parse(markdown);
+var flow = result.Artifacts.First(artifact => artifact.Kind == VisualArtifactKind.Flow);
+var model = (FlowArtifact)flow.Model;
+var svg = flow.ToSvg();
+```
 
 ## TableArtifact
 
@@ -66,6 +80,8 @@ var png = table.ToPng();
 ```
 
 The core renderer produces a static preview by converting the table to a `ChartTable` visual block. Static output is suitable for generated reports, email, documentation, export previews, and visual galleries. It does not implement search boxes, sort headers, filters, keyboard selection, clipboard behavior, or virtual scrolling in ChartForgeX core.
+
+Rich table interaction means grid-like behavior around the artifact: search, sort, filter, row or cell selection, keyboard navigation, copy, export, paging, remote data windows, and virtualization. If ChartForgeX grows that surface, it should be a production adapter or consuming-host feature. Examples that show the wiring belong in `ChartForgeX.Examples` or docs, not inside library packages.
 
 ## Capabilities
 
@@ -103,10 +119,10 @@ This keeps data access, authorization, paging, cancellation, incremental loading
 
 ## Markup
 
-Markdown can declare a table artifact through `chartforgex table` or `cfx table` fences:
+Markdown can declare a table artifact through `chartforgex table v1` fences:
 
 ````markdown
-```chartforgex table {#alerts title="Open Alerts"}
+```chartforgex table v1 {#alerts title="Open Alerts"}
 capabilities search sort filter multiselect copy export virtualization
 totalRows 1280
 
@@ -125,11 +141,11 @@ rows:
 ```
 ````
 
-The markup parser should stay a thin authoring layer. Reusable behavior belongs in `ChartForgeX.VisualArtifacts`; richer interaction belongs in adapter packages or consuming native hosts.
+The markup parser should stay a thin authoring layer. Reusable behavior belongs in `ChartForgeX.VisualArtifacts`; richer interaction belongs in production adapter packages or consuming native hosts. Demonstrations of that wiring belong in `ChartForgeX.Examples` or docs, not in the library packages themselves.
 
 ## SequenceArtifact
 
-`SequenceArtifact` is the reusable interaction-diagram model for participants, messages, notes, block spans, and host metadata. It is product-neutral and can be created directly by .NET callers or produced from Mermaid sequence diagrams.
+`SequenceArtifact` is the reusable interaction-diagram model for participants, messages, notes, block spans, and host metadata. It is product-neutral and can be created directly by .NET callers, produced from `chartforgex sequence v1` markup, or produced from Mermaid sequence diagrams.
 
 ```csharp
 using ChartForgeX.VisualArtifacts;

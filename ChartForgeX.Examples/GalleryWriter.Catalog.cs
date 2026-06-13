@@ -149,6 +149,15 @@ public static partial class GalleryWriter {
             "icon-palette",
             "icon-stencil-browser"),
         new(
+            "Native Markup",
+            "ChartForgeX v1 markup fences parsed through the public VisualMarkupParser artifact pipeline.",
+            "markup-chart-release-trend",
+            "markup-flow-approval",
+            "markup-sequence-incident",
+            "markup-timeline-release-plan",
+            "markup-table-release-gates",
+            "markup-topology-service-map"),
+        new(
             "Topology Focus Views",
             "Focused topology variants for regional drilldowns, critical views, domain-controller filters, offenders, compact service maps, and dependency neighborhoods.",
             "site-topology-emea-view",
